@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+
+  --color-brand-50: #eff7f6;
+  --color-brand-100: #dceeeb;
+  --color-brand-200: #b7ddd6;
+  --color-brand-500: #4f9d95;
+  --color-brand-600: #3f8079;
+  --color-brand-700: #336863;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900;
+}
