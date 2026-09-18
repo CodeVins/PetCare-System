@@ -4,10 +4,12 @@ import com.petcare.domain.pet.dto.PetCreateRequest;
 import com.petcare.domain.pet.dto.PetResponse;
 import com.petcare.domain.pet.dto.PetUpdateRequest;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,8 +39,9 @@ public class PetController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<PetResponse>>> getMyPets(@AuthenticationPrincipal CustomUserDetails userDetails) {
-		return ResponseEntity.ok(ApiResponse.success(petService.getMyPets(userDetails.getUser().getId())));
+	public ResponseEntity<ApiResponse<PageResponse<PetResponse>>> getMyPets(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(ApiResponse.success(petService.getMyPets(userDetails.getUser().getId(), pageable)));
 	}
 
 	@GetMapping("/{petId}")

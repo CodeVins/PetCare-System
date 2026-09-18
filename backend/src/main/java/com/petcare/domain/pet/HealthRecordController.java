@@ -4,10 +4,12 @@ import com.petcare.domain.pet.dto.HealthRecordCreateRequest;
 import com.petcare.domain.pet.dto.HealthRecordResponse;
 import com.petcare.domain.pet.dto.HealthRecordUpdateRequest;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,9 +38,11 @@ public class HealthRecordController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<HealthRecordResponse>>> getRecords(
-			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId) {
-		return ResponseEntity.ok(ApiResponse.success(healthRecordService.getRecords(userDetails.getUser().getId(), petId)));
+	public ResponseEntity<ApiResponse<PageResponse<HealthRecordResponse>>> getRecords(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId,
+			@PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(
+				ApiResponse.success(healthRecordService.getRecords(userDetails.getUser().getId(), petId, pageable)));
 	}
 
 	@PatchMapping("/{recordId}")

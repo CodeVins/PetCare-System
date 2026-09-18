@@ -28,7 +28,11 @@ server:
 jwt:
   secret: ${JWT_SECRET}
   expiration: 3600000 # 1 hour (ms)
+  refresh-expiration: 1209600000 # 14 days (ms)
 
 app:
   upload:
     pet-image-dir: uploads/pets
+  admin:
+    bootstrap-email: ${ADMIN_EMAIL:}
+    bootstrap-password: ${ADMIN_PASSWORD:}

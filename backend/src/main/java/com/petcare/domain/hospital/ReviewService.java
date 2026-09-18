@@ -7,11 +7,12 @@ import com.petcare.domain.reservation.ReservationRepository;
 import com.petcare.domain.reservation.ReservationStatus;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,10 +50,9 @@ public class ReviewService {
 		return ReviewResponse.from(reviewRepository.save(review));
 	}
 
-	public List<ReviewResponse> getReviews(Long hospitalId) {
-		return reviewRepository.findAllByHospitalIdOrderByCreatedAtDesc(hospitalId).stream()
-				.map(ReviewResponse::from)
-				.toList();
+	public PageResponse<ReviewResponse> getReviews(Long hospitalId, Pageable pageable) {
+		return PageResponse.from(
+				reviewRepository.findAllByHospitalIdOrderByCreatedAtDesc(hospitalId, pageable).map(ReviewResponse::from));
 	}
 
 	@Transactional

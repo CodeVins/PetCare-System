@@ -4,10 +4,12 @@ import com.petcare.domain.hospital.dto.ReviewCreateRequest;
 import com.petcare.domain.hospital.dto.ReviewResponse;
 import com.petcare.domain.hospital.dto.ReviewUpdateRequest;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,8 +38,9 @@ public class ReviewController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<ReviewResponse>>> getReviews(@PathVariable Long hospitalId) {
-		return ResponseEntity.ok(ApiResponse.success(reviewService.getReviews(hospitalId)));
+	public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getReviews(
+			@PathVariable Long hospitalId, @PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(ApiResponse.success(reviewService.getReviews(hospitalId, pageable)));
 	}
 
 	@PatchMapping("/{reviewId}")

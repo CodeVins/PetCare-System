@@ -7,9 +7,10 @@ import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.file.FileStorageService;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,10 +38,8 @@ public class PetService {
 		return PetResponse.from(petRepository.save(pet));
 	}
 
-	public List<PetResponse> getMyPets(Long userId) {
-		return petRepository.findAllByUserId(userId).stream()
-				.map(PetResponse::from)
-				.toList();
+	public PageResponse<PetResponse> getMyPets(Long userId, Pageable pageable) {
+		return PageResponse.from(petRepository.findAllByUserId(userId, pageable).map(PetResponse::from));
 	}
 
 	public PetResponse get(Long userId, Long petId) {

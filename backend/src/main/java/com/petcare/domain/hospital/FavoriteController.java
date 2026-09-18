@@ -2,9 +2,11 @@ package com.petcare.domain.hospital;
 
 import com.petcare.domain.hospital.dto.HospitalResponse;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,8 +38,9 @@ public class FavoriteController {
 	}
 
 	@GetMapping("/api/favorites")
-	public ResponseEntity<ApiResponse<List<HospitalResponse>>> getMyFavorites(
-			@AuthenticationPrincipal CustomUserDetails userDetails) {
-		return ResponseEntity.ok(ApiResponse.success(favoriteService.getMyFavorites(userDetails.getUser().getId())));
+	public ResponseEntity<ApiResponse<PageResponse<HospitalResponse>>> getMyFavorites(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(
+				ApiResponse.success(favoriteService.getMyFavorites(userDetails.getUser().getId(), pageable)));
 	}
 }

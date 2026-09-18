@@ -3,10 +3,11 @@ package com.petcare.domain.hospital;
 import com.petcare.domain.hospital.dto.HospitalResponse;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.NotFoundException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +38,8 @@ public class FavoriteService {
 		favoriteRepository.delete(favorite);
 	}
 
-	public List<HospitalResponse> getMyFavorites(Long userId) {
-		return favoriteRepository.findAllByUserIdWithHospital(userId).stream()
-				.map(favorite -> HospitalResponse.from(favorite.getHospital()))
-				.toList();
+	public PageResponse<HospitalResponse> getMyFavorites(Long userId, Pageable pageable) {
+		return PageResponse.from(favoriteRepository.findAllByUserId(userId, pageable)
+				.map(favorite -> HospitalResponse.from(favorite.getHospital())));
 	}
 }

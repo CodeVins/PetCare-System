@@ -3,10 +3,11 @@ package com.petcare.domain.pet;
 import com.petcare.domain.pet.dto.HealthRecordCreateRequest;
 import com.petcare.domain.pet.dto.HealthRecordResponse;
 import com.petcare.domain.pet.dto.HealthRecordUpdateRequest;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,11 +34,9 @@ public class HealthRecordService {
 		return HealthRecordResponse.from(healthRecordRepository.save(record));
 	}
 
-	public List<HealthRecordResponse> getRecords(Long userId, Long petId) {
+	public PageResponse<HealthRecordResponse> getRecords(Long userId, Long petId, Pageable pageable) {
 		getOwnedPet(userId, petId);
-		return healthRecordRepository.findAllByPetId(petId).stream()
-				.map(HealthRecordResponse::from)
-				.toList();
+		return PageResponse.from(healthRecordRepository.findAllByPetId(petId, pageable).map(HealthRecordResponse::from));
 	}
 
 	@Transactional

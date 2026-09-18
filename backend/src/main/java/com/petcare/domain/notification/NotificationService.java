@@ -3,20 +3,29 @@ package com.petcare.domain.notification;
 import com.petcare.domain.notification.dto.NotificationResponse;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
-import java.util.List;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NotificationService {
 
+	private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+	private static final long SSE_TIMEOUT = 30 * 60 * 1000L;
+
 	private final NotificationRepository notificationRepository;
 	private final UserRepository userRepository;
+	private final SseEmitterRepository sseEmitterRepository;
 
 	@Transactional
 	public void notify(Long userId, NotificationType type, String content) {
@@ -27,12 +36,40 @@ public class NotificationService {
 				.content(content)
 				.build();
 		notificationRepository.save(notification);
+
+		NotificationResponse response = NotificationResponse.from(notification);
+		for (SseEmitter emitter : sseEmitterRepository.findAllByUserId(userId)) {
+			try {
+				emitter.send(SseEmitter.event().name("notification").data(response));
+			} catch (IOException e) {
+				emitter.complete();
+				sseEmitterRepository.remove(userId, emitter);
+			}
+		}
 	}
 
-	public List<NotificationResponse> getMyNotifications(Long userId) {
-		return notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
-				.map(NotificationResponse::from)
-				.toList();
+	public SseEmitter subscribe(Long userId) {
+		SseEmitter emitter = sseEmitterRepository.save(userId, new SseEmitter(SSE_TIMEOUT));
+		emitter.onCompletion(() -> sseEmitterRepository.remove(userId, emitter));
+		emitter.onTimeout(() -> sseEmitterRepository.remove(userId, emitter));
+		emitter.onError(e -> sseEmitterRepository.remove(userId, emitter));
+
+		try {
+			emitter.send(SseEmitter.event().name("connect").data("connected"));
+		} catch (IOException e) {
+			log.warn("SSE 초기 연결 전송 실패, userId={}", userId, e);
+			sseEmitterRepository.remove(userId, emitter);
+		}
+		return emitter;
+	}
+
+	public PageResponse<NotificationResponse> getMyNotifications(Long userId, Pageable pageable) {
+		return PageResponse.from(
+				notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable).map(NotificationResponse::from));
+	}
+
+	public long getUnreadCount(Long userId) {
+		return notificationRepository.countByUserIdAndReadFalse(userId);
 	}
 
 	@Transactional
