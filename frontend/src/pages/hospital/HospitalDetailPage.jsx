@@ -1,7 +1,14 @@
-import { CalendarCheck, MapPin } from '@phosphor-icons/react'
+import { CalendarCheck, ChatCircleDots, Heart, MapPin, Star } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getHospital, getSlots } from '../../api/hospitalApi'
+import { getOrCreateChatRoom } from '../../api/chatApi'
+import {
+  addFavorite,
+  getFavorites,
+  getHospital,
+  getSlots,
+  removeFavorite,
+} from '../../api/hospitalApi'
 import { getMyPets } from '../../api/petApi'
 import { createReservation } from '../../api/reservationApi'
 import Button from '../../components/common/Button'
@@ -35,21 +42,60 @@ export default function HospitalDetailPage() {
   const [reserving, setReserving] = useState(false)
   const [reserveError, setReserveError] = useState('')
 
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [favoriteSaving, setFavoriteSaving] = useState(false)
+  const [chatError, setChatError] = useState('')
+
   useEffect(() => {
-    Promise.all([getHospital(hospitalId), getSlots(hospitalId, 'AVAILABLE'), getMyPets()])
-      .then(([hospitalRes, slotsRes, petsRes]) => {
+    Promise.all([
+      getHospital(hospitalId),
+      getSlots(hospitalId, 'AVAILABLE'),
+      getMyPets(),
+      getFavorites(),
+    ])
+      .then(([hospitalRes, slotsRes, petsRes, favoritesRes]) => {
         setHospital(hospitalRes.data.data)
-        setSlots(slotsRes.data.data)
-        setPets(petsRes.data.data)
-        if (petsRes.data.data.length > 0) {
-          setSelectedPetId(String(petsRes.data.data[0].id))
+        setSlots(slotsRes.data.data.content)
+        setPets(petsRes.data.data.content)
+        if (petsRes.data.data.content.length > 0) {
+          setSelectedPetId(String(petsRes.data.data.content[0].id))
         }
+        setIsFavorite(
+          favoritesRes.data.data.content.some((h) => h.id === Number(hospitalId)),
+        )
       })
       .catch((err) =>
         setError(err.response?.data?.message || '병원 정보를 불러오지 못했습니다.'),
       )
       .finally(() => setLoading(false))
   }, [hospitalId])
+
+  const toggleFavorite = async () => {
+    const next = !isFavorite
+    setIsFavorite(next)
+    setFavoriteSaving(true)
+    try {
+      if (next) {
+        await addFavorite(hospitalId)
+      } else {
+        await removeFavorite(hospitalId)
+      }
+    } catch {
+      setIsFavorite(!next)
+    } finally {
+      setFavoriteSaving(false)
+    }
+  }
+
+  const handleChatClick = async () => {
+    setChatError('')
+    try {
+      const { data } = await getOrCreateChatRoom(Number(hospitalId))
+      navigate(`/chats/${data.data.id}`)
+    } catch (err) {
+      setChatError(err.response?.data?.message || '채팅을 시작하지 못했습니다.')
+    }
+  }
 
   const slotsByDate = useMemo(() => {
     const groups = new Map()
@@ -89,13 +135,49 @@ export default function HospitalDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-stone-900">{hospital.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl font-semibold text-stone-900">{hospital.name}</h1>
+          <button
+            type="button"
+            onClick={toggleFavorite}
+            disabled={favoriteSaving}
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-stone-300 transition-colors hover:bg-stone-100 hover:text-red-500 disabled:cursor-not-allowed"
+          >
+            <Heart
+              size={20}
+              weight={isFavorite ? 'fill' : 'regular'}
+              className={isFavorite ? 'text-red-500' : ''}
+            />
+          </button>
+        </div>
         {hospital.address && (
           <p className="mt-1 flex items-center gap-1 text-sm text-stone-500">
             <MapPin size={14} />
             {hospital.address}
           </p>
         )}
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-stone-500">
+          {hospital.averageRating != null && (
+            <span className="flex items-center gap-1 font-medium text-amber-600">
+              <Star weight="fill" size={14} />
+              {hospital.averageRating.toFixed(1)}
+              <span className="text-stone-400">({hospital.reviewCount})</span>
+            </span>
+          )}
+          {hospital.specialty && <span>{hospital.specialty}</span>}
+          {hospital.openingHours && <span>{hospital.openingHours}</span>}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleChatClick}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-brand-200 hover:text-brand-700"
+        >
+          <ChatCircleDots size={16} />
+          병원에 문의하기
+        </button>
+        {chatError && <p className="mt-1 text-sm text-red-600">{chatError}</p>}
       </div>
 
       {pets.length === 0 && (

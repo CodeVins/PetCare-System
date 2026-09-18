@@ -8,6 +8,7 @@ import {
 } from '../../api/healthRecordApi'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
+import WeightChart from './WeightChart'
 
 const TYPE_LABEL = {
   WEIGHT: '체중',
@@ -21,7 +22,13 @@ const TYPE_ICON = {
   TREATMENT: Stethoscope,
 }
 
-const EMPTY_FORM = { type: 'WEIGHT', recordedAt: '', content: '', weight: '' }
+const EMPTY_FORM = {
+  type: 'WEIGHT',
+  recordedAt: '',
+  content: '',
+  weight: '',
+  nextDueDate: '',
+}
 
 function sortByDateDesc(list) {
   return [...list].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
@@ -39,7 +46,7 @@ export default function HealthRecordSection({ petId }) {
 
   useEffect(() => {
     getHealthRecords(petId)
-      .then(({ data }) => setRecords(sortByDateDesc(data.data)))
+      .then(({ data }) => setRecords(sortByDateDesc(data.data.content)))
       .catch((err) =>
         setError(err.response?.data?.message || '건강기록을 불러오지 못했습니다.'),
       )
@@ -53,6 +60,7 @@ export default function HealthRecordSection({ petId }) {
       recordedAt: record.recordedAt,
       content: record.content,
       weight: record.weight ?? '',
+      nextDueDate: record.nextDueDate ?? '',
     })
     setFormError('')
   }
@@ -72,6 +80,7 @@ export default function HealthRecordSection({ petId }) {
       recordedAt: form.recordedAt,
       content: form.content,
       weight: form.weight === '' ? null : Number(form.weight),
+      nextDueDate: form.nextDueDate || null,
     }
     try {
       if (editingId) {
@@ -102,9 +111,16 @@ export default function HealthRecordSection({ petId }) {
     }
   }
 
+  const weightRecords = records
+    .filter((record) => record.type === 'WEIGHT' && record.weight != null)
+    .slice()
+    .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-stone-700">건강기록</h2>
+
+      <WeightChart records={weightRecords} />
 
       <form
         onSubmit={handleSubmit}
@@ -150,6 +166,15 @@ export default function HealthRecordSection({ petId }) {
           value={form.weight}
           onChange={(event) => setForm((f) => ({ ...f, weight: event.target.value }))}
         />
+
+        {form.type === 'VACCINATION' && (
+          <TextField
+            label="다음 접종 예정일 (선택)"
+            type="date"
+            value={form.nextDueDate}
+            onChange={(event) => setForm((f) => ({ ...f, nextDueDate: event.target.value }))}
+          />
+        )}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
@@ -205,6 +230,11 @@ export default function HealthRecordSection({ petId }) {
                   <p className="mt-0.5 text-sm text-stone-600">{record.content}</p>
                   {record.weight != null && (
                     <p className="mt-0.5 text-sm text-stone-500">{record.weight}kg</p>
+                  )}
+                  {record.nextDueDate && (
+                    <p className="mt-0.5 text-sm text-stone-500">
+                      다음 접종 예정일: {record.nextDueDate}
+                    </p>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">

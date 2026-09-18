@@ -22,7 +22,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const { data } = await loginRequest({ email, password })
-      setAuthenticated(data.data.accessToken)
+      setAuthenticated(data.data.accessToken, data.data.refreshToken)
       navigate('/', { replace: true })
     } catch (err) {
       setError(err.response?.data?.message || '로그인에 실패했습니다.')

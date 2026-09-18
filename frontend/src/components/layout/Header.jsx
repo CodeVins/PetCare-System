@@ -2,15 +2,20 @@ import {
   Bell,
   Buildings,
   CalendarCheck,
+  ChatCircleDots,
+  Gauge,
   House,
   PawPrint,
+  ShieldCheck,
   SignOut,
   UserCircle,
 } from '@phosphor-icons/react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { logout as logoutRequest } from '../../api/authApi'
 import { useAuth } from '../../hooks/useAuth'
+import { useNotifications } from '../../hooks/useNotifications'
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { to: '/', label: '홈', icon: House },
   { to: '/pets', label: '반려동물', icon: PawPrint },
   { to: '/hospitals', label: '병원', icon: Buildings },
@@ -18,11 +23,27 @@ const NAV_ITEMS = [
   { to: '/mypage', label: '마이페이지', icon: UserCircle },
 ]
 
+const OWNER_NAV_ITEM = { to: '/dashboard', label: '대시보드', icon: Gauge }
+const ADMIN_NAV_ITEM = { to: '/admin', label: '관리자', icon: ShieldCheck }
+const OWNER_ROLES = ['HOSPITAL_OWNER', 'ADMIN']
+
 export default function Header() {
-  const { logout } = useAuth()
+  const { logout, role } = useAuth()
+  const { unreadCount } = useNotifications()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
+  const navItems = [
+    ...BASE_NAV_ITEMS,
+    ...(OWNER_ROLES.includes(role) ? [OWNER_NAV_ITEM] : []),
+    ...(role === 'ADMIN' ? [ADMIN_NAV_ITEM] : []),
+  ]
+
+  const handleLogout = async () => {
+    try {
+      await logoutRequest()
+    } catch {
+      // refreshToken may already be invalid; clear local session regardless
+    }
     logout()
     navigate('/login', { replace: true })
   }
@@ -41,7 +62,7 @@ export default function Header() {
           </NavLink>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+            {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -62,7 +83,7 @@ export default function Header() {
 
           <div className="flex items-center gap-1">
             <NavLink
-              to="/notifications"
+              to="/chats"
               className={({ isActive }) =>
                 `flex size-10 items-center justify-center rounded-full transition-colors ${
                   isActive
@@ -70,9 +91,28 @@ export default function Header() {
                     : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
                 }`
               }
-              aria-label="알림"
+              aria-label="채팅"
+            >
+              <ChatCircleDots size={20} />
+            </NavLink>
+
+            <NavLink
+              to="/notifications"
+              className={({ isActive }) =>
+                `relative flex size-10 items-center justify-center rounded-full transition-colors ${
+                  isActive
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
+                }`
+              }
+              aria-label={unreadCount > 0 ? `알림 (안읽음 ${unreadCount}개)` : '알림'}
             >
               <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </NavLink>
 
             <button
@@ -89,7 +129,7 @@ export default function Header() {
 
       {/* Mobile bottom tab bar (<= 767px) */}
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-stone-200 bg-white/95 backdrop-blur md:hidden">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

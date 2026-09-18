@@ -1,7 +1,15 @@
-import { Trash } from '@phosphor-icons/react'
+import { PawPrint, Trash } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { createPet, deletePet, getPet, updatePet } from '../../api/petApi'
+import {
+  createPet,
+  deletePet,
+  deletePetImage,
+  getPet,
+  updatePet,
+  uploadPetImage,
+} from '../../api/petApi'
+import { BASE_URL } from '../../api/axiosInstance'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
 import HealthRecordSection from './HealthRecordSection'
@@ -14,9 +22,13 @@ export default function PetFormPage() {
   const [name, setName] = useState('')
   const [breed, setBreed] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const [imageSaving, setImageSaving] = useState(false)
+  const [imageError, setImageError] = useState('')
 
   useEffect(() => {
     if (!isEdit) return
@@ -26,12 +38,43 @@ export default function PetFormPage() {
         setName(pet.name)
         setBreed(pet.breed || '')
         setBirthDate(pet.birthDate || '')
+        setImageUrl(pet.imageUrl || '')
       })
       .catch((err) =>
         setError(err.response?.data?.message || '반려동물 정보를 불러오지 못했습니다.'),
       )
       .finally(() => setLoading(false))
   }, [petId, isEdit])
+
+  const handleImageChange = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setImageError('')
+    setImageSaving(true)
+    try {
+      const { data } = await uploadPetImage(petId, file)
+      setImageUrl(data.data.imageUrl || '')
+    } catch (err) {
+      setImageError(err.response?.data?.message || '이미지 업로드에 실패했습니다.')
+    } finally {
+      setImageSaving(false)
+    }
+  }
+
+  const handleImageDelete = async () => {
+    if (!window.confirm('사진을 삭제할까요?')) return
+    setImageError('')
+    setImageSaving(true)
+    try {
+      await deletePetImage(petId)
+      setImageUrl('')
+    } catch (err) {
+      setImageError(err.response?.data?.message || '삭제에 실패했습니다.')
+    } finally {
+      setImageSaving(false)
+    }
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -72,6 +115,43 @@ export default function PetFormPage() {
       <h1 className="mb-6 text-xl font-semibold text-stone-900">
         {isEdit ? '반려동물 정보 수정' : '반려동물 등록'}
       </h1>
+
+      {isEdit && (
+        <div className="mb-6 flex flex-col items-center gap-2">
+          <label className="group relative flex size-24 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-stone-100 ring-1 ring-stone-200">
+            {imageUrl ? (
+              <img
+                src={`${BASE_URL}${imageUrl}`}
+                alt=""
+                className="size-full object-cover"
+              />
+            ) : (
+              <PawPrint size={32} className="text-stone-300" />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+              {imageSaving ? '처리 중...' : '사진 변경'}
+            </span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              disabled={imageSaving}
+              onChange={handleImageChange}
+            />
+          </label>
+          {imageError && <p className="text-xs text-red-600">{imageError}</p>}
+          {imageUrl && (
+            <button
+              type="button"
+              onClick={handleImageDelete}
+              disabled={imageSaving}
+              className="text-xs font-medium text-stone-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              사진 삭제
+            </button>
+          )}
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}

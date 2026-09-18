@@ -7,14 +7,18 @@ import { cancelReservation, getMyReservations } from '../../api/reservationApi'
 const STATUS_LABEL = {
   PENDING: '대기중',
   CONFIRMED: '확정',
+  REJECTED: '거절됨',
   CANCELLED: '취소됨',
 }
 
 const STATUS_STYLE = {
   PENDING: 'bg-amber-50 text-amber-700',
   CONFIRMED: 'bg-brand-50 text-brand-700',
+  REJECTED: 'bg-red-50 text-red-700',
   CANCELLED: 'bg-stone-100 text-stone-500',
 }
+
+const CANCELLABLE_STATUSES = ['PENDING', 'CONFIRMED']
 
 function formatSlot(slot) {
   const format = (value, options) => new Date(value).toLocaleString('ko-KR', options)
@@ -41,13 +45,15 @@ export default function ReservationListPage() {
         getHospitals(),
       ])
 
-      setPetMap(Object.fromEntries(petsRes.data.data.map((pet) => [pet.id, pet.name])))
+      setPetMap(
+        Object.fromEntries(petsRes.data.data.content.map((pet) => [pet.id, pet.name])),
+      )
 
       // ponytail: N+1 slot lookup across hospitals, fine for a handful of hospitals.
       // If hospital count grows, add hospital/time fields to ReservationResponse instead.
       const slotsByHospital = await Promise.all(
         hospitalsRes.data.data.map((hospital) =>
-          getSlots(hospital.id).then(({ data }) => ({ hospital, slots: data.data })),
+          getSlots(hospital.id).then(({ data }) => ({ hospital, slots: data.data.content })),
         ),
       )
 
@@ -61,7 +67,7 @@ export default function ReservationListPage() {
       }
       setSlotMap(nextSlotMap)
       setHospitalNameBySlot(nextHospitalNameBySlot)
-      setReservations(reservationsRes.data.data)
+      setReservations(reservationsRes.data.data.content)
     } catch (err) {
       setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.')
     } finally {
@@ -140,7 +146,7 @@ export default function ReservationListPage() {
                   </span>
                 </div>
 
-                {reservation.status !== 'CANCELLED' && (
+                {CANCELLABLE_STATUSES.includes(reservation.status) && (
                   <button
                     type="button"
                     onClick={() => handleCancel(reservation.id)}

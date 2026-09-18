@@ -1,6 +1,7 @@
 import { PawPrint, Plus } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BASE_URL } from '../../api/axiosInstance'
 import { getMyPets } from '../../api/petApi'
 
 function calculateAge(birthDate) {
@@ -22,7 +23,7 @@ export default function PetListPage() {
 
   useEffect(() => {
     getMyPets()
-      .then(({ data }) => setPets(data.data))
+      .then(({ data }) => setPets(data.data.content))
       .catch((err) =>
         setError(err.response?.data?.message || '반려동물 목록을 불러오지 못했습니다.'),
       )
@@ -71,8 +72,16 @@ export default function PetListPage() {
                 to={`/pets/${pet.id}`}
                 className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-colors hover:border-brand-200"
               >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-50">
-                  <PawPrint weight="fill" size={22} className="text-brand-600" />
+                <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-50">
+                  {pet.imageUrl ? (
+                    <img
+                      src={`${BASE_URL}${pet.imageUrl}`}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <PawPrint weight="fill" size={22} className="text-brand-600" />
+                  )}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate font-medium text-stone-900">{pet.name}</p>

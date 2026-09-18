@@ -1,10 +1,17 @@
-import { Bell, CalendarCheck, XCircle } from '@phosphor-icons/react'
+import { Bell, CalendarCheck, Clock, Syringe, XCircle } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi'
+import { useNotifications } from '../../hooks/useNotifications'
 
+// FAVORITE_HOSPITAL_NEW_SLOT / CHAT_MESSAGE_RECEIVED fall back to the default
+// Bell icon below — those features aren't built yet.
 const TYPE_ICON = {
+  RESERVATION_REQUESTED: Clock,
   RESERVATION_CONFIRMED: CalendarCheck,
+  RESERVATION_REJECTED: XCircle,
   RESERVATION_CANCELLED: XCircle,
+  RESERVATION_REMINDER: Clock,
+  VACCINATION_DUE_SOON: Syringe,
 }
 
 function formatDateTime(value) {
@@ -20,10 +27,11 @@ export default function NotificationListPage() {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { decrementUnread, refreshUnreadCount } = useNotifications()
 
   useEffect(() => {
     getNotifications()
-      .then(({ data }) => setNotifications(data.data))
+      .then(({ data }) => setNotifications(data.data.content))
       .catch((err) => setError(err.response?.data?.message || '알림을 불러오지 못했습니다.'))
       .finally(() => setLoading(false))
   }, [])
@@ -33,12 +41,14 @@ export default function NotificationListPage() {
     setNotifications((prev) =>
       prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
     )
+    decrementUnread()
     try {
       await markNotificationAsRead(notification.id)
     } catch {
       setNotifications((prev) =>
         prev.map((item) => (item.id === notification.id ? { ...item, read: false } : item)),
       )
+      refreshUnreadCount()
     }
   }
 

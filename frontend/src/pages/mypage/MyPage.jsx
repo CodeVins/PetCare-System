@@ -1,5 +1,7 @@
+import { Heart } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { logout as logoutRequest } from '../../api/authApi'
 import { changePassword, getMe, updateEmail } from '../../api/userApi'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
@@ -70,7 +72,12 @@ export default function MyPage() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutRequest()
+    } catch {
+      // refreshToken may already be invalid; clear local session regardless
+    }
     logout()
     navigate('/login', { replace: true })
   }
@@ -84,6 +91,16 @@ export default function MyPage() {
       <h1 className="text-xl font-semibold text-stone-900">마이페이지</h1>
 
       {loadError && <p className="text-sm text-red-600">{loadError}</p>}
+
+      <Link
+        to="/favorites"
+        className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-colors hover:border-brand-200"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50">
+          <Heart weight="fill" size={18} className="text-brand-600" />
+        </span>
+        <span className="text-sm font-medium text-stone-900">즐겨찾기한 병원 보기</span>
+      </Link>
 
       <form
         onSubmit={handleEmailSubmit}

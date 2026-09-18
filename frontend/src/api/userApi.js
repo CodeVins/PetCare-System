@@ -14,3 +14,7 @@ export function changePassword({ currentPassword, newPassword }) {
     newPassword,
   })
 }
+
+export function getUpcomingVaccinations() {
+  return axiosInstance.get('/api/users/me/upcoming-vaccinations')
+}
