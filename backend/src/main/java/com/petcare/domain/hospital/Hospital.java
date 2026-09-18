@@ -39,19 +39,32 @@ public class Hospital extends BaseEntity {
 
 	private String specialty;
 
+	@Column(name = "is_24_hours")
+	private Boolean is24Hours;
+
+	@Column(name = "has_parking")
+	private Boolean hasParking;
+
+	@Column(name = "avg_treatment_price")
+	private Integer avgTreatmentPrice;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "owner_id")
 	private User owner;
 
 	@Builder
 	private Hospital(
-			String name, String address, Double latitude, Double longitude, String openingHours, String specialty) {
+			String name, String address, Double latitude, Double longitude, String openingHours, String specialty,
+			Boolean is24Hours, Boolean hasParking, Integer avgTreatmentPrice) {
 		this.name = name;
 		this.address = address;
 		this.latitude = latitude;
 		this.longitude = longitude;
 		this.openingHours = openingHours;
 		this.specialty = specialty;
+		this.is24Hours = is24Hours;
+		this.hasParking = hasParking;
+		this.avgTreatmentPrice = avgTreatmentPrice;
 	}
 
 	public boolean isManagedBy(User user) {
@@ -62,12 +75,17 @@ public class Hospital extends BaseEntity {
 		this.owner = owner;
 	}
 
-	public void update(String name, String address, Double latitude, Double longitude, String openingHours, String specialty) {
+	public void update(
+			String name, String address, Double latitude, Double longitude, String openingHours, String specialty,
+			Boolean is24Hours, Boolean hasParking, Integer avgTreatmentPrice) {
 		this.name = name;
 		this.address = address;
 		this.latitude = latitude;
 		this.longitude = longitude;
 		this.openingHours = openingHours;
 		this.specialty = specialty;
+		this.is24Hours = is24Hours;
+		this.hasParking = hasParking;
+		this.avgTreatmentPrice = avgTreatmentPrice;
 	}
 }

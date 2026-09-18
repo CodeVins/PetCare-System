@@ -8,6 +8,9 @@ public record HospitalCreateRequest(
 		Double latitude,
 		Double longitude,
 		String openingHours,
-		String specialty
+		String specialty,
+		Boolean is24Hours,
+		Boolean hasParking,
+		Integer avgTreatmentPrice
 ) {
 }

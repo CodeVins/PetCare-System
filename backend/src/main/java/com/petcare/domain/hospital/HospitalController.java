@@ -42,8 +42,11 @@ public class HospitalController {
 			@RequestParam(required = false, defaultValue = "NAME_ASC") HospitalSortType sort,
 			@RequestParam(required = false) Double lat,
 			@RequestParam(required = false) Double lng,
-			@RequestParam(required = false) Double radiusKm) {
-		return ResponseEntity.ok(ApiResponse.success(hospitalService.search(keyword, minRating, sort, lat, lng, radiusKm)));
+			@RequestParam(required = false) Double radiusKm,
+			@RequestParam(required = false) Boolean is24Hours,
+			@RequestParam(required = false) Boolean hasParking) {
+		return ResponseEntity.ok(ApiResponse.success(
+				hospitalService.search(keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking)));
 	}
 
 	@GetMapping("/{hospitalId}")

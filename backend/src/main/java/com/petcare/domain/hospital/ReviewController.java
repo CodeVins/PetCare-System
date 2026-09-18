@@ -1,6 +1,7 @@
 package com.petcare.domain.hospital;
 
 import com.petcare.domain.hospital.dto.ReviewCreateRequest;
+import com.petcare.domain.hospital.dto.ReviewReportRequest;
 import com.petcare.domain.hospital.dto.ReviewResponse;
 import com.petcare.domain.hospital.dto.ReviewUpdateRequest;
 import com.petcare.global.common.ApiResponse;
@@ -56,6 +57,14 @@ public class ReviewController {
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
 			@PathVariable Long reviewId) {
 		reviewService.delete(userDetails.getUser().getId(), hospitalId, reviewId);
+		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@PostMapping("/{reviewId}/report")
+	public ResponseEntity<ApiResponse<Void>> report(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
+			@PathVariable Long reviewId, @Valid @RequestBody ReviewReportRequest request) {
+		reviewService.report(userDetails.getUser().getId(), hospitalId, reviewId, request);
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 }

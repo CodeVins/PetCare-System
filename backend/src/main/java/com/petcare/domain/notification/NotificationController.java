@@ -1,9 +1,13 @@
 package com.petcare.domain.notification;
 
+import com.petcare.domain.notification.dto.NotificationPreferenceResponse;
+import com.petcare.domain.notification.dto.NotificationPreferenceUpdateRequest;
 import com.petcare.domain.notification.dto.NotificationResponse;
 import com.petcare.global.common.ApiResponse;
 import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
+import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -13,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -45,6 +50,20 @@ public class NotificationController {
 	public ResponseEntity<ApiResponse<Void>> markAsRead(
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long notificationId) {
 		notificationService.markAsRead(userDetails.getUser().getId(), notificationId);
+		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@GetMapping("/preferences")
+	public ResponseEntity<ApiResponse<List<NotificationPreferenceResponse>>> getPreferences(
+			@AuthenticationPrincipal CustomUserDetails userDetails) {
+		return ResponseEntity.ok(ApiResponse.success(notificationService.getPreferences(userDetails.getUser().getId())));
+	}
+
+	@PatchMapping("/preferences")
+	public ResponseEntity<ApiResponse<Void>> updatePreference(
+			@AuthenticationPrincipal CustomUserDetails userDetails,
+			@Valid @RequestBody NotificationPreferenceUpdateRequest request) {
+		notificationService.updatePreference(userDetails.getUser().getId(), request.category(), request.enabled());
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 }

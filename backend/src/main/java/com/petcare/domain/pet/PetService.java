@@ -30,6 +30,7 @@ public class PetService {
 		Pet pet = Pet.builder()
 				.user(user)
 				.name(request.name())
+				.species(request.species())
 				.breed(request.breed())
 				.birthDate(request.birthDate())
 				.size(request.size())
@@ -49,7 +50,7 @@ public class PetService {
 	@Transactional
 	public PetResponse update(Long userId, Long petId, PetUpdateRequest request) {
 		Pet pet = getOwnedPet(userId, petId);
-		pet.update(request.name(), request.breed(), request.birthDate(), request.size());
+		pet.update(request.name(), request.species(), request.breed(), request.birthDate(), request.size());
 		return PetResponse.from(pet);
 	}
 
@@ -77,6 +78,10 @@ public class PetService {
 		Pet pet = getOwnedPet(userId, petId);
 		fileStorageService.deletePetImage(pet.getImageUrl());
 		pet.changeImageUrl(null);
+	}
+
+	public void verifyOwnership(Long userId, Long petId) {
+		getOwnedPet(userId, petId);
 	}
 
 	private Pet getOwnedPet(Long userId, Long petId) {

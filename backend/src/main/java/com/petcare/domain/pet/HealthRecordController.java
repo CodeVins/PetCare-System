@@ -2,6 +2,7 @@ package com.petcare.domain.pet;
 
 import com.petcare.domain.pet.dto.HealthRecordCreateRequest;
 import com.petcare.domain.pet.dto.HealthRecordResponse;
+import com.petcare.domain.pet.dto.HealthRecordSummaryResponse;
 import com.petcare.domain.pet.dto.HealthRecordUpdateRequest;
 import com.petcare.global.common.ApiResponse;
 import com.petcare.global.common.PageResponse;
@@ -43,6 +44,12 @@ public class HealthRecordController {
 			@PageableDefault(size = 20) Pageable pageable) {
 		return ResponseEntity.ok(
 				ApiResponse.success(healthRecordService.getRecords(userDetails.getUser().getId(), petId, pageable)));
+	}
+
+	@GetMapping("/summary")
+	public ResponseEntity<ApiResponse<HealthRecordSummaryResponse>> getSummary(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId) {
+		return ResponseEntity.ok(ApiResponse.success(healthRecordService.getSummary(userDetails.getUser().getId(), petId)));
 	}
 
 	@PatchMapping("/{recordId}")

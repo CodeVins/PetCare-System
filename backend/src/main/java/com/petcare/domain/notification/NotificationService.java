@@ -1,5 +1,6 @@
 package com.petcare.domain.notification;
 
+import com.petcare.domain.notification.dto.NotificationPreferenceResponse;
 import com.petcare.domain.notification.dto.NotificationResponse;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
@@ -7,6 +8,8 @@ import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +29,17 @@ public class NotificationService {
 	private final NotificationRepository notificationRepository;
 	private final UserRepository userRepository;
 	private final SseEmitterRepository sseEmitterRepository;
+	private final NotificationPreferenceRepository notificationPreferenceRepository;
 
 	@Transactional
 	public void notify(Long userId, NotificationType type, String content) {
+		boolean enabled = notificationPreferenceRepository.findByUserIdAndCategory(userId, type.category())
+				.map(NotificationPreference::isEnabled)
+				.orElse(true);
+		if (!enabled) {
+			return;
+		}
+
 		User user = userRepository.getReferenceById(userId);
 		Notification notification = Notification.builder()
 				.user(user)
@@ -80,5 +91,28 @@ public class NotificationService {
 			throw new ForbiddenException("본인의 알림만 읽음 처리할 수 있습니다.");
 		}
 		notification.markAsRead();
+	}
+
+	public List<NotificationPreferenceResponse> getPreferences(Long userId) {
+		List<NotificationPreference> preferences = notificationPreferenceRepository.findAllByUserId(userId);
+		return Arrays.stream(NotificationCategory.values())
+				.map(category -> new NotificationPreferenceResponse(category, preferences.stream()
+						.filter(p -> p.getCategory() == category)
+						.findFirst()
+						.map(NotificationPreference::isEnabled)
+						.orElse(true)))
+				.toList();
+	}
+
+	@Transactional
+	public void updatePreference(Long userId, NotificationCategory category, boolean enabled) {
+		NotificationPreference preference = notificationPreferenceRepository
+				.findByUserIdAndCategory(userId, category)
+				.orElseGet(() -> notificationPreferenceRepository.save(NotificationPreference.builder()
+						.user(userRepository.getReferenceById(userId))
+						.category(category)
+						.enabled(enabled)
+						.build()));
+		preference.update(enabled);
 	}
 }

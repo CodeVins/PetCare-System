@@ -1,6 +1,8 @@
 package com.petcare.domain.user;
 
 import com.petcare.domain.user.dto.LoginRequest;
+import com.petcare.domain.user.dto.PasswordResetConfirmRequest;
+import com.petcare.domain.user.dto.PasswordResetRequestRequest;
 import com.petcare.domain.user.dto.RefreshTokenRequest;
 import com.petcare.domain.user.dto.SignupRequest;
 import com.petcare.domain.user.dto.SignupResponse;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
+	private final PasswordResetService passwordResetService;
 
 	@PostMapping("/signup")
 	public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
@@ -45,6 +48,18 @@ public class AuthController {
 	@PostMapping("/logout")
 	public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal CustomUserDetails userDetails) {
 		authService.logout(userDetails.getUser().getId());
+		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@PostMapping("/password-reset/request")
+	public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequestRequest request) {
+		passwordResetService.requestReset(request.email());
+		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@PostMapping("/password-reset/confirm")
+	public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+		passwordResetService.confirmReset(request.token(), request.newPassword());
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 }

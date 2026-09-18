@@ -14,4 +14,8 @@ public interface HealthRecordRepository extends JpaRepository<HealthRecord, Long
 
 	List<HealthRecord> findAllByPet_User_IdAndNextDueDateGreaterThanEqualOrderByNextDueDateAsc(
 			Long userId, LocalDate from);
+
+	List<HealthRecord> findAllByPetIdAndTypeOrderByRecordedAtAsc(Long petId, HealthRecordType type);
+
+	long countByPetIdAndType(Long petId, HealthRecordType type);
 }

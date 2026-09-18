@@ -4,13 +4,14 @@ import com.petcare.domain.hospital.Hospital;
 
 public record HospitalResponse(
 		Long id, String name, String address, Double latitude, Double longitude, String openingHours,
-		String specialty, Double averageRating, long reviewCount, Double distanceKm) {
+		String specialty, Boolean is24Hours, Boolean hasParking, Integer avgTreatmentPrice, Double averageRating,
+		long reviewCount, Double distanceKm) {
 
 	public static HospitalResponse of(Hospital hospital, Double averageRating, long reviewCount) {
 		return new HospitalResponse(
 				hospital.getId(), hospital.getName(), hospital.getAddress(), hospital.getLatitude(),
-				hospital.getLongitude(), hospital.getOpeningHours(), hospital.getSpecialty(), averageRating,
-				reviewCount, null);
+				hospital.getLongitude(), hospital.getOpeningHours(), hospital.getSpecialty(), hospital.getIs24Hours(),
+				hospital.getHasParking(), hospital.getAvgTreatmentPrice(), averageRating, reviewCount, null);
 	}
 
 	public static HospitalResponse from(Hospital hospital) {
@@ -19,7 +20,7 @@ public record HospitalResponse(
 
 	public HospitalResponse withDistance(Double distanceKm) {
 		return new HospitalResponse(
-				id, name, address, latitude, longitude, openingHours, specialty, averageRating, reviewCount,
-				distanceKm);
+				id, name, address, latitude, longitude, openingHours, specialty, is24Hours, hasParking,
+				avgTreatmentPrice, averageRating, reviewCount, distanceKm);
 	}
 }

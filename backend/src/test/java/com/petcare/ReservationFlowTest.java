@@ -150,7 +150,7 @@ class ReservationFlowTest {
 		MvcResult result = mockMvc.perform(post("/api/pets")
 						.header("Authorization", "Bearer " + userToken)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"name\":\"" + name + "\"}"))
+						.content("{\"name\":\"" + name + "\",\"species\":\"DOG\"}"))
 				.andExpect(status().isCreated())
 				.andReturn();
 		return extractId(result);

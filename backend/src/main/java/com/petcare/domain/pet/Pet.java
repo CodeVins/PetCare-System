@@ -34,6 +34,10 @@ public class Pet extends BaseEntity {
 	@Column(nullable = false)
 	private String name;
 
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, columnDefinition = "varchar(10)")
+	private PetSpecies species;
+
 	private String breed;
 
 	@Column(name = "birth_date")
@@ -47,9 +51,10 @@ public class Pet extends BaseEntity {
 	private String imageUrl;
 
 	@Builder
-	private Pet(User user, String name, String breed, LocalDate birthDate, PetSize size) {
+	private Pet(User user, String name, PetSpecies species, String breed, LocalDate birthDate, PetSize size) {
 		this.user = user;
 		this.name = name;
+		this.species = species;
 		this.breed = breed;
 		this.birthDate = birthDate;
 		this.size = size;
@@ -59,8 +64,9 @@ public class Pet extends BaseEntity {
 		return this.user.getId().equals(userId);
 	}
 
-	public void update(String name, String breed, LocalDate birthDate, PetSize size) {
+	public void update(String name, PetSpecies species, String breed, LocalDate birthDate, PetSize size) {
 		this.name = name;
+		this.species = species;
 		this.breed = breed;
 		this.birthDate = birthDate;
 		this.size = size;

@@ -3,6 +3,7 @@ package com.petcare.domain.hospital;
 import com.petcare.domain.hospital.dto.ReviewCreateRequest;
 import com.petcare.domain.hospital.dto.ReviewResponse;
 import com.petcare.domain.hospital.dto.ReviewUpdateRequest;
+import com.petcare.domain.hospital.dto.ReviewReportRequest;
 import com.petcare.domain.reservation.ReservationRepository;
 import com.petcare.domain.reservation.ReservationStatus;
 import com.petcare.domain.user.User;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReviewService {
 
 	private final ReviewRepository reviewRepository;
+	private final ReviewReportRepository reviewReportRepository;
 	private final ReservationRepository reservationRepository;
 	private final UserRepository userRepository;
 	private final HospitalService hospitalService;
@@ -51,8 +53,8 @@ public class ReviewService {
 	}
 
 	public PageResponse<ReviewResponse> getReviews(Long hospitalId, Pageable pageable) {
-		return PageResponse.from(
-				reviewRepository.findAllByHospitalIdOrderByCreatedAtDesc(hospitalId, pageable).map(ReviewResponse::from));
+		return PageResponse.from(reviewRepository
+				.findAllByHospitalIdAndHiddenFalseOrderByCreatedAtDesc(hospitalId, pageable).map(ReviewResponse::from));
 	}
 
 	@Transactional
@@ -66,6 +68,22 @@ public class ReviewService {
 	public void delete(Long userId, Long hospitalId, Long reviewId) {
 		Review review = getOwnedReview(userId, hospitalId, reviewId);
 		reviewRepository.delete(review);
+	}
+
+	@Transactional
+	public void report(Long userId, Long hospitalId, Long reviewId, ReviewReportRequest request) {
+		Review review = reviewRepository.findById(reviewId)
+				.orElseThrow(() -> new NotFoundException("리뷰를 찾을 수 없습니다."));
+		if (!review.getHospital().getId().equals(hospitalId)) {
+			throw new NotFoundException("리뷰를 찾을 수 없습니다.");
+		}
+		if (reviewReportRepository.existsByReviewIdAndReporterId(reviewId, userId)) {
+			throw new ConflictException("이미 신고한 리뷰입니다.");
+		}
+
+		User reporter = userRepository.getReferenceById(userId);
+		reviewReportRepository.save(ReviewReport.builder().review(review).reporter(reporter).reason(request.reason())
+				.build());
 	}
 
 	private Review getOwnedReview(Long userId, Long hospitalId, Long reviewId) {

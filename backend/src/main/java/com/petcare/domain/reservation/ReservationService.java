@@ -31,6 +31,7 @@ public class ReservationService {
 	private final SlotRepository slotRepository;
 	private final UserRepository userRepository;
 	private final NotificationService notificationService;
+	private final WaitlistService waitlistService;
 
 	@Transactional
 	public ReservationResponse create(Long userId, ReservationCreateRequest request) {
@@ -77,6 +78,7 @@ public class ReservationService {
 		reservation.cancel();
 		reservation.getSlot().release();
 		notificationService.notify(userId, NotificationType.RESERVATION_CANCELLED, "예약이 취소되었습니다.");
+		waitlistService.notifyNextInLine(reservation.getSlot());
 	}
 
 	public PageResponse<ReservationResponse> getAllForAdmin(User currentUser, ReservationStatus status, Pageable pageable) {
@@ -108,6 +110,7 @@ public class ReservationService {
 		reservation.reject();
 		reservation.getSlot().release();
 		notificationService.notify(reservation.getUser().getId(), NotificationType.RESERVATION_REJECTED, "예약 요청이 거절되었습니다.");
+		waitlistService.notifyNextInLine(reservation.getSlot());
 	}
 
 	private void checkManagePermission(User currentUser, Reservation reservation) {

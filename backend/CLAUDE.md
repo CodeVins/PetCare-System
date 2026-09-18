@@ -19,8 +19,9 @@ com.petcare
 │   ├── hospital (Hospital, Slot, Favorite, Review 포함)
 │   ├── reservation
 │   ├── notification
-│   ├── admin (통계/유저관리/예약관리/병원소유자지정)
-│   └── chat
+│   ├── admin (통계/유저관리/예약관리/병원소유자지정/리뷰 모더레이션)
+│   ├── chat
+│   └── healthcheck (비대면 자가 문진)
 └── global
     ├── config (WebConfig-정적리소스, QuerydslConfig)
     ├── security (JWT, SecurityConfig)
@@ -33,16 +34,20 @@ com.petcare
 ## 엔티티
 - User: id, email, password, role(USER/HOSPITAL_OWNER/ADMIN)
 - RefreshToken: id, user_id(FK, unique — 유저당 1개), token(unique), expires_at
-- Pet: id, user_id(FK), name, breed, birth_date, size(SMALL/MEDIUM/LARGE, nullable), image_url(nullable)
-- Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
+- Pet: id, user_id(FK), name, species(DOG/CAT), breed, birth_date, size(SMALL/MEDIUM/LARGE, nullable), image_url(nullable)
+- Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
 - Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED) — 생성 시 PENDING, 관리자가 확정/거절
-- HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일)
-- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT), content, is_read
+- HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일)
+- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
+- NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
 - Favorite: id, user_id(FK), hospital_id(FK), (user_id, hospital_id) 유니크
-- Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, (user_id, hospital_id) 유니크(병원당 리뷰 1개) — 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
+- Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, hidden(boolean, 기본 false) — (user_id, hospital_id) 유니크(병원당 리뷰 1개), 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
+- ReviewReport: id, review_id(FK), reporter_id(FK), reason — (review_id, reporter_id) 유니크(같은 리뷰 중복 신고 불가)
 - ChatRoom: id, customer_id(FK), hospital_id(FK), (customer_id, hospital_id) 유니크(고객-병원당 방 1개)
 - ChatMessage: id, chat_room_id(FK), sender_id(FK), content
+- Waitlist: id, slot_id(FK), pet_id(FK), user_id(FK) — (slot_id, user_id) 유니크, 슬롯이 이미 RESERVED일 때만 등록 가능
+- PasswordResetToken: id, user_id(FK), token(unique), expires_at(발급 30분), used(boolean)
 
 ## 동적 쿼리 (Querydsl)
 - `GET /api/hospitals?keyword=&minRating=&sort=NAME_ASC|RATING_DESC|REVIEW_COUNT_DESC` — Hospital-Review left join + groupBy로 평점 집계/필터/정렬을 쿼리 하나로 처리 (`HospitalRepositoryImpl`)
@@ -84,6 +89,7 @@ com.petcare
 - 병원 소유자(HOSPITAL_OWNER): `Hospital.owner`로 병원 하나에 소유자 한 명 연결. `PATCH /api/admin/hospitals/{hospitalId}/owner`(ADMIN 전용)로 지정 — 지정 시 대상 유저가 USER면 자동으로 HOSPITAL_OWNER로 승격됨. 슬롯 생성(`POST /api/hospitals/{id}/slots`)과 예약 확정/거절/목록(`/api/admin/reservations/**`)은 `@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")`로 게이트를 열어두고, 서비스 계층에서 `Hospital.isManagedBy(currentUser)`(ADMIN은 항상 true, HOSPITAL_OWNER는 본인 소유 병원만 true)로 세밀하게 재검증. 병원 생성 자체는 여전히 ADMIN 전용 유지 — 새 병원 등록 후 소유자를 배정하는 구조
 - `PATCH /api/hospitals/{hospitalId}` — 병원 정보 수정(이름/주소/위경도/운영시간/진료과목), ADMIN 또는 소유 HOSPITAL_OWNER만. 필드 전체를 다시 받는 방식이라 일부 필드 생략하면 null로 덮어써짐 (Pet/HealthRecord 수정 API와 동일한 컨벤션)
 - 슬롯 생성 시 그 병원을 찜한 유저들에게 `FAVORITE_HOSPITAL_NEW_SLOT` 알림 자동 발송 (`SlotService.notifyFavoriters`)
+- `GET /api/hospitals`에 `&is24Hours=&hasParking=` 필터 추가 (Querydsl where절, null이면 무시)
 
 ## 실시간 채팅 (1:1 문의)
 - `ChatRoom`(고객 1명 - 병원 1개, 유니크), `ChatMessage`. `POST /api/chat-rooms`는 get-or-create(같은 고객+병원 조합이면 기존 방 반환)
@@ -93,10 +99,40 @@ com.petcare
 - `HospitalService.findHospital()`을 다른 도메인(chat)에서도 써야 해서 package-private → public으로 변경
 - 관리자 부트스트랩: `AdminBootstrapRunner`(global/config, `ApplicationRunner`)가 앱 시작 시 `.env`의 `ADMIN_EMAIL`/`ADMIN_PASSWORD`로 최초 관리자를 자동 생성(없으면 생성, 있으면 ADMIN으로 승격) — 더 이상 DB 수동 UPDATE 불필요. 이후 관리자 추가는 `GET /api/admin/users` + `PATCH /api/admin/users/{userId}/role`로 기존 관리자가 승격 (본인 권한 변경은 막혀있음)
 - MySQL 예약어 주의: 컬럼명으로 `read`, `order` 같은 예약어 쓰면 DDL이 조용히 깨짐(런타임에 "테이블 없음" 에러로 나타남) — 애매하면 `@Column(name=...)`로 명시적으로 피해갈 것
+- 기존 테이블에 NOT NULL 컬럼 추가할 때 주의: MySQL이 strict mode가 아니면 DEFAULT 없이 `ALTER TABLE ... ADD COLUMN ... NOT NULL`이 에러 없이 성공하지만, 기존 행은 문자열 빈 값("")으로 채워짐(NULL도 아니고 원하는 기본값도 아님) — `Pet.species` 추가할 때 겪음. 기존 행 백필이 필요하면 컬럼 추가 후 `UPDATE ... SET col = '기본값' WHERE col = '' OR col IS NULL`을 수동으로 돌릴 것
 - enum 컬럼은 전부 `@Column(columnDefinition = "varchar(N)")` 명시해서 VARCHAR로 매핑 (MySQL 네이티브 ENUM 쓰면 `ddl-auto: update`가 기존 컬럼에 새 enum 값을 반영 못 해서, enum에 값 추가할 때마다 "Data truncated" 런타임 에러남 — 겪은 버그). 새 enum 필드 추가할 때도 이 패턴 유지할 것
 - 로컬 개발용 계정: `test-new@petcare.com`/`newpassword123`(USER), `admin@petcare.com`/`adminpass123`(ADMIN), `owner-test@petcare.com`/`ownerpass123`(HOSPITAL_OWNER, 병원 id=2 소유)
 - CORS 허용 오리진: `http://localhost:5173`(Vite), `http://localhost:3000`(CRA) — 프론트 개발 서버 포트가 다르면 `SecurityConfig.corsConfigurationSource()`에 추가
 - 파일 업로드(반려동물 사진): 로컬 디스크 저장(`uploads/pets/`, `.gitignore` 처리됨), `global/file/FileStorageService`가 담당. 파일명은 클라이언트 값을 쓰지 않고 UUID로 새로 생성(경로 조작 방지), 업로드 시 jpg/png/webp만 허용, 5MB 제한. `/uploads/**`는 SecurityConfig에서 permitAll — 이미지는 공개로 서빙됨
+
+## 반려동물 생활/건강 관련 API
+- `Pet.species`(DOG/CAT) 추가 — breed는 원래도 자유 텍스트라 별도 검증/품종 목록 로직 없었음(고양이 대응 위해 고칠 게 없었음)
+- `POST /api/pets/{petId}/feeding-calculator` — RER = 70×체중^0.75, DER = RER×활동계수. **활동계수는 자료 원본이 "중성화 여부" 기준(강아지 중성화O 1.6/중성화X 1.8/체중감량 1.4, 고양이 중성화O 1.2)인데 이 API 입력은 활동량(LOW/NORMAL/HIGH)이라 직접 매핑함**: 강아지 LOW/NORMAL/HIGH = 1.4/1.6/1.8, 고양이는 자료에 1.2(NORMAL) 하나뿐이라 같은 0.2 간격으로 LOW=1.0/HIGH=1.4 추정 — 상수는 `FeedingCalculatorService.DER_COEFFICIENTS`, 실사용 전 수의사 자문으로 재검증 필요. 사료 칼로리 밀도는 기본 350kcal/100g(건식 평균), 요청에서 override 가능. 습식+건식 혼합 급여, 간식 10% 할당 같은 건 이번 범위에서 뺌(엔드포인트 스펙에 없던 입력이라)
+- `GET /api/health-check/questions`, `POST /api/health-check/submit` — 부위별 질문 8개(식욕/배변/구토/기력/피부/호흡/음수/체중) 고정 문항, 답변 점수 합산 후 LOW(0~3)/MEDIUM(4~9)/HIGH(10+)로 판정(`HealthCheckService` 상수). **품종/연령별 실제 평균치 통계는 없어서(허위 데이터를 만들기 싫어서) comparisonNote에 그 사실을 그대로 안내함** — 진단이 아니라 참고용 자가 문진이라는 disclaimer 항상 포함
+- 문진 결과는 `saveRecord: true`로 제출하면 `HealthRecordType.HEALTH_CHECK`로 저장됨 (기존 HealthRecordService.create 재사용)
+- 질문 데이터는 DB가 아니라 `HealthCheckQuestionBank`에 하드코딩 (ponytail: 문항 수 늘거나 운영진 편집 필요해지면 DB로 이전)
+
+## 대기자 명단 (Waitlist)
+- 이미 예약 마감(`RESERVED`)된 슬롯에만 등록 가능(`POST /api/waitlists`) — `AVAILABLE` 슬롯에 등록하려 하면 409(그냥 예약하면 되므로)
+- `GET /api/waitlists`(내 대기 목록), `DELETE /api/waitlists/{waitlistId}`(대기 취소)
+- 해당 슬롯의 예약이 취소(`cancel`)되거나 거절(`reject`)되어 슬롯이 다시 열리면(`ReservationService`), `WaitlistService.notifyNextInLine()`이 대기열 맨 앞(`createdAt` 기준)인 사람 1명에게만 `WAITLIST_SLOT_AVAILABLE` 알림을 보내고 그 사람의 대기 항목을 삭제함. ponytail: 선착순 알림 스탬피드 방지를 위해 전체 대기자가 아니라 1명에게만 통지 — 그 사람이 안 잡으면 다음 사람에게 안 넘어감(슬롯이 다시 RESERVED 되는 사건이 없으면 트리거 안 됨), 필요해지면 "확정 안 하면 N분 뒤 다음 순번" 로직 추가
+
+## 비밀번호 재설정
+- `POST /api/auth/password-reset/request`(이메일만 받음), `POST /api/auth/password-reset/confirm`(토큰+새 비밀번호) — 둘 다 `SecurityConfig` permitAll
+- ponytail: 실제 이메일 발송 미구현. `PasswordResetService`가 재설정 링크를 SLF4J 로그로만 남김(`[비밀번호 재설정] ...`) — 실사용 전 이메일 발송 연동 필요
+- 존재하지 않는 이메일로 요청해도 항상 200(계정 존재 여부 노출 방지), 토큰은 30분 유효 + 1회용(`isUsable()`), 만료/재사용 시 409
+
+## 건강 기록 통계
+- `GET /api/pets/{petId}/health-records/summary` — 체중 기록(`WEIGHT` 타입)을 시간순으로 모은 `weightHistory`(그래프용), `latestWeight`, 타입별 기록 개수(`countByType`)를 한 번에 반환
+
+## 리뷰 신고 / 모더레이션
+- `POST /api/hospitals/{hospitalId}/reviews/{reviewId}/report` — 로그인 유저 아무나 신고 가능(리뷰 작성 자격과 무관), 같은 리뷰 중복 신고는 409
+- `GET /api/admin/reviews/reports`, `PATCH /api/admin/reviews/{reviewId}/hide`, `PATCH /api/admin/reviews/{reviewId}/unhide` (전부 ADMIN 전용, `AdminReviewController`)
+- `hidden=true`인 리뷰는 병원 리뷰 목록(`GET /api/hospitals/{hospitalId}/reviews`), 평균 평점/리뷰 수 집계(`HospitalService`, `AdminStatsService`, `HospitalRepositoryImpl`의 검색 결과)에서 전부 제외됨 — 신고 누적만으로 자동 숨김되진 않고 관리자가 직접 `hide` 호출해야 함(자동화 없음, 의도적으로 사람이 판단)
+
+## 알림 카테고리 on/off
+- `GET/PATCH /api/notifications/preferences` — `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 단위로 on/off. GET은 설정 안 한 카테고리도 항상 5개 다 내려주고(기본 enabled=true), PATCH는 `{category, enabled}` 하나씩 upsert
+- `NotificationService.notify()`가 알림 생성/SSE push 전에 `NotificationPreference`를 먼저 조회해서 꺼져있으면 DB 저장도 SSE push도 아예 안 함(꺼진 알림은 나중에 폴링해도 안 보임 — 완전히 발송 안 되는 것)
 
 ## 페이지네이션
 - 대부분의 목록 API는 `Pageable`(쿼리파라미터 `page`, `size`, `sort`) 기반, 응답은 `ApiResponse<PageResponse<T>>` (`global/common/PageResponse`: content/page/size/totalElements/totalPages). 컨트롤러에 `@PageableDefault(size = 20)` 기본값
@@ -121,6 +157,8 @@ com.petcare
 - Refresh Token, 관리자 가입 플로우 정식화(부트스트랩+승격 API) 완료
 - 디테일 정비: Swagger Bearer 인증 설정, Slot 시간 검증, `.env.example`, 알림 안읽은 개수 API
 - 예약 확정 대기(PENDING) 플로우 활성화, 병원 근처 검색(거리 기반), 대부분 목록 API 페이지네이션, 핵심 흐름 통합테스트(Auth/Reservation), 실시간 알림(SSE), 병원 자체 계정 시스템(HOSPITAL_OWNER), 찜한 병원 새 슬롯 알림, 병원 운영시간/진료과목+수정 API, 실시간 채팅(1:1 문의) 추가
+- 반려동물 species(DOG/CAT) 추가, 생활기록(산책/식사/배변) 타입 추가, 사료 급여량 계산기, 비대면 건강 자가문진, 병원 24시간/주차/평균진료비 필드+필터 추가
+- 대기자 명단(Waitlist), 비밀번호 재설정(이메일 발송은 미구현, 로그로 대체), 건강 기록 통계(체중 그래프/타입별 개수), 리뷰 신고·모더레이션(관리자 숨김/해제), 알림 카테고리별 on/off 설정 추가
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작

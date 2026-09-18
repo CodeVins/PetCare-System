@@ -29,6 +29,9 @@ public class HospitalService {
 				.longitude(request.longitude())
 				.openingHours(request.openingHours())
 				.specialty(request.specialty())
+				.is24Hours(request.is24Hours())
+				.hasParking(request.hasParking())
+				.avgTreatmentPrice(request.avgTreatmentPrice())
 				.build();
 
 		return HospitalResponse.from(hospitalRepository.save(hospital));
@@ -43,15 +46,16 @@ public class HospitalService {
 
 		hospital.update(
 				request.name(), request.address(), request.latitude(), request.longitude(), request.openingHours(),
-				request.specialty());
+				request.specialty(), request.is24Hours(), request.hasParking(), request.avgTreatmentPrice());
 		return toResponseWithRating(hospital);
 	}
 
 	private static final double EARTH_RADIUS_KM = 6371;
 
 	public List<HospitalResponse> search(
-			String keyword, Double minRating, HospitalSortType sort, Double lat, Double lng, Double radiusKm) {
-		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort).stream()
+			String keyword, Double minRating, HospitalSortType sort, Double lat, Double lng, Double radiusKm,
+			Boolean is24Hours, Boolean hasParking) {
+		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort, is24Hours, hasParking).stream()
 				.map(result -> HospitalResponse.of(result.hospital(), result.averageRating(), result.reviewCount()))
 				.toList();
 
@@ -83,7 +87,7 @@ public class HospitalService {
 
 	private HospitalResponse toResponseWithRating(Hospital hospital) {
 		Double averageRating = reviewRepository.findAverageRatingByHospitalId(hospital.getId());
-		long reviewCount = reviewRepository.countByHospitalId(hospital.getId());
+		long reviewCount = reviewRepository.countByHospitalIdAndHiddenFalse(hospital.getId());
 		return HospitalResponse.of(hospital, averageRating, reviewCount);
 	}
 

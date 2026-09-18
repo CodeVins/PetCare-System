@@ -10,10 +10,10 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
 	boolean existsByUserIdAndHospitalId(Long userId, Long hospitalId);
 
-	Page<Review> findAllByHospitalIdOrderByCreatedAtDesc(Long hospitalId, Pageable pageable);
+	Page<Review> findAllByHospitalIdAndHiddenFalseOrderByCreatedAtDesc(Long hospitalId, Pageable pageable);
 
-	long countByHospitalId(Long hospitalId);
+	long countByHospitalIdAndHiddenFalse(Long hospitalId);
 
-	@Query("select avg(r.rating) from Review r where r.hospital.id = :hospitalId")
+	@Query("select avg(r.rating) from Review r where r.hospital.id = :hospitalId and r.hidden = false")
 	Double findAverageRatingByHospitalId(@Param("hospitalId") Long hospitalId);
 }

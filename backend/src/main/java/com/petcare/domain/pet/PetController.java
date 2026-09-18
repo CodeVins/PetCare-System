@@ -1,5 +1,7 @@
 package com.petcare.domain.pet;
 
+import com.petcare.domain.pet.dto.FeedingCalculatorRequest;
+import com.petcare.domain.pet.dto.FeedingCalculatorResponse;
 import com.petcare.domain.pet.dto.PetCreateRequest;
 import com.petcare.domain.pet.dto.PetResponse;
 import com.petcare.domain.pet.dto.PetUpdateRequest;
@@ -30,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PetController {
 
 	private final PetService petService;
+	private final FeedingCalculatorService feedingCalculatorService;
 
 	@PostMapping
 	public ResponseEntity<ApiResponse<PetResponse>> create(
@@ -77,5 +80,13 @@ public class PetController {
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId) {
 		petService.deleteImage(userDetails.getUser().getId(), petId);
 		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@PostMapping("/{petId}/feeding-calculator")
+	public ResponseEntity<ApiResponse<FeedingCalculatorResponse>> calculateFeeding(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId,
+			@Valid @RequestBody FeedingCalculatorRequest request) {
+		petService.verifyOwnership(userDetails.getUser().getId(), petId);
+		return ResponseEntity.ok(ApiResponse.success(feedingCalculatorService.calculate(request)));
 	}
 }
