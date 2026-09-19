@@ -39,7 +39,7 @@ public class HealthCheckService {
 
 	@Transactional
 	public HealthCheckResultResponse submit(Long userId, HealthCheckSubmitRequest request) {
-		petService.verifyOwnership(userId, request.petId());
+		petService.verifyAccess(userId, request.petId());
 
 		int totalScore = request.answers().stream()
 				.mapToInt(answer -> scoreOf(answer))

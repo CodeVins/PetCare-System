@@ -34,7 +34,8 @@ com.petcare
 ## 엔티티
 - User: id, email, password, role(USER/HOSPITAL_OWNER/ADMIN), suspended(boolean, 기본 false)
 - RefreshToken: id, user_id(FK, unique — 유저당 1개), token(unique), expires_at
-- Pet: id, user_id(FK), name, species(DOG/CAT), breed, birth_date, size(SMALL/MEDIUM/LARGE, nullable), image_url(nullable)
+- Pet: id, user_id(FK, "최초 등록자"), name, species(DOG/CAT), breed, birth_date, size(SMALL/MEDIUM/LARGE, nullable), image_url(nullable)
+- PetGuardian: id, pet_id(FK), user_id(FK) — (pet_id, user_id) 유니크, 공동 보호자(가족 공유) 전용. 최초 등록자는 `Pet.user`로 이미 표현되므로 여기 포함 안 됨
 - Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), image_url(nullable), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
 - Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리
@@ -141,6 +142,17 @@ com.petcare
 - `POST/DELETE /api/hospitals/{hospitalId}/image` — Pet 사진 업로드와 동일 패턴(`FileStorageService`를 pet/hospital 공용으로 일반화, `uploads/hospitals/`, jpg/png/webp만, 5MB 제한). ADMIN 또는 소유 HOSPITAL_OWNER만
 - `PATCH /api/admin/users/{userId}/suspend`, `PATCH /api/admin/users/{userId}/activate` (ADMIN 전용) — 정지된 계정은 로그인 시 403(`AuthService.login()`에서 체크). 본인 계정은 정지 불가(역할 변경과 동일한 자기 자신 보호 패턴). **알려진 한계**: JWT가 stateless라 이미 발급된 accessToken은 정지해도 즉시 무효화되지 않고 최대 1시간 뒤 자연 만료(이메일 변경 때와 동일한 제약) — 즉시 차단이 필요하면 매 요청마다 DB 조회가 필요한데 지금은 로그인 시점에만 체크
 
+## 다중 보호자 (가족 공유 반려동물 계정)
+- 최초 등록자(`Pet.user`)와 공동보호자(`PetGuardian`)는 프로필/건강기록/예약/사진 업로드 등 일상 관리 권한은 완전히 동등. **단, 보호자 초대/퇴출과 Pet 삭제는 최초 등록자만 가능**(민감한 "누가 접근 가능한가"를 결정하는 권한이라 별도 분리)
+- `POST /api/pets/{petId}/guardians` `{email}` — 이미 가입된 유저의 이메일로 즉시 초대(수락 절차/알림 없음, ponytail: 필요해지면 `NotificationCategory`에 GUARDIAN 추가해서 알림 붙일 것). 본인(소유자) 초대 시 409, 이미 보호자면 409, 이메일 유저 없으면 404
+- `GET /api/pets/{petId}/guardians` — 소유자+보호자 모두 조회 가능(공동보호자 목록만, 소유자 본인은 목록에 안 나옴)
+- `DELETE /api/pets/{petId}/guardians/{userId}` — 소유자만 특정 보호자 퇴출
+- `DELETE /api/pets/{petId}/guardians/me` — 보호자 본인이 자발적으로 나가기(소유자가 호출하면 403 — "삭제를 이용해주세요")
+- **접근 권한 체크 확장**: `Pet.isOwnedBy(userId)` 자체는 안 바꾸고(소유자 전용 판단은 그대로), `pet.isOwnedBy(userId) || petGuardianRepository.existsByPetIdAndUserId(...)` 형태로 4곳에 OR 조건을 추가— `PetService`(공용 `getAccessiblePet()`), `HealthRecordService`, `ReservationService.create()`, `WaitlistService.join()`. 새 공용 추상화는 안 만들고 각 서비스에 1줄씩 추가(호출부가 4곳뿐이라 섣부른 추상화 방지)
+- `GET /api/pets`는 `PetRepository.findAllAccessibleByUserId()`(소유 OR 공유 펫을 OR-EXISTS 서브쿼리 하나로 페이지네이션) 사용, 응답의 `PetResponse.role`(OWNER/GUARDIAN)로 요청자 기준 역할 표시
+- `PetService.delete()`는 여전히 소유자 전용(`getOwnedPet()`, 공동보호자는 403), 삭제 시 연결된 `PetGuardian` 로우도 같이 정리
+- **겪은 버그(이번 기능과 무관, 발견만 함)**: `Pet` 삭제 시 그 펫에 달린 `Reservation`/`HealthRecord` 이력을 정리하지 않아서, 예약 이력이 있는 펫을 삭제하면 FK 제약 위반으로 500 에러남 — 이번 범위 밖이라 손 안 댐, 다음에 펫 삭제 관련 작업할 때 처리 필요
+
 ## 페이지네이션
 - 대부분의 목록 API는 `Pageable`(쿼리파라미터 `page`, `size`, `sort`) 기반, 응답은 `ApiResponse<PageResponse<T>>` (`global/common/PageResponse`: content/page/size/totalElements/totalPages). 컨트롤러에 `@PageableDefault(size = 20)` 기본값
 - 제외된 목록(의도적으로 페이지네이션 안 함): `GET /api/hospitals`(검색 — 거리 필터를 메모리에서 계산해서 DB 페이지네이션과 안 맞음), `GET /api/admin/stats/hospitals`(리포트성, 병원 수만큼만), `GET /api/users/me/upcoming-vaccinations`(개인용 소량 목록)
@@ -167,12 +179,13 @@ com.petcare
 - 반려동물 species(DOG/CAT) 추가, 생활기록(산책/식사/배변) 타입 추가, 사료 급여량 계산기, 비대면 건강 자가문진, 병원 24시간/주차/평균진료비 필드+필터 추가
 - 대기자 명단(Waitlist), 비밀번호 재설정(이메일 발송은 미구현, 로그로 대체), 건강 기록 통계(체중 그래프/타입별 개수), 리뷰 신고·모더레이션(관리자 숨김/해제), 알림 카테고리별 on/off 설정 추가
 - 리뷰 병원 답글, 예약 노쇼(No-show) 처리+통계 반영, 병원 사진 업로드, 관리자 유저 정지/차단 추가
+- 다중 보호자(가족 공유) 반려동물 계정 추가 — 브레인스토밍으로 권한 모델(최초 등록자 vs 공동보호자) 설계 먼저 확정 후 구현
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단)
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
-- 다중 보호자(가족 공유) 반려동물 계정 — 권한 모델을 새로 설계해야 해서 범위가 큼, 별도 브레인스토밍으로 설계 먼저 잡을 예정
+- Pet 삭제 시 연결된 Reservation/HealthRecord 이력 미정리로 인한 FK 제약 위반(500) — 다중 보호자 기능 검증 중 발견, 별도 처리 필요
 
 **프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 진행 중 (자체 CLAUDE.md 있음). 회원가입 화면까지 구현됨.
 

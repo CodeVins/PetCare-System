@@ -24,6 +24,7 @@ public class HealthRecordService {
 
 	private final HealthRecordRepository healthRecordRepository;
 	private final PetRepository petRepository;
+	private final PetGuardianRepository petGuardianRepository;
 
 	@Transactional
 	public HealthRecordResponse create(Long userId, Long petId, HealthRecordCreateRequest request) {
@@ -88,8 +89,8 @@ public class HealthRecordService {
 	private Pet getOwnedPet(Long userId, Long petId) {
 		Pet pet = petRepository.findById(petId)
 				.orElseThrow(() -> new NotFoundException("반려동물을 찾을 수 없습니다."));
-		if (!pet.isOwnedBy(userId)) {
-			throw new ForbiddenException("본인의 반려동물만 조회할 수 있습니다.");
+		if (!pet.isOwnedBy(userId) && !petGuardianRepository.existsByPetIdAndUserId(petId, userId)) {
+			throw new ForbiddenException("본인 또는 공동보호자로 등록된 반려동물만 조회할 수 있습니다.");
 		}
 		return pet;
 	}

@@ -5,6 +5,7 @@ import com.petcare.domain.hospital.SlotRepository;
 import com.petcare.domain.notification.NotificationService;
 import com.petcare.domain.notification.NotificationType;
 import com.petcare.domain.pet.Pet;
+import com.petcare.domain.pet.PetGuardianRepository;
 import com.petcare.domain.pet.PetRepository;
 import com.petcare.domain.reservation.dto.WaitlistCreateRequest;
 import com.petcare.domain.reservation.dto.WaitlistResponse;
@@ -26,6 +27,7 @@ public class WaitlistService {
 
 	private final WaitlistRepository waitlistRepository;
 	private final PetRepository petRepository;
+	private final PetGuardianRepository petGuardianRepository;
 	private final SlotRepository slotRepository;
 	private final UserRepository userRepository;
 	private final NotificationService notificationService;
@@ -34,8 +36,8 @@ public class WaitlistService {
 	public WaitlistResponse join(Long userId, WaitlistCreateRequest request) {
 		Pet pet = petRepository.findById(request.petId())
 				.orElseThrow(() -> new NotFoundException("반려동물을 찾을 수 없습니다."));
-		if (!pet.isOwnedBy(userId)) {
-			throw new ForbiddenException("본인의 반려동물만 대기 신청할 수 있습니다.");
+		if (!pet.isOwnedBy(userId) && !petGuardianRepository.existsByPetIdAndUserId(pet.getId(), userId)) {
+			throw new ForbiddenException("본인 또는 공동보호자로 등록된 반려동물만 대기 신청할 수 있습니다.");
 		}
 
 		Slot slot = slotRepository.findById(request.slotId())

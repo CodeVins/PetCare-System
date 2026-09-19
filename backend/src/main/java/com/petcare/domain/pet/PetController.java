@@ -86,7 +86,7 @@ public class PetController {
 	public ResponseEntity<ApiResponse<FeedingCalculatorResponse>> calculateFeeding(
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId,
 			@Valid @RequestBody FeedingCalculatorRequest request) {
-		petService.verifyOwnership(userDetails.getUser().getId(), petId);
+		petService.verifyAccess(userDetails.getUser().getId(), petId);
 		return ResponseEntity.ok(ApiResponse.success(feedingCalculatorService.calculate(request)));
 	}
 }

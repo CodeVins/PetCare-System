@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PetService {
 
 	private final PetRepository petRepository;
+	private final PetGuardianRepository petGuardianRepository;
 	private final UserRepository userRepository;
 	private final FileStorageService fileStorageService;
 
@@ -36,59 +37,75 @@ public class PetService {
 				.size(request.size())
 				.build();
 
-		return PetResponse.from(petRepository.save(pet));
+		return PetResponse.of(petRepository.save(pet), PetRole.OWNER);
 	}
 
 	public PageResponse<PetResponse> getMyPets(Long userId, Pageable pageable) {
-		return PageResponse.from(petRepository.findAllByUserId(userId, pageable).map(PetResponse::from));
+		return PageResponse.from(petRepository.findAllAccessibleByUserId(userId, pageable)
+				.map(pet -> PetResponse.of(pet, roleOf(pet, userId))));
 	}
 
 	public PetResponse get(Long userId, Long petId) {
-		return PetResponse.from(getOwnedPet(userId, petId));
+		Pet pet = getAccessiblePet(userId, petId);
+		return PetResponse.of(pet, roleOf(pet, userId));
 	}
 
 	@Transactional
 	public PetResponse update(Long userId, Long petId, PetUpdateRequest request) {
-		Pet pet = getOwnedPet(userId, petId);
+		Pet pet = getAccessiblePet(userId, petId);
 		pet.update(request.name(), request.species(), request.breed(), request.birthDate(), request.size());
-		return PetResponse.from(pet);
+		return PetResponse.of(pet, roleOf(pet, userId));
 	}
 
 	@Transactional
 	public void delete(Long userId, Long petId) {
 		Pet pet = getOwnedPet(userId, petId);
 		fileStorageService.deletePetImage(pet.getImageUrl());
+		petGuardianRepository.deleteAllByPetId(petId);
 		petRepository.delete(pet);
 	}
 
 	@Transactional
 	public PetResponse uploadImage(Long userId, Long petId, MultipartFile file) {
-		Pet pet = getOwnedPet(userId, petId);
+		Pet pet = getAccessiblePet(userId, petId);
 		String previousImageUrl = pet.getImageUrl();
 
 		String imageUrl = fileStorageService.storePetImage(file);
 		pet.changeImageUrl(imageUrl);
 		fileStorageService.deletePetImage(previousImageUrl);
 
-		return PetResponse.from(pet);
+		return PetResponse.of(pet, roleOf(pet, userId));
 	}
 
 	@Transactional
 	public void deleteImage(Long userId, Long petId) {
-		Pet pet = getOwnedPet(userId, petId);
+		Pet pet = getAccessiblePet(userId, petId);
 		fileStorageService.deletePetImage(pet.getImageUrl());
 		pet.changeImageUrl(null);
 	}
 
-	public void verifyOwnership(Long userId, Long petId) {
-		getOwnedPet(userId, petId);
+	public void verifyAccess(Long userId, Long petId) {
+		getAccessiblePet(userId, petId);
+	}
+
+	private PetRole roleOf(Pet pet, Long userId) {
+		return pet.isOwnedBy(userId) ? PetRole.OWNER : PetRole.GUARDIAN;
 	}
 
 	private Pet getOwnedPet(Long userId, Long petId) {
 		Pet pet = petRepository.findById(petId)
 				.orElseThrow(() -> new NotFoundException("반려동물을 찾을 수 없습니다."));
 		if (!pet.isOwnedBy(userId)) {
-			throw new ForbiddenException("본인의 반려동물만 조회/수정할 수 있습니다.");
+			throw new ForbiddenException("반려동물 삭제는 최초 등록자만 할 수 있습니다.");
+		}
+		return pet;
+	}
+
+	private Pet getAccessiblePet(Long userId, Long petId) {
+		Pet pet = petRepository.findById(petId)
+				.orElseThrow(() -> new NotFoundException("반려동물을 찾을 수 없습니다."));
+		if (!pet.isOwnedBy(userId) && !petGuardianRepository.existsByPetIdAndUserId(petId, userId)) {
+			throw new ForbiddenException("본인 또는 공동보호자로 등록된 반려동물만 조회/수정할 수 있습니다.");
 		}
 		return pet;
 	}
