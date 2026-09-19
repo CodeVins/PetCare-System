@@ -2,6 +2,7 @@ import { Syringe } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getUpcomingVaccinations } from '../api/userApi'
+import { Reveal, RevealItem } from '../components/common/Reveal'
 
 function formatDday(daysRemaining) {
   if (daysRemaining === 0) return 'D-DAY'
@@ -26,7 +27,7 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-stone-900">홈</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-stone-900">홈</h1>
         <p className="mt-1 text-sm text-stone-500">다가오는 접종 일정을 확인하세요.</p>
       </div>
 
@@ -48,32 +49,33 @@ export default function HomePage() {
       )}
 
       {!loading && !error && vaccinations.length > 0 && (
-        <div className="space-y-2">
+        <Reveal className="space-y-2" stagger={0.06}>
           {vaccinations.map((item) => (
-            <Link
-              key={item.healthRecordId}
-              to={`/pets/${item.petId}`}
-              className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-colors hover:border-brand-200"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-50">
-                <Syringe weight="fill" size={20} className="text-brand-600" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-stone-900">{item.petName}</p>
-                <p className="text-sm text-stone-500">{item.nextDueDate}</p>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  item.daysRemaining <= 7
-                    ? 'bg-red-50 text-red-700'
-                    : 'bg-brand-50 text-brand-700'
-                }`}
+            <RevealItem key={item.healthRecordId}>
+              <Link
+                to={`/pets/${item.petId}`}
+                className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
               >
-                {formatDday(item.daysRemaining)}
-              </span>
-            </Link>
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-50">
+                  <Syringe weight="fill" size={20} className="text-brand-600" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-stone-900">{item.petName}</p>
+                  <p className="text-sm text-stone-500">{item.nextDueDate}</p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    item.daysRemaining <= 7
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-brand-50 text-brand-700'
+                  }`}
+                >
+                  {formatDday(item.daysRemaining)}
+                </span>
+              </Link>
+            </RevealItem>
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   )

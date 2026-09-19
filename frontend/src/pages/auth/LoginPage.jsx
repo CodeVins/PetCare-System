@@ -38,7 +38,7 @@ export default function LoginPage() {
           <span className="flex size-12 items-center justify-center rounded-full bg-brand-50">
             <PawPrint weight="fill" size={26} className="text-brand-600" />
           </span>
-          <h1 className="text-xl font-semibold text-stone-900">펫케어 로그인</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">펫케어 로그인</h1>
           <p className="text-sm text-stone-500">
             반려동물 건강 기록을 관리해보세요.
           </p>
@@ -47,6 +47,11 @@ export default function LoginPage() {
         {location.state?.signupSuccess && (
           <p className="mb-4 rounded-lg bg-brand-50 px-3.5 py-2.5 text-center text-sm text-brand-700">
             회원가입이 완료되었습니다. 로그인해주세요.
+          </p>
+        )}
+        {location.state?.passwordResetSuccess && (
+          <p className="mb-4 rounded-lg bg-brand-50 px-3.5 py-2.5 text-center text-sm text-brand-700">
+            비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.
           </p>
         )}
 
@@ -71,6 +76,15 @@ export default function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
             required
           />
+
+          <div className="text-right">
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-stone-500 hover:text-brand-700"
+            >
+              비밀번호를 잊으셨나요?
+            </Link>
+          </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

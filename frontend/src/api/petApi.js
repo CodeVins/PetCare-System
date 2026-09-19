@@ -8,12 +8,12 @@ export function getPet(petId) {
   return axiosInstance.get(`/api/pets/${petId}`)
 }
 
-export function createPet({ name, breed, birthDate }) {
-  return axiosInstance.post('/api/pets', { name, breed, birthDate })
+export function createPet({ name, species, breed, birthDate, size }) {
+  return axiosInstance.post('/api/pets', { name, species, breed, birthDate, size })
 }
 
-export function updatePet(petId, { name, breed, birthDate }) {
-  return axiosInstance.patch(`/api/pets/${petId}`, { name, breed, birthDate })
+export function updatePet(petId, { name, species, breed, birthDate, size }) {
+  return axiosInstance.patch(`/api/pets/${petId}`, { name, species, breed, birthDate, size })
 }
 
 export function deletePet(petId) {
@@ -28,4 +28,8 @@ export function uploadPetImage(petId, file) {
 
 export function deletePetImage(petId) {
   return axiosInstance.delete(`/api/pets/${petId}/image`)
+}
+
+export function calculateFeeding(petId, payload) {
+  return axiosInstance.post(`/api/pets/${petId}/feeding-calculator`, payload)
 }

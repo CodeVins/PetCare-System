@@ -1,4 +1,14 @@
-import { ChartLineUp, PencilSimple, Stethoscope, Syringe, Trash } from '@phosphor-icons/react'
+import {
+  ChartLineUp,
+  ClipboardText,
+  Drop,
+  ForkKnife,
+  PencilSimple,
+  PersonSimpleWalk,
+  Stethoscope,
+  Syringe,
+  Trash,
+} from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import {
   createHealthRecord,
@@ -14,12 +24,20 @@ const TYPE_LABEL = {
   WEIGHT: '체중',
   VACCINATION: '예방접종',
   TREATMENT: '진료',
+  WALK: '산책',
+  MEAL: '식사',
+  EXCRETION: '배변',
+  HEALTH_CHECK: '자가문진',
 }
 
 const TYPE_ICON = {
   WEIGHT: ChartLineUp,
   VACCINATION: Syringe,
   TREATMENT: Stethoscope,
+  WALK: PersonSimpleWalk,
+  MEAL: ForkKnife,
+  EXCRETION: Drop,
+  HEALTH_CHECK: ClipboardText,
 }
 
 const EMPTY_FORM = {

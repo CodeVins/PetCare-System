@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
-import { getAllUsers, updateHospitalOwner, updateUserRole } from '../../api/adminApi'
-import { getHospitals } from '../../api/hospitalApi'
+import {
+  activateUser,
+  getAllUsers,
+  suspendUser,
+  updateHospitalOwner,
+  updateUserRole,
+} from '../../api/adminApi'
+import { createHospital, getHospitals } from '../../api/hospitalApi'
 import Button from '../../components/common/Button'
+import TextField from '../../components/common/TextField'
 
 const ROLE_OPTIONS = ['USER', 'HOSPITAL_OWNER', 'ADMIN']
 
@@ -19,6 +26,11 @@ export default function UserManagementSection() {
   const [ownerUserId, setOwnerUserId] = useState('')
   const [ownerSaving, setOwnerSaving] = useState(false)
   const [ownerMessage, setOwnerMessage] = useState('')
+
+  const [newHospitalName, setNewHospitalName] = useState('')
+  const [newHospitalAddress, setNewHospitalAddress] = useState('')
+  const [creatingHospital, setCreatingHospital] = useState(false)
+  const [createHospitalError, setCreateHospitalError] = useState('')
 
   useEffect(() => {
     Promise.all([getAllUsers(), getHospitals()])
@@ -41,6 +53,37 @@ export default function UserManagementSection() {
       setError(err.response?.data?.message || '역할 변경에 실패했습니다.')
     } finally {
       setUpdatingUserId(null)
+    }
+  }
+
+  const handleToggleSuspend = async (user) => {
+    setUpdatingUserId(user.id)
+    try {
+      const { data } = user.suspended ? await activateUser(user.id) : await suspendUser(user.id)
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? data.data : u)))
+    } catch (err) {
+      setError(err.response?.data?.message || '처리에 실패했습니다.')
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  const handleCreateHospital = async (event) => {
+    event.preventDefault()
+    setCreateHospitalError('')
+    setCreatingHospital(true)
+    try {
+      const { data } = await createHospital({
+        name: newHospitalName,
+        address: newHospitalAddress || null,
+      })
+      setHospitals((prev) => [...prev, data.data])
+      setNewHospitalName('')
+      setNewHospitalAddress('')
+    } catch (err) {
+      setCreateHospitalError(err.response?.data?.message || '병원 등록에 실패했습니다.')
+    } finally {
+      setCreatingHospital(false)
     }
   }
 
@@ -78,26 +121,69 @@ export default function UserManagementSection() {
                 className="flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-stone-900">{user.email}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-sm font-medium text-stone-900">{user.email}</p>
+                    {user.suspended && (
+                      <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
+                        정지됨
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-stone-400">ID: {user.id}</p>
                 </div>
-                <select
-                  value={user.role}
-                  onChange={(event) => handleRoleChange(user.id, event.target.value)}
-                  disabled={updatingUserId === user.id}
-                  className={selectClassName}
-                >
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex shrink-0 items-center gap-2">
+                  <select
+                    value={user.role}
+                    onChange={(event) => handleRoleChange(user.id, event.target.value)}
+                    disabled={updatingUserId === user.id}
+                    className={selectClassName}
+                  >
+                    {ROLE_OPTIONS.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSuspend(user)}
+                    disabled={updatingUserId === user.id}
+                    className="text-xs font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {user.suspended ? '정지 해제' : '정지'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <form
+        onSubmit={handleCreateHospital}
+        className="space-y-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+      >
+        <h2 className="text-sm font-semibold text-stone-700">병원 등록</h2>
+        <p className="text-xs text-stone-500">
+          위경도·운영시간·24시간·주차·진료비·사진은 등록 후 대시보드에서 편집할 수
+          있어요.
+        </p>
+        <TextField
+          label="병원 이름"
+          value={newHospitalName}
+          onChange={(event) => setNewHospitalName(event.target.value)}
+          required
+        />
+        <TextField
+          label="주소"
+          value={newHospitalAddress}
+          onChange={(event) => setNewHospitalAddress(event.target.value)}
+        />
+        {createHospitalError && <p className="text-sm text-red-600">{createHospitalError}</p>}
+        <Button type="submit" loading={creatingHospital}>
+          등록하기
+        </Button>
+      </form>
 
       <form
         onSubmit={handleOwnerAssign}

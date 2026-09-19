@@ -1,8 +1,11 @@
-import { PawPrint, Plus } from '@phosphor-icons/react'
+import { ClipboardText, PawPrint, Plus } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BASE_URL } from '../../api/axiosInstance'
 import { getMyPets } from '../../api/petApi'
+import { Reveal, RevealItem } from '../../components/common/Reveal'
+
+const SPECIES_LABEL = { DOG: '강아지', CAT: '고양이' }
 
 function calculateAge(birthDate) {
   if (!birthDate) return null
@@ -33,14 +36,23 @@ export default function PetListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">반려동물</h1>
-        <Link
-          to="/pets/new"
-          className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          <Plus size={16} weight="bold" />
-          등록
-        </Link>
+        <h1 className="text-2xl font-bold tracking-tight text-stone-900">반려동물</h1>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/health-check"
+            className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-brand-200 hover:text-brand-700"
+          >
+            <ClipboardText size={16} />
+            건강 자가문진
+          </Link>
+          <Link
+            to="/pets/new"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            <Plus size={16} weight="bold" />
+            등록
+          </Link>
+        </div>
       </div>
 
       {loading && (
@@ -63,37 +75,45 @@ export default function PetListPage() {
       )}
 
       {!loading && !error && pets.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Reveal className="grid grid-cols-1 gap-3 sm:grid-cols-2" stagger={0.05}>
           {pets.map((pet) => {
             const age = calculateAge(pet.birthDate)
             return (
-              <Link
-                key={pet.id}
-                to={`/pets/${pet.id}`}
-                className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-colors hover:border-brand-200"
-              >
-                <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-50">
-                  {pet.imageUrl ? (
-                    <img
-                      src={`${BASE_URL}${pet.imageUrl}`}
-                      alt=""
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <PawPrint weight="fill" size={22} className="text-brand-600" />
-                  )}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-stone-900">{pet.name}</p>
-                  <p className="truncate text-sm text-stone-500">
-                    {pet.breed || '품종 미등록'}
-                    {age !== null && ` · ${age}살`}
-                  </p>
-                </div>
-              </Link>
+              <RevealItem key={pet.id}>
+                <Link
+                  to={`/pets/${pet.id}`}
+                  className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+                >
+                  <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-50">
+                    {pet.imageUrl ? (
+                      <img
+                        src={`${BASE_URL}${pet.imageUrl}`}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <PawPrint weight="fill" size={22} className="text-brand-600" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate font-medium text-stone-900">{pet.name}</p>
+                      {pet.role === 'GUARDIAN' && (
+                        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
+                          공동보호자
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate text-sm text-stone-500">
+                      {SPECIES_LABEL[pet.species]} · {pet.breed || '품종 미등록'}
+                      {age !== null && ` · ${age}살`}
+                    </p>
+                  </div>
+                </Link>
+              </RevealItem>
             )
           })}
-        </div>
+        </Reveal>
       )}
     </div>
   )

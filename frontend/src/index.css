@@ -10,8 +10,32 @@
   --color-brand-500: #4f9d95;
   --color-brand-600: #3f8079;
   --color-brand-700: #336863;
+
+  /* Shadows tinted toward the brand hue instead of generic black - every
+     existing shadow-sm/shadow usage across the app picks this up for free. */
+  --shadow-sm: 0 1px 2px 0 rgb(63 128 121 / 0.06), 0 1px 3px -1px rgb(63 128 121 / 0.07);
+  --shadow: 0 1px 3px 0 rgb(63 128 121 / 0.08), 0 4px 8px -2px rgb(63 128 121 / 0.06);
+  --shadow-md: 0 4px 10px -2px rgb(63 128 121 / 0.1), 0 8px 20px -4px rgb(63 128 121 / 0.08);
 }
 
 body {
   @apply bg-stone-50 text-stone-900;
+  text-wrap: pretty;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Visually hidden until keyboard-focused - skip-to-content link target */
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50
+    focus:rounded-full focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm
+    focus:font-semibold focus:text-white;
 }

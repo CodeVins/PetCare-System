@@ -12,7 +12,21 @@ import {
 import { BASE_URL } from '../../api/axiosInstance'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
+import FeedingCalculatorSection from './FeedingCalculatorSection'
+import GuardianSection from './GuardianSection'
 import HealthRecordSection from './HealthRecordSection'
+
+const SPECIES_OPTIONS = [
+  { value: 'DOG', label: '강아지' },
+  { value: 'CAT', label: '고양이' },
+]
+
+const SIZE_OPTIONS = [
+  { value: '', label: '선택 안 함' },
+  { value: 'SMALL', label: '소형' },
+  { value: 'MEDIUM', label: '중형' },
+  { value: 'LARGE', label: '대형' },
+]
 
 export default function PetFormPage() {
   const { petId } = useParams()
@@ -20,9 +34,12 @@ export default function PetFormPage() {
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
+  const [species, setSpecies] = useState('DOG')
   const [breed, setBreed] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [size, setSize] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [role, setRole] = useState('OWNER')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -36,9 +53,12 @@ export default function PetFormPage() {
       .then(({ data }) => {
         const pet = data.data
         setName(pet.name)
+        setSpecies(pet.species)
         setBreed(pet.breed || '')
         setBirthDate(pet.birthDate || '')
+        setSize(pet.size || '')
         setImageUrl(pet.imageUrl || '')
+        setRole(pet.role)
       })
       .catch((err) =>
         setError(err.response?.data?.message || '반려동물 정보를 불러오지 못했습니다.'),
@@ -81,7 +101,13 @@ export default function PetFormPage() {
     setError('')
     setSaving(true)
     try {
-      const payload = { name, breed: breed || null, birthDate: birthDate || null }
+      const payload = {
+        name,
+        species,
+        breed: breed || null,
+        birthDate: birthDate || null,
+        size: size || null,
+      }
       if (isEdit) {
         await updatePet(petId, payload)
       } else {
@@ -112,7 +138,7 @@ export default function PetFormPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="mb-6 text-xl font-semibold text-stone-900">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-stone-900">
         {isEdit ? '반려동물 정보 수정' : '반려동물 등록'}
       </h1>
 
@@ -163,6 +189,22 @@ export default function PetFormPage() {
           onChange={(event) => setName(event.target.value)}
           required
         />
+
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-stone-700">종</span>
+          <select
+            value={species}
+            onChange={(event) => setSpecies(event.target.value)}
+            className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          >
+            {SPECIES_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <TextField
           label="품종"
           value={breed}
@@ -176,13 +218,28 @@ export default function PetFormPage() {
           onChange={(event) => setBirthDate(event.target.value)}
         />
 
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-stone-700">크기</span>
+          <select
+            value={size}
+            onChange={(event) => setSize(event.target.value)}
+            className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+          >
+            {SIZE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex items-center gap-2 pt-2">
           <Button type="submit" loading={saving} className="flex-1">
             {isEdit ? '저장' : '등록'}
           </Button>
-          {isEdit && (
+          {isEdit && role === 'OWNER' && (
             <button
               type="button"
               onClick={handleDelete}
@@ -197,8 +254,10 @@ export default function PetFormPage() {
       </form>
 
       {isEdit && (
-        <div className="mt-8">
+        <div className="mt-8 space-y-8">
           <HealthRecordSection petId={petId} />
+          <FeedingCalculatorSection petId={petId} species={species} />
+          <GuardianSection petId={petId} isOwner={role === 'OWNER'} />
         </div>
       )}
     </div>

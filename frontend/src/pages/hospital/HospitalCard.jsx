@@ -1,15 +1,24 @@
 import { Buildings, Heart, MapPin, Star } from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
+import { BASE_URL } from '../../api/axiosInstance'
 
 export default function HospitalCard({ hospital, isFavorite, onToggleFavorite }) {
   return (
     <div className="relative">
       <Link
         to={`/hospitals/${hospital.id}`}
-        className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-white p-4 pr-12 transition-colors hover:border-brand-200"
+        className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-white p-4 pr-12 transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
       >
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-50">
-          <Buildings weight="fill" size={20} className="text-brand-600" />
+        <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-50">
+          {hospital.imageUrl ? (
+            <img
+              src={`${BASE_URL}${hospital.imageUrl}`}
+              alt=""
+              className="size-full object-cover"
+            />
+          ) : (
+            <Buildings weight="fill" size={20} className="text-brand-600" />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
@@ -36,6 +45,8 @@ export default function HospitalCard({ hospital, isFavorite, onToggleFavorite })
             )}
             {hospital.specialty && <span>{hospital.specialty}</span>}
             {hospital.openingHours && <span>{hospital.openingHours}</span>}
+            {hospital.is24Hours && <span>24시간</span>}
+            {hospital.hasParking && <span>주차 가능</span>}
           </div>
         </div>
       </Link>

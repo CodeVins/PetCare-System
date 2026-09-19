@@ -8,6 +8,10 @@ export function getHospital(hospitalId) {
   return axiosInstance.get(`/api/hospitals/${hospitalId}`)
 }
 
+export function createHospital(payload) {
+  return axiosInstance.post('/api/hospitals', payload)
+}
+
 export function updateHospital(hospitalId, payload) {
   return axiosInstance.patch(`/api/hospitals/${hospitalId}`, payload)
 }
@@ -35,4 +39,14 @@ export function removeFavorite(hospitalId) {
 export function getFavorites() {
   // size: 100 — see getSlots comment above, same reasoning for a small demo dataset.
   return axiosInstance.get('/api/favorites', { params: { size: 100 } })
+}
+
+export function uploadHospitalImage(hospitalId, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return axiosInstance.post(`/api/hospitals/${hospitalId}/image`, formData)
+}
+
+export function deleteHospitalImage(hospitalId) {
+  return axiosInstance.delete(`/api/hospitals/${hospitalId}/image`)
 }

@@ -11,3 +11,11 @@ export function login({ email, password }) {
 export function logout() {
   return axiosInstance.post('/api/auth/logout')
 }
+
+export function requestPasswordReset(email) {
+  return axiosInstance.post('/api/auth/password-reset/request', { email })
+}
+
+export function confirmPasswordReset(token, newPassword) {
+  return axiosInstance.post('/api/auth/password-reset/confirm', { token, newPassword })
+}

@@ -1,5 +1,13 @@
+import { Buildings } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import { createSlot, getSlots, updateHospital } from '../../api/hospitalApi'
+import { BASE_URL } from '../../api/axiosInstance'
+import {
+  createSlot,
+  deleteHospitalImage,
+  getSlots,
+  updateHospital,
+  uploadHospitalImage,
+} from '../../api/hospitalApi'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
 
@@ -11,6 +19,9 @@ function toFormState(hospital) {
     longitude: hospital.longitude ?? '',
     openingHours: hospital.openingHours || '',
     specialty: hospital.specialty || '',
+    is24Hours: hospital.is24Hours || false,
+    hasParking: hospital.hasParking || false,
+    avgTreatmentPrice: hospital.avgTreatmentPrice ?? '',
   }
 }
 
@@ -43,6 +54,9 @@ export default function HospitalManageSection({ hospital, onHospitalUpdated }) {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState(false)
+
+  const [imageSaving, setImageSaving] = useState(false)
+  const [imageError, setImageError] = useState('')
 
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(true)
@@ -82,6 +96,9 @@ export default function HospitalManageSection({ hospital, onHospitalUpdated }) {
         longitude: form.longitude === '' ? null : Number(form.longitude),
         openingHours: form.openingHours || null,
         specialty: form.specialty || null,
+        is24Hours: form.is24Hours,
+        hasParking: form.hasParking,
+        avgTreatmentPrice: form.avgTreatmentPrice === '' ? null : Number(form.avgTreatmentPrice),
       })
       onHospitalUpdated(data.data)
       setFormSuccess(true)
@@ -89,6 +106,36 @@ export default function HospitalManageSection({ hospital, onHospitalUpdated }) {
       setFormError(err.response?.data?.message || '저장에 실패했습니다.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleImageChange = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setImageError('')
+    setImageSaving(true)
+    try {
+      const { data } = await uploadHospitalImage(hospital.id, file)
+      onHospitalUpdated(data.data)
+    } catch (err) {
+      setImageError(err.response?.data?.message || '이미지 업로드에 실패했습니다.')
+    } finally {
+      setImageSaving(false)
+    }
+  }
+
+  const handleImageDelete = async () => {
+    if (!window.confirm('병원 사진을 삭제할까요?')) return
+    setImageError('')
+    setImageSaving(true)
+    try {
+      await deleteHospitalImage(hospital.id)
+      onHospitalUpdated({ ...hospital, imageUrl: null })
+    } catch (err) {
+      setImageError(err.response?.data?.message || '삭제에 실패했습니다.')
+    } finally {
+      setImageSaving(false)
     }
   }
 
@@ -115,6 +162,41 @@ export default function HospitalManageSection({ hospital, onHospitalUpdated }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col items-center gap-2">
+        <label className="group relative flex h-24 w-full max-w-xs cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-stone-100 ring-1 ring-stone-200">
+          {hospital.imageUrl ? (
+            <img
+              src={`${BASE_URL}${hospital.imageUrl}`}
+              alt=""
+              className="size-full object-cover"
+            />
+          ) : (
+            <Buildings size={28} className="text-stone-300" />
+          )}
+          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+            {imageSaving ? '처리 중...' : '사진 변경'}
+          </span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            disabled={imageSaving}
+            onChange={handleImageChange}
+          />
+        </label>
+        {imageError && <p className="text-xs text-red-600">{imageError}</p>}
+        {hospital.imageUrl && (
+          <button
+            type="button"
+            onClick={handleImageDelete}
+            disabled={imageSaving}
+            className="text-xs font-medium text-stone-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            사진 삭제
+          </button>
+        )}
+      </div>
+
       <form
         onSubmit={handleFormSubmit}
         className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
@@ -157,6 +239,38 @@ export default function HospitalManageSection({ hospital, onHospitalUpdated }) {
           value={form.specialty}
           onChange={(event) => setForm((f) => ({ ...f, specialty: event.target.value }))}
           placeholder="예: 내과, 외과"
+        />
+
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={form.is24Hours}
+              onChange={(event) => setForm((f) => ({ ...f, is24Hours: event.target.checked }))}
+              className="accent-brand-600"
+            />
+            24시간 운영
+          </label>
+          <label className="flex items-center gap-2 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={form.hasParking}
+              onChange={(event) => setForm((f) => ({ ...f, hasParking: event.target.checked }))}
+              className="accent-brand-600"
+            />
+            주차 가능
+          </label>
+        </div>
+
+        <TextField
+          label="평균 진료비 (원, 선택)"
+          type="number"
+          step="1000"
+          min="0"
+          value={form.avgTreatmentPrice}
+          onChange={(event) =>
+            setForm((f) => ({ ...f, avgTreatmentPrice: event.target.value }))
+          }
         />
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}

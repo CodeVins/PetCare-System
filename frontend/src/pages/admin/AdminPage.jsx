@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getHospitalStats, getStatsSummary, runReminders } from '../../api/adminApi'
 import Button from '../../components/common/Button'
+import ReviewModerationSection from './ReviewModerationSection'
 import UserManagementSection from './UserManagementSection'
 
 const SUMMARY_LABELS = {
@@ -10,6 +11,7 @@ const SUMMARY_LABELS = {
   totalReservations: '전체 예약',
   confirmedReservations: '확정 예약',
   cancelledReservations: '취소 예약',
+  noShowReservations: '노쇼',
 }
 
 export default function AdminPage() {
@@ -46,7 +48,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-semibold text-stone-900">관리자</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">관리자</h1>
 
       {loading && <div className="h-24 animate-pulse rounded-2xl bg-stone-100" />}
       {!loading && error && <p className="text-sm text-red-600">{error}</p>}
@@ -100,6 +102,8 @@ export default function AdminPage() {
       </div>
 
       <UserManagementSection />
+
+      <ReviewModerationSection />
     </div>
   )
 }

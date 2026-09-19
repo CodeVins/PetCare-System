@@ -11,3 +11,7 @@ export function confirmReservation(reservationId) {
 export function rejectReservation(reservationId) {
   return axiosInstance.patch(`/api/admin/reservations/${reservationId}/reject`)
 }
+
+export function noShowReservation(reservationId) {
+  return axiosInstance.patch(`/api/admin/reservations/${reservationId}/no-show`)
+}

@@ -26,7 +26,7 @@ export default function OwnerDashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-semibold text-stone-900">병원 대시보드</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">병원 대시보드</h1>
 
       <ReservationQueueSection />
 

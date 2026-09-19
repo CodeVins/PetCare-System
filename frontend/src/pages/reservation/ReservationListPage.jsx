@@ -1,5 +1,6 @@
-import { CalendarCheck } from '@phosphor-icons/react'
+import { CalendarCheck, HourglassMedium } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getHospitals, getSlots } from '../../api/hospitalApi'
 import { getMyPets } from '../../api/petApi'
 import { cancelReservation, getMyReservations } from '../../api/reservationApi'
@@ -9,6 +10,7 @@ const STATUS_LABEL = {
   CONFIRMED: '확정',
   REJECTED: '거절됨',
   CANCELLED: '취소됨',
+  NO_SHOW: '노쇼',
 }
 
 const STATUS_STYLE = {
@@ -16,6 +18,7 @@ const STATUS_STYLE = {
   CONFIRMED: 'bg-brand-50 text-brand-700',
   REJECTED: 'bg-red-50 text-red-700',
   CANCELLED: 'bg-stone-100 text-stone-500',
+  NO_SHOW: 'bg-stone-200 text-stone-600',
 }
 
 const CANCELLABLE_STATUSES = ['PENDING', 'CONFIRMED']
@@ -100,7 +103,16 @@ export default function ReservationListPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-stone-900">예약</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-stone-900">예약</h1>
+        <Link
+          to="/waitlist"
+          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-brand-200 hover:text-brand-700"
+        >
+          <HourglassMedium size={16} />
+          대기 목록
+        </Link>
+      </div>
 
       {loading && (
         <div className="space-y-3">

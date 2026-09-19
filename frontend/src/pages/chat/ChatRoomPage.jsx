@@ -59,7 +59,7 @@ export default function ChatRoomPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <h1 className="text-xl font-semibold text-stone-900">채팅</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">채팅</h1>
 
       <div className="flex h-[60vh] flex-col gap-2 overflow-y-auto rounded-2xl border border-stone-200 bg-white p-4">
         {loading && <div className="h-full animate-pulse rounded-xl bg-stone-100" />}

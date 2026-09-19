@@ -23,7 +23,7 @@ export default function ChatRoomListPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-stone-900">채팅</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">채팅</h1>
 
       {loading && (
         <div className="space-y-3">

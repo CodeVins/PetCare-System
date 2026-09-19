@@ -6,6 +6,7 @@ import { changePassword, getMe, updateEmail } from '../../api/userApi'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
 import { useAuth } from '../../hooks/useAuth'
+import NotificationPreferenceSection from './NotificationPreferenceSection'
 
 export default function MyPage() {
   const [loading, setLoading] = useState(true)
@@ -88,7 +89,7 @@ export default function MyPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-6">
-      <h1 className="text-xl font-semibold text-stone-900">마이페이지</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">마이페이지</h1>
 
       {loadError && <p className="text-sm text-red-600">{loadError}</p>}
 
@@ -101,6 +102,8 @@ export default function MyPage() {
         </span>
         <span className="text-sm font-medium text-stone-900">즐겨찾기한 병원 보기</span>
       </Link>
+
+      <NotificationPreferenceSection />
 
       <form
         onSubmit={handleEmailSubmit}

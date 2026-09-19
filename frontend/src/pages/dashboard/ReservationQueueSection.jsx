@@ -4,6 +4,7 @@ import { getHospitals, getSlots } from '../../api/hospitalApi'
 import {
   confirmReservation,
   getAdminReservations,
+  noShowReservation,
   rejectReservation,
 } from '../../api/reservationAdminApi'
 import Button from '../../components/common/Button'
@@ -13,6 +14,7 @@ const STATUS_LABEL = {
   CONFIRMED: '확정',
   REJECTED: '거절됨',
   CANCELLED: '취소됨',
+  NO_SHOW: '노쇼',
 }
 
 const STATUS_STYLE = {
@@ -20,6 +22,7 @@ const STATUS_STYLE = {
   CONFIRMED: 'bg-brand-50 text-brand-700',
   REJECTED: 'bg-red-50 text-red-700',
   CANCELLED: 'bg-stone-100 text-stone-500',
+  NO_SHOW: 'bg-stone-200 text-stone-600',
 }
 
 const FILTER_OPTIONS = [
@@ -27,6 +30,7 @@ const FILTER_OPTIONS = [
   { value: 'CONFIRMED', label: '확정' },
   { value: 'REJECTED', label: '거절됨' },
   { value: 'CANCELLED', label: '취소됨' },
+  { value: 'NO_SHOW', label: '노쇼' },
   { value: '', label: '전체' },
 ]
 
@@ -83,14 +87,16 @@ export default function ReservationQueueSection() {
       .finally(() => setLoading(false))
   }, [statusFilter])
 
+  const ACTION_FNS = {
+    confirm: confirmReservation,
+    reject: rejectReservation,
+    noShow: noShowReservation,
+  }
+
   const handleAction = async (reservationId, action) => {
     setActingId(reservationId)
     try {
-      if (action === 'confirm') {
-        await confirmReservation(reservationId)
-      } else {
-        await rejectReservation(reservationId)
-      }
+      await ACTION_FNS[action](reservationId)
       setReservations((prev) => prev.filter((reservation) => reservation.id !== reservationId))
     } catch (err) {
       setError(err.response?.data?.message || '처리에 실패했습니다.')
@@ -179,6 +185,17 @@ export default function ReservationQueueSection() {
                       거절
                     </button>
                   </div>
+                )}
+
+                {reservation.status === 'CONFIRMED' && (
+                  <button
+                    type="button"
+                    onClick={() => handleAction(reservation.id, 'noShow')}
+                    disabled={actingId === reservation.id}
+                    className="mt-3 w-full rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    노쇼 처리
+                  </button>
                 )}
               </div>
             )

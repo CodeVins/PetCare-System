@@ -34,7 +34,7 @@ export default function SignupPage() {
           <span className="flex size-12 items-center justify-center rounded-full bg-brand-50">
             <PawPrint weight="fill" size={26} className="text-brand-600" />
           </span>
-          <h1 className="text-xl font-semibold text-stone-900">펫케어 회원가입</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">펫케어 회원가입</h1>
           <p className="text-sm text-stone-500">
             이메일과 비밀번호로 간편하게 시작하세요.
           </p>

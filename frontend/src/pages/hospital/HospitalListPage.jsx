@@ -1,6 +1,7 @@
 import { Buildings, Crosshair, MagnifyingGlass } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { addFavorite, getFavorites, getHospitals, removeFavorite } from '../../api/hospitalApi'
+import { Reveal, RevealItem } from '../../components/common/Reveal'
 import HospitalCard from './HospitalCard'
 
 const SORT_OPTIONS = [
@@ -25,6 +26,8 @@ export default function HospitalListPage() {
   const [keyword, setKeyword] = useState('')
   const [minRating, setMinRating] = useState('')
   const [sort, setSort] = useState('NAME_ASC')
+  const [is24Hours, setIs24Hours] = useState(false)
+  const [hasParking, setHasParking] = useState(false)
   const [locationEnabled, setLocationEnabled] = useState(false)
   const [radiusKm, setRadiusKm] = useState(5)
   const [coords, setCoords] = useState(null)
@@ -77,6 +80,8 @@ export default function HospitalListPage() {
         lat: locationEnabled ? coords?.lat : undefined,
         lng: locationEnabled ? coords?.lng : undefined,
         radiusKm: locationEnabled ? radiusKm : undefined,
+        is24Hours: is24Hours || undefined,
+        hasParking: hasParking || undefined,
       })
         .then(({ data }) => setHospitals(data.data))
         .catch((err) =>
@@ -85,7 +90,7 @@ export default function HospitalListPage() {
         .finally(() => setLoading(false))
     }, 300)
     return () => clearTimeout(timeout)
-  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm])
+  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm, is24Hours, hasParking])
 
   const enableLocation = () => {
     if (!navigator.geolocation) {
@@ -111,7 +116,7 @@ export default function HospitalListPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-stone-900">병원</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">병원</h1>
 
       <div className="space-y-3">
         <div className="relative">
@@ -180,6 +185,25 @@ export default function HospitalListPage() {
               ))}
             </select>
           )}
+
+          <label className="flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-2 text-sm font-medium text-stone-700">
+            <input
+              type="checkbox"
+              checked={is24Hours}
+              onChange={(event) => setIs24Hours(event.target.checked)}
+              className="accent-brand-600"
+            />
+            24시간
+          </label>
+          <label className="flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-2 text-sm font-medium text-stone-700">
+            <input
+              type="checkbox"
+              checked={hasParking}
+              onChange={(event) => setHasParking(event.target.checked)}
+              className="accent-brand-600"
+            />
+            주차 가능
+          </label>
         </div>
 
         {geoError && <p className="text-sm text-red-600">{geoError}</p>}
@@ -203,16 +227,17 @@ export default function HospitalListPage() {
       )}
 
       {!loading && !error && hospitals.length > 0 && (
-        <div className="space-y-3">
+        <Reveal className="space-y-3" stagger={0.05}>
           {hospitals.map((hospital) => (
-            <HospitalCard
-              key={hospital.id}
-              hospital={hospital}
-              isFavorite={favoriteIds.has(hospital.id)}
-              onToggleFavorite={toggleFavorite}
-            />
+            <RevealItem key={hospital.id}>
+              <HospitalCard
+                hospital={hospital}
+                isFavorite={favoriteIds.has(hospital.id)}
+                onToggleFavorite={toggleFavorite}
+              />
+            </RevealItem>
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   )
