@@ -41,12 +41,16 @@ public class Review extends BaseEntity {
 	@Column(nullable = false)
 	private String content;
 
+	@Column(nullable = false)
+	private boolean hidden;
+
 	@Builder
 	private Review(Hospital hospital, User user, int rating, String content) {
 		this.hospital = hospital;
 		this.user = user;
 		this.rating = rating;
 		this.content = content;
+		this.hidden = false;
 	}
 
 	public boolean isOwnedBy(Long userId) {
@@ -56,5 +60,13 @@ public class Review extends BaseEntity {
 	public void update(int rating, String content) {
 		this.rating = rating;
 		this.content = content;
+	}
+
+	public void hide() {
+		this.hidden = true;
+	}
+
+	public void unhide() {
+		this.hidden = false;
 	}
 }

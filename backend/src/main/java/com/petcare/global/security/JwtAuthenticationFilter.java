@@ -44,6 +44,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		if (StringUtils.hasText(header) && header.startsWith(PREFIX)) {
 			return header.substring(PREFIX.length());
 		}
+
+		// 브라우저 EventSource는 커스텀 헤더를 못 보내므로, SSE 구독 경로만 쿼리파라미터 토큰 허용
+		if (request.getRequestURI().equals("/api/notifications/subscribe")) {
+			return request.getParameter("token");
+		}
 		return null;
 	}
 }

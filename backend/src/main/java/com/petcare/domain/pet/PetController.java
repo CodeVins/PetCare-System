@@ -1,13 +1,17 @@
 package com.petcare.domain.pet;
 
+import com.petcare.domain.pet.dto.FeedingCalculatorRequest;
+import com.petcare.domain.pet.dto.FeedingCalculatorResponse;
 import com.petcare.domain.pet.dto.PetCreateRequest;
 import com.petcare.domain.pet.dto.PetResponse;
 import com.petcare.domain.pet.dto.PetUpdateRequest;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PetController {
 
 	private final PetService petService;
+	private final FeedingCalculatorService feedingCalculatorService;
 
 	@PostMapping
 	public ResponseEntity<ApiResponse<PetResponse>> create(
@@ -37,8 +42,9 @@ public class PetController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<PetResponse>>> getMyPets(@AuthenticationPrincipal CustomUserDetails userDetails) {
-		return ResponseEntity.ok(ApiResponse.success(petService.getMyPets(userDetails.getUser().getId())));
+	public ResponseEntity<ApiResponse<PageResponse<PetResponse>>> getMyPets(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(ApiResponse.success(petService.getMyPets(userDetails.getUser().getId(), pageable)));
 	}
 
 	@GetMapping("/{petId}")
@@ -74,5 +80,13 @@ public class PetController {
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId) {
 		petService.deleteImage(userDetails.getUser().getId(), petId);
 		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@PostMapping("/{petId}/feeding-calculator")
+	public ResponseEntity<ApiResponse<FeedingCalculatorResponse>> calculateFeeding(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long petId,
+			@Valid @RequestBody FeedingCalculatorRequest request) {
+		petService.verifyAccess(userDetails.getUser().getId(), petId);
+		return ResponseEntity.ok(ApiResponse.success(feedingCalculatorService.calculate(request)));
 	}
 }

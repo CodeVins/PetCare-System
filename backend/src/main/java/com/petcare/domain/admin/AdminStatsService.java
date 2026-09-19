@@ -32,7 +32,8 @@ public class AdminStatsService {
 				hospitalRepository.count(),
 				reservationRepository.count(),
 				reservationRepository.countByStatus(ReservationStatus.CONFIRMED),
-				reservationRepository.countByStatus(ReservationStatus.CANCELLED)
+				reservationRepository.countByStatus(ReservationStatus.CANCELLED),
+				reservationRepository.countByStatus(ReservationStatus.NO_SHOW)
 		);
 	}
 
@@ -45,7 +46,7 @@ public class AdminStatsService {
 	private HospitalStatsResponse toHospitalStats(Hospital hospital) {
 		long reservationCount =
 				reservationRepository.countBySlot_Hospital_IdAndStatus(hospital.getId(), ReservationStatus.CONFIRMED);
-		long reviewCount = reviewRepository.countByHospitalId(hospital.getId());
+		long reviewCount = reviewRepository.countByHospitalIdAndHiddenFalse(hospital.getId());
 		Double averageRating = reviewRepository.findAverageRatingByHospitalId(hospital.getId());
 
 		return new HospitalStatsResponse(hospital.getId(), hospital.getName(), reservationCount, reviewCount, averageRating);

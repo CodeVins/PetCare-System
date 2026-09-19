@@ -3,10 +3,12 @@ package com.petcare.domain.reservation;
 import com.petcare.domain.reservation.dto.ReservationCreateRequest;
 import com.petcare.domain.reservation.dto.ReservationResponse;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,9 +35,10 @@ public class ReservationController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<ReservationResponse>>> getMyReservations(
-			@AuthenticationPrincipal CustomUserDetails userDetails) {
-		return ResponseEntity.ok(ApiResponse.success(reservationService.getMyReservations(userDetails.getUser().getId())));
+	public ResponseEntity<ApiResponse<PageResponse<ReservationResponse>>> getMyReservations(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(
+				ApiResponse.success(reservationService.getMyReservations(userDetails.getUser().getId(), pageable)));
 	}
 
 	@GetMapping("/{reservationId}")

@@ -15,10 +15,15 @@ public class JwtTokenProvider {
 
 	private final SecretKey key;
 	private final long expiration;
+	private final long refreshExpiration;
 
-	public JwtTokenProvider(@Value("${jwt.secret}") String secret, @Value("${jwt.expiration}") long expiration) {
+	public JwtTokenProvider(
+			@Value("${jwt.secret}") String secret,
+			@Value("${jwt.expiration}") long expiration,
+			@Value("${jwt.refresh-expiration}") long refreshExpiration) {
 		this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 		this.expiration = expiration;
+		this.refreshExpiration = refreshExpiration;
 	}
 
 	public String generateToken(String email) {
@@ -35,6 +40,10 @@ public class JwtTokenProvider {
 
 	public long getExpiration() {
 		return expiration;
+	}
+
+	public long getRefreshExpiration() {
+		return refreshExpiration;
 	}
 
 	public String getEmail(String token) {

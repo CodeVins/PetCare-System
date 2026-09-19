@@ -3,5 +3,9 @@ package com.petcare.domain.pet;
 public enum HealthRecordType {
 	WEIGHT,
 	VACCINATION,
-	TREATMENT
+	TREATMENT,
+	WALK,
+	MEAL,
+	EXCRETION,
+	HEALTH_CHECK
 }

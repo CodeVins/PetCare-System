@@ -1,6 +1,7 @@
 package com.petcare.domain.hospital;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,10 +10,10 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
 	boolean existsByUserIdAndHospitalId(Long userId, Long hospitalId);
 
-	List<Review> findAllByHospitalIdOrderByCreatedAtDesc(Long hospitalId);
+	Page<Review> findAllByHospitalIdAndHiddenFalseOrderByCreatedAtDesc(Long hospitalId, Pageable pageable);
 
-	long countByHospitalId(Long hospitalId);
+	long countByHospitalIdAndHiddenFalse(Long hospitalId);
 
-	@Query("select avg(r.rating) from Review r where r.hospital.id = :hospitalId")
+	@Query("select avg(r.rating) from Review r where r.hospital.id = :hospitalId and r.hidden = false")
 	Double findAverageRatingByHospitalId(@Param("hospitalId") Long hospitalId);
 }

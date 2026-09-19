@@ -16,12 +16,13 @@ public class HospitalRepositoryImpl implements HospitalRepositoryCustom {
 	private final JPAQueryFactory queryFactory;
 
 	@Override
-	public List<HospitalSearchResult> search(String keyword, Double minRating, HospitalSortType sort) {
+	public List<HospitalSearchResult> search(
+			String keyword, Double minRating, HospitalSortType sort, Boolean is24Hours, Boolean hasParking) {
 		List<Tuple> results = queryFactory
 				.select(hospital, review.rating.avg(), review.id.count())
 				.from(hospital)
-				.leftJoin(review).on(review.hospital.eq(hospital))
-				.where(keywordContains(keyword))
+				.leftJoin(review).on(review.hospital.eq(hospital), review.hidden.eq(false))
+				.where(keywordContains(keyword), is24HoursCondition(is24Hours), hasParkingCondition(hasParking))
 				.groupBy(hospital.id)
 				.having(minRatingCondition(minRating))
 				.orderBy(orderSpecifier(sort))
@@ -38,6 +39,14 @@ public class HospitalRepositoryImpl implements HospitalRepositoryCustom {
 			return null;
 		}
 		return hospital.name.containsIgnoreCase(keyword).or(hospital.address.containsIgnoreCase(keyword));
+	}
+
+	private BooleanExpression is24HoursCondition(Boolean is24Hours) {
+		return is24Hours == null ? null : hospital.is24Hours.eq(is24Hours);
+	}
+
+	private BooleanExpression hasParkingCondition(Boolean hasParking) {
+		return hasParking == null ? null : hospital.hasParking.eq(hasParking);
 	}
 
 	private BooleanExpression minRatingCondition(Double minRating) {
