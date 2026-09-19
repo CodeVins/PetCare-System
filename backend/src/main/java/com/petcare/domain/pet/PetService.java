@@ -3,8 +3,11 @@ package com.petcare.domain.pet;
 import com.petcare.domain.pet.dto.PetCreateRequest;
 import com.petcare.domain.pet.dto.PetResponse;
 import com.petcare.domain.pet.dto.PetUpdateRequest;
+import com.petcare.domain.reservation.ReservationRepository;
+import com.petcare.domain.reservation.WaitlistRepository;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
+import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
 import com.petcare.global.common.PageResponse;
@@ -22,6 +25,9 @@ public class PetService {
 
 	private final PetRepository petRepository;
 	private final PetGuardianRepository petGuardianRepository;
+	private final HealthRecordRepository healthRecordRepository;
+	private final ReservationRepository reservationRepository;
+	private final WaitlistRepository waitlistRepository;
 	private final UserRepository userRepository;
 	private final FileStorageService fileStorageService;
 
@@ -60,8 +66,13 @@ public class PetService {
 	@Transactional
 	public void delete(Long userId, Long petId) {
 		Pet pet = getOwnedPet(userId, petId);
+		if (reservationRepository.existsByPetId(petId)) {
+			throw new ConflictException("예약 이력이 있는 반려동물은 삭제할 수 없습니다.");
+		}
 		fileStorageService.deletePetImage(pet.getImageUrl());
 		petGuardianRepository.deleteAllByPetId(petId);
+		healthRecordRepository.deleteAllByPetId(petId);
+		waitlistRepository.deleteAllByPetId(petId);
 		petRepository.delete(pet);
 	}
 

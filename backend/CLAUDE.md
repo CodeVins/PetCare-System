@@ -150,8 +150,8 @@ com.petcare
 - `DELETE /api/pets/{petId}/guardians/me` — 보호자 본인이 자발적으로 나가기(소유자가 호출하면 403 — "삭제를 이용해주세요")
 - **접근 권한 체크 확장**: `Pet.isOwnedBy(userId)` 자체는 안 바꾸고(소유자 전용 판단은 그대로), `pet.isOwnedBy(userId) || petGuardianRepository.existsByPetIdAndUserId(...)` 형태로 4곳에 OR 조건을 추가— `PetService`(공용 `getAccessiblePet()`), `HealthRecordService`, `ReservationService.create()`, `WaitlistService.join()`. 새 공용 추상화는 안 만들고 각 서비스에 1줄씩 추가(호출부가 4곳뿐이라 섣부른 추상화 방지)
 - `GET /api/pets`는 `PetRepository.findAllAccessibleByUserId()`(소유 OR 공유 펫을 OR-EXISTS 서브쿼리 하나로 페이지네이션) 사용, 응답의 `PetResponse.role`(OWNER/GUARDIAN)로 요청자 기준 역할 표시
-- `PetService.delete()`는 여전히 소유자 전용(`getOwnedPet()`, 공동보호자는 403), 삭제 시 연결된 `PetGuardian` 로우도 같이 정리
-- **겪은 버그(이번 기능과 무관, 발견만 함)**: `Pet` 삭제 시 그 펫에 달린 `Reservation`/`HealthRecord` 이력을 정리하지 않아서, 예약 이력이 있는 펫을 삭제하면 FK 제약 위반으로 500 에러남 — 이번 범위 밖이라 손 안 댐, 다음에 펫 삭제 관련 작업할 때 처리 필요
+- `PetService.delete()`는 여전히 소유자 전용(`getOwnedPet()`, 공동보호자는 403)
+- **Pet 삭제 정책**: `HealthRecord`/`Waitlist`/`PetGuardian`은 다른 곳에 부작용이 없어서 펫 삭제 시 같이 정리(cascade). 반면 `Reservation`은 `Slot.status`, 관리자 통계, 리뷰 작성 자격(CONFIRMED 이력)과 얽혀있어서 함부로 지우면 안 됨 — **예약 이력이 하나라도 있는 반려동물은 삭제 자체를 막고 409**("예약 이력이 있는 반려동물은 삭제할 수 없습니다.") 반환. 겪은 버그: 이 체크가 없던 시절엔 FK 제약 위반으로 500이 났음(다중 보호자 기능 검증 중 발견, 이후 수정 완료)
 
 ## 페이지네이션
 - 대부분의 목록 API는 `Pageable`(쿼리파라미터 `page`, `size`, `sort`) 기반, 응답은 `ApiResponse<PageResponse<T>>` (`global/common/PageResponse`: content/page/size/totalElements/totalPages). 컨트롤러에 `@PageableDefault(size = 20)` 기본값
@@ -185,7 +185,6 @@ com.petcare
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단)
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
-- Pet 삭제 시 연결된 Reservation/HealthRecord 이력 미정리로 인한 FK 제약 위반(500) — 다중 보호자 기능 검증 중 발견, 별도 처리 필요
 
 **프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 진행 중 (자체 CLAUDE.md 있음). 회원가입 화면까지 구현됨.
 

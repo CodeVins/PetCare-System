@@ -12,4 +12,6 @@ public interface WaitlistRepository extends JpaRepository<Waitlist, Long> {
 	Page<Waitlist> findAllByUserId(Long userId, Pageable pageable);
 
 	Optional<Waitlist> findFirstBySlotIdOrderByCreatedAtAsc(Long slotId);
+
+	void deleteAllByPetId(Long petId);
 }
