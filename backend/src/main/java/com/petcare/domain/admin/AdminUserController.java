@@ -39,4 +39,18 @@ public class AdminUserController {
 		UserResponse response = adminUserService.updateRole(userDetails.getUser().getId(), userId, request.role());
 		return ResponseEntity.ok(ApiResponse.success(response));
 	}
+
+	@PatchMapping("/{userId}/suspend")
+	public ResponseEntity<ApiResponse<UserResponse>> suspend(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long userId) {
+		UserResponse response = adminUserService.suspend(userDetails.getUser().getId(), userId);
+		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	@PatchMapping("/{userId}/activate")
+	public ResponseEntity<ApiResponse<UserResponse>> activate(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long userId) {
+		UserResponse response = adminUserService.activate(userDetails.getUser().getId(), userId);
+		return ResponseEntity.ok(ApiResponse.success(response));
+	}
 }

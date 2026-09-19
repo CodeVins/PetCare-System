@@ -6,6 +6,7 @@ public record StatsSummaryResponse(
 		long totalHospitals,
 		long totalReservations,
 		long confirmedReservations,
-		long cancelledReservations
+		long cancelledReservations,
+		long noShowReservations
 ) {
 }

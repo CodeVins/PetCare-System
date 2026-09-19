@@ -6,6 +6,7 @@ import com.petcare.domain.user.dto.SignupRequest;
 import com.petcare.domain.user.dto.SignupResponse;
 import com.petcare.domain.user.dto.TokenResponse;
 import com.petcare.global.exception.DuplicateEmailException;
+import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.InvalidCredentialsException;
 import com.petcare.global.security.JwtTokenProvider;
 import java.time.LocalDateTime;
@@ -47,6 +48,9 @@ public class AuthService {
 
 		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
 			throw new InvalidCredentialsException();
+		}
+		if (user.isSuspended()) {
+			throw new ForbiddenException("정지된 계정입니다. 관리자에게 문의해주세요.");
 		}
 
 		return issueTokens(user);

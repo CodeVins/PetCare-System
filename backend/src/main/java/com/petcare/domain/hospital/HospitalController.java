@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/hospitals")
@@ -61,5 +63,22 @@ public class HospitalController {
 			@Valid @RequestBody HospitalUpdateRequest request) {
 		HospitalResponse response = hospitalService.update(userDetails.getUser(), hospitalId, request);
 		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	@PostMapping("/{hospitalId}/image")
+	@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")
+	public ResponseEntity<ApiResponse<HospitalResponse>> uploadImage(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
+			@RequestParam("file") MultipartFile file) {
+		HospitalResponse response = hospitalService.uploadImage(userDetails.getUser(), hospitalId, file);
+		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	@DeleteMapping("/{hospitalId}/image")
+	@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")
+	public ResponseEntity<ApiResponse<Void>> deleteImage(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId) {
+		hospitalService.deleteImage(userDetails.getUser(), hospitalId);
+		return ResponseEntity.ok(ApiResponse.success());
 	}
 }

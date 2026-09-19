@@ -32,18 +32,19 @@ com.petcare
 각 도메인 패키지 내부는 타입별이 아니라 도메인별로 뭉쳐서 배치: `Xxx.java`(엔티티), `XxxRepository`, `XxxService`, `XxxController`, `dto/`.
 
 ## 엔티티
-- User: id, email, password, role(USER/HOSPITAL_OWNER/ADMIN)
+- User: id, email, password, role(USER/HOSPITAL_OWNER/ADMIN), suspended(boolean, 기본 false)
 - RefreshToken: id, user_id(FK, unique — 유저당 1개), token(unique), expires_at
 - Pet: id, user_id(FK), name, species(DOG/CAT), breed, birth_date, size(SMALL/MEDIUM/LARGE, nullable), image_url(nullable)
-- Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
+- Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), image_url(nullable), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
-- Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED) — 생성 시 PENDING, 관리자가 확정/거절
+- Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리
 - HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일)
-- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
+- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
 - NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
 - Favorite: id, user_id(FK), hospital_id(FK), (user_id, hospital_id) 유니크
 - Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, hidden(boolean, 기본 false) — (user_id, hospital_id) 유니크(병원당 리뷰 1개), 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
 - ReviewReport: id, review_id(FK), reporter_id(FK), reason — (review_id, reporter_id) 유니크(같은 리뷰 중복 신고 불가)
+- ReviewReply: id, review_id(FK, unique — 리뷰당 답글 1개), content — 병원 측(ADMIN 또는 해당 병원 HOSPITAL_OWNER)이 작성
 - ChatRoom: id, customer_id(FK), hospital_id(FK), (customer_id, hospital_id) 유니크(고객-병원당 방 1개)
 - ChatMessage: id, chat_room_id(FK), sender_id(FK), content
 - Waitlist: id, slot_id(FK), pet_id(FK), user_id(FK) — (slot_id, user_id) 유니크, 슬롯이 이미 RESERVED일 때만 등록 가능
@@ -134,6 +135,12 @@ com.petcare
 - `GET/PATCH /api/notifications/preferences` — `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 단위로 on/off. GET은 설정 안 한 카테고리도 항상 5개 다 내려주고(기본 enabled=true), PATCH는 `{category, enabled}` 하나씩 upsert
 - `NotificationService.notify()`가 알림 생성/SSE push 전에 `NotificationPreference`를 먼저 조회해서 꺼져있으면 DB 저장도 SSE push도 아예 안 함(꺼진 알림은 나중에 폴링해도 안 보임 — 완전히 발송 안 되는 것)
 
+## 리뷰 답글 / 예약 노쇼 / 병원 사진 / 계정 정지
+- `POST/PATCH/DELETE /api/hospitals/{hospitalId}/reviews/{reviewId}/reply` — ADMIN 또는 해당 병원 소유 HOSPITAL_OWNER만(`Hospital.isManagedBy()` 재검증), 리뷰 1개당 답글 1개(중복 작성 시 409). `GET .../reviews` 응답에 `reply` 필드로 같이 내려감(리뷰마다 답글 존재 여부 조회하는 N+1 방식 — ponytail: 목록이 커지면 답글 일괄 조회로 최적화 필요)
+- `PATCH /api/admin/reservations/{id}/no-show` (ADMIN 또는 해당 병원 HOSPITAL_OWNER) — CONFIRMED 상태만 NO_SHOW로 전환 가능(PENDING/이미 NO_SHOW 등은 409). NO_SHOW는 취소 불가 상태(`isCancellable()`에 포함 안 됨)라 사용자가 되돌릴 수 없고, 리뷰 작성 자격 판단(CONFIRMED 기준)에서도 자동으로 제외됨. 슬롯은 릴리즈하지 않음(이미 지나간 시간이라 대기자 알림 대상 아님). `GET /api/admin/stats/summary`에 `noShowReservations` 집계 포함
+- `POST/DELETE /api/hospitals/{hospitalId}/image` — Pet 사진 업로드와 동일 패턴(`FileStorageService`를 pet/hospital 공용으로 일반화, `uploads/hospitals/`, jpg/png/webp만, 5MB 제한). ADMIN 또는 소유 HOSPITAL_OWNER만
+- `PATCH /api/admin/users/{userId}/suspend`, `PATCH /api/admin/users/{userId}/activate` (ADMIN 전용) — 정지된 계정은 로그인 시 403(`AuthService.login()`에서 체크). 본인 계정은 정지 불가(역할 변경과 동일한 자기 자신 보호 패턴). **알려진 한계**: JWT가 stateless라 이미 발급된 accessToken은 정지해도 즉시 무효화되지 않고 최대 1시간 뒤 자연 만료(이메일 변경 때와 동일한 제약) — 즉시 차단이 필요하면 매 요청마다 DB 조회가 필요한데 지금은 로그인 시점에만 체크
+
 ## 페이지네이션
 - 대부분의 목록 API는 `Pageable`(쿼리파라미터 `page`, `size`, `sort`) 기반, 응답은 `ApiResponse<PageResponse<T>>` (`global/common/PageResponse`: content/page/size/totalElements/totalPages). 컨트롤러에 `@PageableDefault(size = 20)` 기본값
 - 제외된 목록(의도적으로 페이지네이션 안 함): `GET /api/hospitals`(검색 — 거리 필터를 메모리에서 계산해서 DB 페이지네이션과 안 맞음), `GET /api/admin/stats/hospitals`(리포트성, 병원 수만큼만), `GET /api/users/me/upcoming-vaccinations`(개인용 소량 목록)
@@ -159,10 +166,13 @@ com.petcare
 - 예약 확정 대기(PENDING) 플로우 활성화, 병원 근처 검색(거리 기반), 대부분 목록 API 페이지네이션, 핵심 흐름 통합테스트(Auth/Reservation), 실시간 알림(SSE), 병원 자체 계정 시스템(HOSPITAL_OWNER), 찜한 병원 새 슬롯 알림, 병원 운영시간/진료과목+수정 API, 실시간 채팅(1:1 문의) 추가
 - 반려동물 species(DOG/CAT) 추가, 생활기록(산책/식사/배변) 타입 추가, 사료 급여량 계산기, 비대면 건강 자가문진, 병원 24시간/주차/평균진료비 필드+필터 추가
 - 대기자 명단(Waitlist), 비밀번호 재설정(이메일 발송은 미구현, 로그로 대체), 건강 기록 통계(체중 그래프/타입별 개수), 리뷰 신고·모더레이션(관리자 숨김/해제), 알림 카테고리별 on/off 설정 추가
+- 리뷰 병원 답글, 예약 노쇼(No-show) 처리+통계 반영, 병원 사진 업로드, 관리자 유저 정지/차단 추가
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
+- 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단)
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
+- 다중 보호자(가족 공유) 반려동물 계정 — 권한 모델을 새로 설계해야 해서 범위가 큼, 별도 브레인스토밍으로 설계 먼저 잡을 예정
 
 **프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 진행 중 (자체 CLAUDE.md 있음). 회원가입 화면까지 구현됨.
 

@@ -34,4 +34,29 @@ public class AdminUserService {
 		user.changeRole(role);
 		return UserResponse.from(user);
 	}
+
+	@Transactional
+	public UserResponse suspend(Long currentAdminId, Long targetUserId) {
+		return changeSuspension(currentAdminId, targetUserId, true);
+	}
+
+	@Transactional
+	public UserResponse activate(Long currentAdminId, Long targetUserId) {
+		return changeSuspension(currentAdminId, targetUserId, false);
+	}
+
+	private UserResponse changeSuspension(Long currentAdminId, Long targetUserId, boolean suspend) {
+		if (currentAdminId.equals(targetUserId)) {
+			throw new ForbiddenException("본인 계정은 정지/해제할 수 없습니다.");
+		}
+
+		User user = userRepository.findById(targetUserId)
+				.orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+		if (suspend) {
+			user.suspend();
+		} else {
+			user.activate();
+		}
+		return UserResponse.from(user);
+	}
 }

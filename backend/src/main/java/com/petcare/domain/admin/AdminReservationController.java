@@ -48,4 +48,11 @@ public class AdminReservationController {
 		reservationService.reject(userDetails.getUser(), reservationId);
 		return ResponseEntity.ok(ApiResponse.success());
 	}
+
+	@PatchMapping("/{reservationId}/no-show")
+	public ResponseEntity<ApiResponse<Void>> noShow(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long reservationId) {
+		reservationService.noShow(userDetails.getUser(), reservationId);
+		return ResponseEntity.ok(ApiResponse.success());
+	}
 }

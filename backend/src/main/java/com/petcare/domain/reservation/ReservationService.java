@@ -113,6 +113,18 @@ public class ReservationService {
 		waitlistService.notifyNextInLine(reservation.getSlot());
 	}
 
+	@Transactional
+	public void noShow(User currentUser, Long reservationId) {
+		Reservation reservation = reservationRepository.findById(reservationId)
+				.orElseThrow(() -> new NotFoundException("예약을 찾을 수 없습니다."));
+		checkManagePermission(currentUser, reservation);
+		if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+			throw new ConflictException("확정된 예약만 노쇼 처리할 수 있습니다.");
+		}
+		reservation.markNoShow();
+		notificationService.notify(reservation.getUser().getId(), NotificationType.RESERVATION_NO_SHOW, "예약이 노쇼로 처리되었습니다.");
+	}
+
 	private void checkManagePermission(User currentUser, Reservation reservation) {
 		if (!reservation.getSlot().getHospital().isManagedBy(currentUser)) {
 			throw new ForbiddenException("해당 병원의 예약을 관리할 권한이 없습니다.");

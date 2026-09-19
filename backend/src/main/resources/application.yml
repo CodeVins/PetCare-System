@@ -33,6 +33,7 @@ jwt:
 app:
   upload:
     pet-image-dir: uploads/pets
+    hospital-image-dir: uploads/hospitals
   admin:
     bootstrap-email: ${ADMIN_EMAIL:}
     bootstrap-password: ${ADMIN_PASSWORD:}

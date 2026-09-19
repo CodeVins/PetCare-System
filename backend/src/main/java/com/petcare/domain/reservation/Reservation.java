@@ -67,4 +67,8 @@ public class Reservation extends BaseEntity {
 	public void reject() {
 		this.status = ReservationStatus.REJECTED;
 	}
+
+	public void markNoShow() {
+		this.status = ReservationStatus.NO_SHOW;
+	}
 }

@@ -6,11 +6,13 @@ import com.petcare.domain.hospital.dto.HospitalUpdateRequest;
 import com.petcare.domain.user.User;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import com.petcare.global.file.FileStorageService;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class HospitalService {
 
 	private final HospitalRepository hospitalRepository;
 	private final ReviewRepository reviewRepository;
+	private final FileStorageService fileStorageService;
 
 	@Transactional
 	public HospitalResponse create(HospitalCreateRequest request) {
@@ -39,10 +42,7 @@ public class HospitalService {
 
 	@Transactional
 	public HospitalResponse update(User currentUser, Long hospitalId, HospitalUpdateRequest request) {
-		Hospital hospital = findHospital(hospitalId);
-		if (!hospital.isManagedBy(currentUser)) {
-			throw new ForbiddenException("해당 병원을 관리할 권한이 없습니다.");
-		}
+		Hospital hospital = findManagedHospital(currentUser, hospitalId);
 
 		hospital.update(
 				request.name(), request.address(), request.latitude(), request.longitude(), request.openingHours(),
@@ -94,5 +94,32 @@ public class HospitalService {
 	public Hospital findHospital(Long hospitalId) {
 		return hospitalRepository.findById(hospitalId)
 				.orElseThrow(() -> new NotFoundException("병원을 찾을 수 없습니다."));
+	}
+
+	@Transactional
+	public HospitalResponse uploadImage(User currentUser, Long hospitalId, MultipartFile file) {
+		Hospital hospital = findManagedHospital(currentUser, hospitalId);
+		String previousImageUrl = hospital.getImageUrl();
+
+		String imageUrl = fileStorageService.storeHospitalImage(file);
+		hospital.changeImageUrl(imageUrl);
+		fileStorageService.deleteHospitalImage(previousImageUrl);
+
+		return toResponseWithRating(hospital);
+	}
+
+	@Transactional
+	public void deleteImage(User currentUser, Long hospitalId) {
+		Hospital hospital = findManagedHospital(currentUser, hospitalId);
+		fileStorageService.deleteHospitalImage(hospital.getImageUrl());
+		hospital.changeImageUrl(null);
+	}
+
+	private Hospital findManagedHospital(User currentUser, Long hospitalId) {
+		Hospital hospital = findHospital(hospitalId);
+		if (!hospital.isManagedBy(currentUser)) {
+			throw new ForbiddenException("해당 병원을 관리할 권한이 없습니다.");
+		}
+		return hospital;
 	}
 }

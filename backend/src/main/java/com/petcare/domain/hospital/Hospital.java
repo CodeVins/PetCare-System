@@ -48,6 +48,9 @@ public class Hospital extends BaseEntity {
 	@Column(name = "avg_treatment_price")
 	private Integer avgTreatmentPrice;
 
+	@Column(name = "image_url")
+	private String imageUrl;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "owner_id")
 	private User owner;
@@ -73,6 +76,10 @@ public class Hospital extends BaseEntity {
 
 	public void changeOwner(User owner) {
 		this.owner = owner;
+	}
+
+	public void changeImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 
 	public void update(

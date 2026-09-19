@@ -6,6 +6,7 @@ public enum NotificationType {
 	RESERVATION_REJECTED(NotificationCategory.RESERVATION),
 	RESERVATION_CANCELLED(NotificationCategory.RESERVATION),
 	RESERVATION_REMINDER(NotificationCategory.RESERVATION),
+	RESERVATION_NO_SHOW(NotificationCategory.RESERVATION),
 	VACCINATION_DUE_SOON(NotificationCategory.VACCINATION),
 	FAVORITE_HOSPITAL_NEW_SLOT(NotificationCategory.FAVORITE),
 	CHAT_MESSAGE_RECEIVED(NotificationCategory.CHAT),

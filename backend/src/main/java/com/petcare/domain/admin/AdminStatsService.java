@@ -32,7 +32,8 @@ public class AdminStatsService {
 				hospitalRepository.count(),
 				reservationRepository.count(),
 				reservationRepository.countByStatus(ReservationStatus.CONFIRMED),
-				reservationRepository.countByStatus(ReservationStatus.CANCELLED)
+				reservationRepository.countByStatus(ReservationStatus.CANCELLED),
+				reservationRepository.countByStatus(ReservationStatus.NO_SHOW)
 		);
 	}
 

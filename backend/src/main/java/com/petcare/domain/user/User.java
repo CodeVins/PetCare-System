@@ -32,11 +32,15 @@ public class User extends BaseEntity {
 	@Column(nullable = false, columnDefinition = "varchar(20)")
 	private Role role;
 
+	@Column(nullable = false)
+	private boolean suspended;
+
 	@Builder
 	private User(String email, String password, Role role) {
 		this.email = email;
 		this.password = password;
 		this.role = role;
+		this.suspended = false;
 	}
 
 	public void changeEmail(String email) {
@@ -49,5 +53,13 @@ public class User extends BaseEntity {
 
 	public void changeRole(Role role) {
 		this.role = role;
+	}
+
+	public void suspend() {
+		this.suspended = true;
+	}
+
+	public void activate() {
+		this.suspended = false;
 	}
 }

@@ -18,6 +18,7 @@ jwt:
 app:
   upload:
     pet-image-dir: build/test-uploads
+    hospital-image-dir: build/test-uploads-hospitals
   admin:
     bootstrap-email:
     bootstrap-password:
