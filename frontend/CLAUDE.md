@@ -4,6 +4,23 @@
 반려견 케어 시스템 프론트엔드. 백엔드(Spring Boot)는 이미 구현 완료 상태이며,
 이 저장소는 React로 화면을 붙이는 작업만 진행한다. 포트폴리오 목적, 혼자 개발.
 
+## 문서 구조 (언제 어떤 파일을 읽는지)
+- **CLAUDE.md** (이 파일) — 세션 시작 시 항상 자동 로드됨. 개요/스택/핵심 API
+  계약/폴더구조/컨벤션처럼 매 세션 필요한 것만 유지. 뭔가 추가하기 전에 "이거
+  매번 필요한가?"부터 따지고, 아니면 아래 파일 중 하나로 보낼 것.
+- **PROGRESS.md** — 날짜별 상세 변경 이력, 설계 이유("왜 이렇게 했는지"), 알려진
+  한계. 자동 로드 안 됨. "이 기능 예전에 어떻게 구현했었지" 싶을 때, 또는 새
+  작업 시작 전에 과거 맥락이 필요할 때만 직접 읽기. 작업 끝낼 때마다 여기에
+  항목 추가 — CLAUDE.md 쪽 진행상황은 한두 줄 요약만 유지.
+- **API_MAP.md** — 엔드포인트별 상세 매핑(요청·응답 필드, 연결된 화면/컴포넌트).
+  특정 도메인(반려동물/병원/예약 등) 작업할 때 그 부분만 찾아 읽기. 새
+  엔드포인트 연동하면 여기에 한 줄 추가.
+- **src/api/CLAUDE.md** — axios 인스턴스/페이지네이션 컨벤션. Claude Code가
+  `src/api/` 안 파일을 열 때 자동 로드됨(중첩 CLAUDE.md라 따로 안 챙겨도 됨).
+  api 폴더 전용 규칙만 여기 적고, 다른 폴더에도 필요한 규칙은 루트에 둘 것.
+- 특정 폴더 전용 규칙이 쌓이면(예: `src/pages/hospital/` 전용 패턴) 그 폴더에도
+  CLAUDE.md 추가하는 식으로 확장 — 루트는 계속 얇게 유지하는 게 원칙.
+
 ## 기술 스택
 - React (Vite)
 - React Router (페이지 라우팅)
@@ -29,6 +46,10 @@
   { refreshToken }로 자동 재발급 시도 (재발급마다 refreshToken도 회전됨, 응답 값으로 갱신).
   reissue까지 실패하면 그때 토큰 삭제 + /login 리다이렉트
 - POST /api/auth/logout (인증 필요) — 로그아웃 시 서버의 refreshToken 폐기용으로 호출
+- POST /api/auth/password-reset/request { email } (항상 200, 계정 존재 여부 노출 안 함),
+  POST /api/auth/password-reset/confirm { token, newPassword } → /forgot-password,
+  /reset-password. 백엔드가 실제 이메일 발송 없이 토큰을 로그로만 남기므로(포트폴리오
+  범위), ResetPasswordPage는 토큰을 URL 쿼리(`?token=`)에서 읽거나 수동 입력 가능
 - accessToken/refreshToken 둘 다 axios 인터셉터/훅에서 자동 처리 (localStorage에
   accessToken, refreshToken 키로 저장)
 - User.role: USER / HOSPITAL_OWNER / ADMIN — useAuth가 로그인 시 GET /api/users/me로
@@ -36,32 +57,10 @@
   / AdminRoute(ADMIN 전용, `/admin`)로 가드, Header 네비도 role에 따라 항목 추가
 
 ## 주요 엔드포인트
-(→ 표시는 연결된 프론트 라우트/화면. 전부 구현 완료, 예외는 명시)
-- 내 정보: GET/PATCH /api/users/me, PATCH /api/users/me/password → MyPage.
-  GET /api/users/me/upcoming-vaccinations → HomePage (D-day 목록)
-- 반려동물: /api/pets (CRUD) → /pets, /pets/new, /pets/:petId.
-  /api/pets/{id}/image (업로드/삭제) → PetFormPage 원형 썸네일.
-  /api/pets/{petId}/health-records (CRUD) → HealthRecordSection (WEIGHT 기록은
-  체중 그래프, VACCINATION은 nextDueDate 입력 가능)
-- 병원: GET /api/hospitals(검색 — keyword/minRating/sort/lat/lng/radiusKm, 응답에
-  openingHours/specialty/averageRating/reviewCount/distanceKm 포함, 배열 그대로)
-  → /hospitals. GET/PATCH /api/hospitals/{id} → 상세/대시보드 수정폼.
-  /api/hospitals/{id}/slots → 예약 가능 시간 + 대시보드 슬롯 등록.
-  /api/hospitals/{id}/favorites, GET /api/favorites → 하트 토글, /favorites.
-  /api/hospitals/{id}/reviews (리뷰 CRUD) — **프론트 미구현**, averageRating/
-  reviewCount는 표시만 하고 리뷰 작성 화면은 없음
-- 예약: PENDING으로 생성 → 병원측이 확정/거절 (CONFIRMED/REJECTED). 상태: PENDING/
-  CONFIRMED/REJECTED/CANCELLED. /api/reservations (CRUD + cancel) → /reservations.
-  /api/admin/reservations (목록+confirm/reject) → /dashboard 예약 대기열
-- 알림: GET /api/notifications, GET /unread-count, GET /subscribe(SSE, 쿼리파라미터
-  ?token={accessToken}로 인증, "connect"/"notification" 이벤트), PATCH /{id}/read
-  → /notifications, Header 벨 아이콘 뱃지(useNotifications 컨텍스트)
-- 채팅: /api/chat-rooms (방 생성/목록/메시지) → /chats, /chats/:roomId. 새 메시지는
-  SSE 알림 type: CHAT_MESSAGE_RECEIVED로 옴 → 열려있는 채팅방이면 재조회
-- 관리자(ADMIN 또는 소유 HOSPITAL_OWNER): /api/admin/reservations(위 참고),
-  /api/admin/stats/*, /api/admin/users(ADMIN 전용, 역할변경),
-  /api/admin/hospitals/{id}/owner(ADMIN 전용), /api/admin/reminders/run(ADMIN 전용)
-  → /admin (AdminPage + UserManagementSection)
+도메인: 내 정보/반려동물(+건강기록/보호자/급여계산기/자가문진)/병원(+슬롯/즐겨찾기/
+리뷰)/예약(+대기자명단)/알림(+설정)/채팅/관리자. 전부 프론트 연동 완료.
+**엔드포인트별 상세 매핑(요청·응답 필드, 연결된 화면)은 API_MAP.md 참고** — 특정
+도메인 작업할 때만 그 부분 읽으면 됨, 매번 로드 안 해도 됨.
 
 ## 폴더 구조
 src
@@ -69,7 +68,8 @@ src
 │               mypage/notification/chat/dashboard/admin. HomePage는 최상위)
 ├── components  (common: Button/TextField / layout: Header/Layout)
 ├── api         (axiosInstance.js + 도메인별 api 함수: authApi, userApi, petApi,
-│               healthRecordApi, hospitalApi, reservationApi, reservationAdminApi,
+│               petGuardianApi, healthCheckApi, healthRecordApi, hospitalApi,
+│               reviewApi, reservationApi, reservationAdminApi, waitlistApi,
 │               notificationApi, chatApi, adminApi)
 ├── hooks       (useAuth — 인증상태+role+userId, useNotifications — SSE 안읽음뱃지)
 └── router      (AppRouter.jsx, PrivateRoute, OwnerRoute, AdminRoute)
@@ -85,48 +85,13 @@ src
   백엔드 SecurityConfig.corsConfigurationSource()에 추가 필요
 
 ### 진행 상황
-- [x] 세팅 — Vite+React+Router+Axios+Tailwind, axiosInstance(토큰 첨부/401 리다이렉트),
-      AppRouter+PrivateRoute, 반응형 Header(데스크톱 가로 네비 / 모바일 하단 탭바)
-- [x] 인증 플로우 — LoginPage, SignupPage (+ refreshToken 재발급, 로그아웃 API 연동)
-- [x] 핵심 화면 — 반려동물 CRUD, 마이페이지(이메일·비밀번호 변경), 병원 목록/상세+예약,
-      예약 목록/취소, 알림 목록/읽음 처리
-- [x] 심화 기능 (일부) — 건강기록 CRUD (반려동물 수정 화면 안 섹션으로 통합),
-      알림 SSE 실시간 구독 + Header 안읽음 뱃지
-- [x] 2026-09-17 백엔드 대규모 업데이트 대응 — 목록 API PageResponse(`.content`)
-      전환, 로그인 refreshToken/reissue/logout, 예약 REJECTED 상태 반영
-- [x] 병원 검색 강화 — 이름 검색(디바운스), 평점 필터, 정렬(이름/평점/리뷰순),
-      "내 주변"(Geolocation API로 lat/lng, 반경 선택) → 목록/상세에 평점·진료과목·
-      운영시간·거리 표시
-- [x] HOSPITAL_OWNER/ADMIN 대시보드 (`/dashboard`, useAuth에 role 추가해 OwnerRoute로
-      가드) — 예약 대기열(확정/거절), 병원 정보 수정, 슬롯 등록. 백엔드에 "내 병원
-      조회" API가 없어서 병원은 드롭다운으로 직접 선택하게 하고 권한은 백엔드
-      403(`isManagedBy`)로 걸러짐. 예약 목록엔 반려동물 이름 대신 petId만 표시
-      (다른 유저 반려동물 조회 API가 없음 — 이름 표시하려면 백엔드에
-      ReservationResponse에 petName 추가하거나 관리자용 pet 조회 API가 필요)
-- [x] 2026-09-18 반려동물 이미지 업로드 — PetFormPage에 원형 썸네일 업로드/삭제
-      (POST·DELETE /api/pets/{id}/image), PetListPage 카드에도 썸네일 반영
-- [x] 병원 즐겨찾기 — `HospitalCard` 컴포넌트로 병원 목록/즐겨찾기 목록 카드 통일,
-      하트 토글(목록·상세 양쪽), 마이페이지에 "즐겨찾기한 병원 보기" 링크(`/favorites`)
-- [x] 1:1 채팅 — 병원 상세의 "병원에 문의하기" → 방 생성/조회 → `/chats/:roomId`,
-      Header에 채팅 아이콘(항상 노출). useAuth에 userId 추가해서 내 메시지 구분.
-      새 메시지는 SSE notification 이벤트가 오면 무조건 재조회(방 구분 정보가
-      알림 payload에 없어서 — 열려 있는 채팅방 기준으로만 재조회, 과다호출은 감수)
-- [x] 관리자(ADMIN) 전용 화면 (`/admin`, AdminRoute로 ADMIN만 가드) — 전체
-      통계 요약, 병원별 통계, 리마인더 수동 실행, 사용자 목록+역할 변경, 병원
-      소유자 지정
-- [x] 2026-09-18 예정 접종(D-day) 목록 + 체중 그래프 — HomePage를 자리표시자에서
-      `GET /api/users/me/upcoming-vaccinations` 기반 D-day 목록으로 교체(7일 이내는
-      빨간 배지). HealthRecord에 있던 `nextDueDate` 필드를 그동안 건강기록 폼에서
-      입력할 곳이 없었어서 VACCINATION 타입일 때만 보이는 입력으로 추가(이게 없으면
-      D-day 목록이 항상 비어있었음). 체중 그래프는 라이브러리 없이 순수 SVG
-      폴리라인(`WeightChart.jsx`)으로 구현, HealthRecordSection에서 WEIGHT 타입
-      기록만 뽑아 날짜순 정렬해 표시
-- [ ] 남은 것 — 병원 리뷰 작성/수정/삭제 화면 (`/api/hospitals/{id}/reviews`, 백엔드는
-      구현되어 있고 평점/리뷰수는 표시 중이나 작성 UI가 없음)
-- [ ] 발견한 것 — Pet에 `size`(PetSize enum) 필드가 있는데 PetFormPage가 아직 안 씀
-      (사이즈 선택 UI 미구현, imageUrl은 반영함)
+현재: 세팅·인증·핵심 화면·심화 기능(반려동물 확장/리뷰/예약 확장/병원·계정 폴리시)
+전부 완료 — CLAUDE.md 기준 백엔드 엔드포인트 전부 프론트 연동됨. 남은 작업 없음.
+**날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
 - 디자인: teal 계열 단일 accent 컬러, stone 중성 배경. 모양은 버튼 pill / 카드
-  rounded-2xl / 입력창 rounded-lg로 통일
+  rounded-2xl / 입력창 rounded-lg로 통일. `redesign-existing-projects` 스킬로
+  업그레이드 진행 중(1단계: motion 라이브러리, Reveal 스태거 애니메이션, 브랜드
+  톤 그림자, 헤딩 위계, 404 페이지, 파비콘 완료 — 상세는 PROGRESS.md)
 
 ## 반응형 정책
 - 모든 화면은 웹(데스크톱)과 모바일 브라우저 양쪽에서 정상 동작해야 함
