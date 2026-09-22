@@ -1,5 +1,6 @@
 package com.petcare.domain.pet.dto;
 
+import com.petcare.domain.pet.PetSex;
 import com.petcare.domain.pet.PetSize;
 import com.petcare.domain.pet.PetSpecies;
 import jakarta.validation.constraints.NotBlank;
@@ -11,6 +12,8 @@ public record PetCreateRequest(
 		@NotNull(message = "종을 선택해주세요.") PetSpecies species,
 		String breed,
 		LocalDate birthDate,
-		PetSize size
+		PetSize size,
+		PetSex sex,
+		Boolean neutered
 ) {
 }

@@ -1,16 +1,33 @@
+const VARIANTS = {
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  danger: 'btn-danger',
+}
+
 export default function Button({
   children,
   loading = false,
   disabled = false,
+  variant = 'primary',
+  size,
   className = '',
   ...props
 }) {
   return (
     <button
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-[background-color,transform,box-shadow] duration-150 hover:bg-brand-700 hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 disabled:active:scale-100 ${className}`}
+      aria-busy={loading || undefined}
+      className={`${VARIANTS[variant] ?? VARIANTS.primary} ${
+        size === 'sm' ? 'btn-sm' : ''
+      } ${className}`}
       {...props}
     >
+      {loading && (
+        <span
+          className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+      )}
       {loading ? '처리 중...' : children}
     </button>
   )

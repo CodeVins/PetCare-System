@@ -94,7 +94,7 @@ public class ReviewService {
 		if (reviewReplyRepository.existsByReviewId(reviewId)) {
 			throw new ConflictException("이미 답글이 작성된 리뷰입니다.");
 		}
-		ReviewReply reply = ReviewReply.builder().review(review).content(request.content()).build();
+		ReviewReply reply = ReviewReply.builder().review(review).author(currentUser).content(request.content()).build();
 		return ReviewReplyResponse.from(reviewReplyRepository.save(reply));
 	}
 

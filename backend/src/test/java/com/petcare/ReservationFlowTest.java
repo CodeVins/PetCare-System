@@ -101,7 +101,7 @@ class ReservationFlowTest {
 					MvcResult result = mockMvc.perform(post("/api/reservations")
 									.header("Authorization", "Bearer " + userToken)
 									.contentType(MediaType.APPLICATION_JSON)
-									.content("{\"petId\":" + petId + ",\"slotId\":" + slotId + "}"))
+									.content("{\"petId\":" + petId + ",\"slotId\":" + slotId + ",\"type\":\"CHECKUP\"}"))
 							.andReturn();
 					if (result.getResponse().getStatus() == 201) {
 						successCount.incrementAndGet();
@@ -170,7 +170,7 @@ class ReservationFlowTest {
 		MvcResult result = mockMvc.perform(post("/api/reservations")
 						.header("Authorization", "Bearer " + userToken)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"petId\":" + petId + ",\"slotId\":" + slotId + "}"))
+						.content("{\"petId\":" + petId + ",\"slotId\":" + slotId + ",\"type\":\"CHECKUP\"}"))
 				.andExpect(status().isCreated())
 				.andReturn();
 		return extractId(result);

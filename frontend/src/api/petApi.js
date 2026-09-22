@@ -8,12 +8,20 @@ export function getPet(petId) {
   return axiosInstance.get(`/api/pets/${petId}`)
 }
 
-export function createPet({ name, species, breed, birthDate, size }) {
-  return axiosInstance.post('/api/pets', { name, species, breed, birthDate, size })
+export function createPet({ name, species, breed, birthDate, size, sex, neutered }) {
+  return axiosInstance.post('/api/pets', { name, species, breed, birthDate, size, sex, neutered })
 }
 
-export function updatePet(petId, { name, species, breed, birthDate, size }) {
-  return axiosInstance.patch(`/api/pets/${petId}`, { name, species, breed, birthDate, size })
+export function updatePet(petId, { name, species, breed, birthDate, size, sex, neutered }) {
+  return axiosInstance.patch(`/api/pets/${petId}`, {
+    name,
+    species,
+    breed,
+    birthDate,
+    size,
+    sex,
+    neutered,
+  })
 }
 
 export function deletePet(petId) {

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>데스크톱 마이페이지</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:1280px;height:900px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:72px;flex-shrink:0;"><header style="width:1280px;height:72px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;justify-content:space-between;padding:0 48px;font-family:'Noto Sans KR',sans-serif;">
+<div style="display:flex;align-items:center;gap:10px;color:#0F766E;width:240px;">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg>
+<span style="font-family:'Jua',sans-serif;font-size:30px;line-height:1;">펫케어</span>
+</div>
+<nav aria-label="주 메뉴" style="display:flex;align-items:center;gap:8px;">
+<a href="/Main.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">홈</a>
+<a href="/PetList.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">반려동물</a>
+<a href="/HospitalList.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">병원</a>
+<a href="/Reservations.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">예약</a>
+<a href="/MyPage.dc.html" aria-current="page" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#0F766E;background:#CCFBF1;font-weight:700;">마이페이지</a>
+</nav>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;width:240px;">
+<button type="button" aria-label="채팅" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"/></svg></button>
+<button type="button" aria-label="알림, 안 읽은 알림 3개" style="position:relative;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg><span style="position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#DC2626;color:#ffffff;font-size:12px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">3</span></button>
+<button type="button" style="height:44px;padding:0 20px;margin-left:8px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">로그아웃</button>
+</div>
+</header></div>
+<main style="width:1120px;box-sizing:border-box;align-self:center;padding:32px 0;display:flex;flex-direction:column;gap:24px;">
+<h1 style="margin:0;font-family:'Jua',sans-serif;font-weight:400;font-size:34px;line-height:1.25;">마이페이지</h1>
+<div style="display:grid;grid-template-columns:340px 1fr;column-gap:24px;align-items:start;">
+<div style="display:flex;flex-direction:column;gap:16px;">
+<section aria-label="내 계정" style="padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;">
+<span style="width:72px;height:72px;border-radius:999px;background:#CCFBF1;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c.6-3.7 3.7-5.5 7.5-5.5s6.9 1.8 7.5 5.5"/></svg></span>
+<span style="font-weight:700;font-size:17px;">user@example.com</span>
+<span style="font-size:13px;color:#57534E;">반려동물 3마리 · 보호자</span>
+</section>
+<nav aria-label="내 정보 메뉴" style="background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);overflow:hidden;">
+<a href="/HospitalList.dc.html" style="min-height:56px;box-sizing:border-box;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid #F5F5F4;text-decoration:none;color:#1C1917;">
+<span style="color:#0F766E;display:flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span>
+<span style="flex-grow:1;">즐겨찾기한 병원</span>
+</a>
+<a href="/NotifSettings.dc.html" style="min-height:56px;box-sizing:border-box;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid #F5F5F4;text-decoration:none;color:#0F766E;background:#F0FDFA;font-weight:700;">
+<span style="color:#0F766E;display:flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg></span>
+<span style="flex-grow:1;">알림 설정</span>
+</a>
+<a href="/AccountSettings.dc.html" style="min-height:56px;box-sizing:border-box;display:flex;align-items:center;gap:14px;padding:0 20px;text-decoration:none;color:#1C1917;">
+<span style="color:#0F766E;display:flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c.6-3.7 3.7-5.5 7.5-5.5s6.9 1.8 7.5 5.5"/></svg></span>
+<span style="flex-grow:1;">계정 설정</span>
+</a>
+</nav>
+<button type="button" style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#B91C1C;font-family:inherit;font-size:15px;font-weight:700;">로그아웃</button>
+</div>
+<section aria-labelledby="dp-notif" style="padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:16px;">
+<h2 id="dp-notif" style="margin:0;font-size:18px;font-weight:700;">알림 설정</h2>
+<p style="margin:0;font-size:14px;color:#57534E;">받고 싶은 알림만 골라 보세요. 바꾸면 바로 저장돼요.</p>
+<div style="display:flex;flex-direction:column;">
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="dn-1" style="font-weight:700;">예약</span><span style="font-size:13px;color:#57534E;">예약 확정, 거절, 취소, 리마인더</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="dn-1" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="dn-2" style="font-weight:700;">접종</span><span style="font-size:13px;color:#57534E;">접종 예정일이 다가올 때</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="dn-2" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="dn-3" style="font-weight:700;">즐겨찾기 병원</span><span style="font-size:13px;color:#57534E;">즐겨찾기한 병원의 소식</span></span>
+<button type="button" role="switch" aria-checked="false" aria-labelledby="dn-3" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#78716C;"><span style="position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="dn-4" style="font-weight:700;">채팅</span><span style="font-size:13px;color:#57534E;">병원에서 온 새 메시지</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="dn-4" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="dn-5" style="font-weight:700;">대기자 명단</span><span style="font-size:13px;color:#57534E;">대기한 시간에 자리가 났을 때</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="dn-5" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body>
+</html>

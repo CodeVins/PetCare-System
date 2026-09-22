@@ -3,6 +3,7 @@ import {
   ClipboardText,
   Drop,
   ForkKnife,
+  Note,
   PencilSimple,
   PersonSimpleWalk,
   Stethoscope,
@@ -16,8 +17,12 @@ import {
   getHealthRecords,
   updateHealthRecord,
 } from '../../api/healthRecordApi'
+import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
+import EmptyState from '../../components/common/EmptyState'
+import SelectField from '../../components/common/SelectField'
 import TextField from '../../components/common/TextField'
+import { formatDateLabel } from '../../lib/format'
 import WeightChart from './WeightChart'
 
 const TYPE_LABEL = {
@@ -39,6 +44,8 @@ const TYPE_ICON = {
   EXCRETION: Drop,
   HEALTH_CHECK: ClipboardText,
 }
+
+const TYPE_OPTIONS = Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))
 
 const EMPTY_FORM = {
   type: 'WEIGHT',
@@ -104,7 +111,9 @@ export default function HealthRecordSection({ petId }) {
       if (editingId) {
         const { data } = await updateHealthRecord(petId, editingId, payload)
         setRecords((prev) =>
-          sortByDateDesc(prev.map((record) => (record.id === editingId ? data.data : record))),
+          sortByDateDesc(
+            prev.map((record) => (record.id === editingId ? data.data : record)),
+          ),
         )
       } else {
         const { data } = await createHealthRecord(petId, payload)
@@ -135,30 +144,25 @@ export default function HealthRecordSection({ petId }) {
     .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-sm font-semibold text-stone-700">건강기록</h2>
-
+    <div className="flex flex-col gap-4">
       <WeightChart records={weightRecords} />
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+        className="card flex flex-col gap-4 p-5 md:p-6"
+        aria-labelledby="h-record-form"
       >
+        <h2 id="h-record-form" className="h-section">
+          {editingId ? '기록 수정' : '기록 추가'}
+        </h2>
+
         <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-stone-700">종류</span>
-            <select
-              value={form.type}
-              onChange={(event) => setForm((f) => ({ ...f, type: event.target.value }))}
-              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-            >
-              {Object.entries(TYPE_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            label="종류"
+            value={form.type}
+            options={TYPE_OPTIONS}
+            onChange={(event) => setForm((f) => ({ ...f, type: event.target.value }))}
+          />
           <TextField
             label="날짜"
             type="date"
@@ -177,35 +181,33 @@ export default function HealthRecordSection({ petId }) {
         />
 
         <TextField
-          label="체중 (kg, 선택)"
+          label="체중"
           type="number"
           step="0.1"
           min="0"
+          hint="kg · 선택 항목입니다."
           value={form.weight}
           onChange={(event) => setForm((f) => ({ ...f, weight: event.target.value }))}
         />
 
         {form.type === 'VACCINATION' && (
           <TextField
-            label="다음 접종 예정일 (선택)"
+            label="다음 접종 예정일"
             type="date"
+            hint="입력하면 홈 화면에 D-day로 표시됩니다."
             value={form.nextDueDate}
             onChange={(event) => setForm((f) => ({ ...f, nextDueDate: event.target.value }))}
           />
         )}
 
-        {formError && <p className="text-sm text-red-600">{formError}</p>}
+        <Alert tone="error">{formError}</Alert>
 
         <div className="flex gap-2">
           <Button type="submit" loading={saving} className="flex-1">
             {editingId ? '기록 수정' : '기록 추가'}
           </Button>
           {editingId && (
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:bg-stone-100"
-            >
+            <button type="button" onClick={cancelEdit} className="btn btn-secondary">
               취소
             </button>
           )}
@@ -213,70 +215,73 @@ export default function HealthRecordSection({ petId }) {
       </form>
 
       {loading && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {[0, 1].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl bg-stone-100" />
+            <div key={i} className="h-20 animate-pulse rounded-2xl bg-stone-100" />
           ))}
         </div>
       )}
 
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {!loading && error && <Alert tone="error">{error}</Alert>}
 
       {!loading && !error && records.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-stone-300 py-10 text-center text-sm text-stone-500">
-          아직 기록이 없습니다.
-        </p>
+        <div className="card">
+          <EmptyState icon={Note}>아직 기록이 없습니다.</EmptyState>
+        </div>
       )}
 
       {!loading && !error && records.length > 0 && (
-        <div className="space-y-2">
+        <ul className="flex flex-col gap-2">
           {records.map((record) => {
-            const Icon = TYPE_ICON[record.type]
+            const Icon = TYPE_ICON[record.type] ?? Note
             return (
-              <div
-                key={record.id}
-                className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-white p-4"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-50">
-                  <Icon size={18} className="text-brand-600" />
+              <li key={record.id} className="card flex items-start gap-3 p-4">
+                <span className="icon-badge">
+                  <Icon size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-stone-900">{TYPE_LABEL[record.type]}</p>
-                    <p className="text-xs text-stone-400">{record.recordedAt}</p>
+                  <div className="flex flex-wrap items-center gap-x-2">
+                    <p className="font-bold">{TYPE_LABEL[record.type]}</p>
+                    <p className="text-[13px] text-stone-600">
+                      {formatDateLabel(record.recordedAt)}
+                    </p>
                   </div>
-                  <p className="mt-0.5 text-sm text-stone-600">{record.content}</p>
+                  <p className="mt-0.5 break-words text-[15px] text-stone-700">
+                    {record.content}
+                  </p>
                   {record.weight != null && (
-                    <p className="mt-0.5 text-sm text-stone-500">{record.weight}kg</p>
+                    <p className="mt-0.5 text-[13px] text-stone-600">{record.weight}kg</p>
                   )}
                   {record.nextDueDate && (
-                    <p className="mt-0.5 text-sm text-stone-500">
-                      다음 접종 예정일: {record.nextDueDate}
+                    <p className="mt-1">
+                      <span className="badge badge-wait">
+                        다음 접종 {formatDateLabel(record.nextDueDate)}
+                      </span>
                     </p>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center">
                   <button
                     type="button"
                     onClick={() => startEdit(record)}
                     aria-label="기록 수정"
-                    className="flex size-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+                    className="flex size-11 items-center justify-center rounded-full text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900"
                   >
-                    <PencilSimple size={16} />
+                    <PencilSimple size={18} />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(record.id)}
                     aria-label="기록 삭제"
-                    className="flex size-8 items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex size-11 items-center justify-center rounded-full text-stone-600 transition-colors hover:bg-red-50 hover:text-red-700"
                   >
-                    <Trash size={16} />
+                    <Trash size={18} />
                   </button>
                 </div>
-              </div>
+              </li>
             )
           })}
-        </div>
+        </ul>
       )}
     </div>
   )

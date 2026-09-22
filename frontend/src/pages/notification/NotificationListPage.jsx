@@ -1,26 +1,29 @@
-import { Bell, CalendarCheck, Clock, Syringe, XCircle } from '@phosphor-icons/react'
+import {
+  Bell,
+  CalendarCheck,
+  CalendarX,
+  ChatCircleDots,
+  Clock,
+  Syringe,
+} from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { getNotifications, markNotificationAsRead } from '../../api/notificationApi'
+import Alert from '../../components/common/Alert'
+import EmptyState from '../../components/common/EmptyState'
+import PageHeader from '../../components/common/PageHeader'
 import { useNotifications } from '../../hooks/useNotifications'
+import { formatDateTime } from '../../lib/format'
 
-// FAVORITE_HOSPITAL_NEW_SLOT / CHAT_MESSAGE_RECEIVED fall back to the default
-// Bell icon below — those features aren't built yet.
 const TYPE_ICON = {
   RESERVATION_REQUESTED: Clock,
   RESERVATION_CONFIRMED: CalendarCheck,
-  RESERVATION_REJECTED: XCircle,
-  RESERVATION_CANCELLED: XCircle,
+  RESERVATION_REJECTED: CalendarX,
+  RESERVATION_CANCELLED: CalendarX,
   RESERVATION_REMINDER: Clock,
   VACCINATION_DUE_SOON: Syringe,
-}
-
-function formatDateTime(value) {
-  return new Date(value).toLocaleString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  FAVORITE_HOSPITAL_NEW_SLOT: CalendarCheck,
+  CHAT_MESSAGE_RECEIVED: ChatCircleDots,
+  WAITLIST_SLOT_AVAILABLE: Clock,
 }
 
 export default function NotificationListPage() {
@@ -52,29 +55,33 @@ export default function NotificationListPage() {
     }
   }
 
+  const unreadCount = notifications.filter((item) => !item.read).length
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-stone-900">알림</h1>
+    <div className="mx-auto max-w-2xl">
+      <PageHeader
+        title="알림"
+        subtitle={unreadCount > 0 ? `읽지 않은 알림 ${unreadCount}개` : undefined}
+      />
 
       {loading && (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl bg-stone-100" />
+            <div key={i} className="h-20 animate-pulse rounded-2xl bg-stone-100" />
           ))}
         </div>
       )}
 
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {!loading && error && <Alert tone="error">{error}</Alert>}
 
       {!loading && !error && notifications.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 py-16 text-center">
-          <Bell size={32} className="text-stone-300" />
-          <p className="text-sm text-stone-500">알림이 없습니다.</p>
+        <div className="card">
+          <EmptyState icon={Bell}>알림이 없습니다.</EmptyState>
         </div>
       )}
 
       {!loading && !error && notifications.length > 0 && (
-        <div className="space-y-2">
+        <div className="card divide-y divide-stone-200 overflow-hidden">
           {notifications.map((notification) => {
             const Icon = TYPE_ICON[notification.type] || Bell
             return (
@@ -82,31 +89,33 @@ export default function NotificationListPage() {
                 key={notification.id}
                 type="button"
                 onClick={() => handleClick(notification)}
-                className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${
-                  notification.read
-                    ? 'border-stone-200 bg-white'
-                    : 'border-brand-200 bg-brand-50'
+                className={`flex w-full items-start gap-3 p-4 text-left transition-colors ${
+                  notification.read ? 'bg-white hover:bg-stone-50' : 'bg-brand-50'
                 }`}
               >
                 <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
-                    notification.read
-                      ? 'bg-stone-100 text-stone-400'
-                      : 'bg-brand-100 text-brand-600'
+                  className={`icon-badge ${
+                    notification.read ? 'bg-stone-100 text-stone-600' : ''
                   }`}
                 >
-                  <Icon size={18} />
+                  <Icon size={22} />
                 </span>
-                <div className="min-w-0">
-                  <p
-                    className={`text-sm ${notification.read ? 'text-stone-600' : 'font-medium text-stone-900'}`}
-                  >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className={notification.read ? 'font-medium' : 'font-bold'}>
                     {notification.content}
-                  </p>
-                  <p className="mt-0.5 text-xs text-stone-400">
+                  </span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="text-xs text-stone-600">
                     {formatDateTime(notification.createdAt)}
-                  </p>
-                </div>
+                  </span>
+                  {!notification.read && (
+                    <span
+                      aria-label="읽지 않음"
+                      className="size-2.5 rounded-full bg-brand-600"
+                    />
+                  )}
+                </span>
               </button>
             )
           })}

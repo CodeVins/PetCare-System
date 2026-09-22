@@ -22,6 +22,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
 	boolean existsByPetId(Long petId);
 
+	long countByUserId(Long userId);
+
+	long countByUserIdAndStatus(Long userId, ReservationStatus status);
+
 	long countByStatus(ReservationStatus status);
 
 	long countBySlot_Hospital_IdAndStatus(Long hospitalId, ReservationStatus status);

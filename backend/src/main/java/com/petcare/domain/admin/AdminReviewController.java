@@ -3,11 +3,13 @@ package com.petcare.domain.admin;
 import com.petcare.domain.hospital.dto.ReviewReportResponse;
 import com.petcare.global.common.ApiResponse;
 import com.petcare.global.common.PageResponse;
+import com.petcare.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/reviews")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")
 @RequiredArgsConstructor
 public class AdminReviewController {
 
@@ -24,19 +26,22 @@ public class AdminReviewController {
 
 	@GetMapping("/reports")
 	public ResponseEntity<ApiResponse<PageResponse<ReviewReportResponse>>> getReports(
-			@PageableDefault(size = 20) Pageable pageable) {
-		return ResponseEntity.ok(ApiResponse.success(adminReviewService.getReports(pageable)));
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(
+				ApiResponse.success(adminReviewService.getReports(userDetails.getUser(), pageable)));
 	}
 
 	@PatchMapping("/{reviewId}/hide")
-	public ResponseEntity<ApiResponse<Void>> hide(@PathVariable Long reviewId) {
-		adminReviewService.hide(reviewId);
+	public ResponseEntity<ApiResponse<Void>> hide(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long reviewId) {
+		adminReviewService.hide(userDetails.getUser(), reviewId);
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 
 	@PatchMapping("/{reviewId}/unhide")
-	public ResponseEntity<ApiResponse<Void>> unhide(@PathVariable Long reviewId) {
-		adminReviewService.unhide(reviewId);
+	public ResponseEntity<ApiResponse<Void>> unhide(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long reviewId) {
+		adminReviewService.unhide(userDetails.getUser(), reviewId);
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 }

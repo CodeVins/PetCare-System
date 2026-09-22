@@ -1,18 +1,47 @@
-export default function TextField({ label, error, className = '', ...props }) {
+import { useId } from 'react'
+
+export default function TextField({
+  label,
+  error,
+  hint,
+  as = 'input',
+  className = '',
+  ...props
+}) {
+  const autoId = useId()
+  const id = props.id ?? autoId
+  const errorId = `${id}-error`
+  const hintId = `${id}-hint`
+  const Field = as === 'textarea' ? 'textarea' : 'input'
+
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-stone-700">
-        {label}
-      </span>
-      <input
-        className={`w-full rounded-lg border px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40 ${
-          error
-            ? 'border-red-400 bg-red-50 focus:border-red-400'
-            : 'border-stone-200 bg-stone-50 focus:border-brand-500'
-        } ${className}`}
+    <div>
+      {label && (
+        <label
+          htmlFor={id}
+          className="mb-1.5 block text-sm font-medium text-stone-700"
+        >
+          {label}
+        </label>
+      )}
+      <Field
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : hint ? hintId : undefined}
+        className={`input ${error ? 'input-error' : ''} ${className}`}
         {...props}
       />
-      {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
-    </label>
+      {error ? (
+        <span id={errorId} role="alert" className="mt-1 block text-[13px] text-red-600">
+          {error}
+        </span>
+      ) : (
+        hint && (
+          <span id={hintId} className="mt-1 block text-[13px] text-stone-600">
+            {hint}
+          </span>
+        )
+      )}
+    </div>
   )
 }

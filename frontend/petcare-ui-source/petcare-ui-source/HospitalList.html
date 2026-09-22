@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>병원 목록</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:390px;height:960px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:56px;flex-shrink:0;"><header style="width:390px;height:56px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;font-family:'Noto Sans KR',sans-serif;">
+<div style="display:flex;align-items:center;gap:8px;color:#0F766E;">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg>
+<span style="font-family:'Jua',sans-serif;font-size:26px;line-height:1;">펫케어</span>
+</div>
+<div style="display:flex;align-items:center;">
+<button type="button" aria-label="채팅" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"/></svg></button>
+<button type="button" aria-label="알림, 안 읽은 알림 3개" style="position:relative;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg><span style="position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#DC2626;color:#ffffff;font-size:12px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">3</span></button>
+</div>
+</header></div>
+<main style="flex-grow:1;padding:16px;display:flex;flex-direction:column;gap:12px;">
+<div role="tablist" aria-label="병원 보기" style="display:flex;box-sizing:border-box;height:48px;padding:4px;border-radius:999px;background:#F5F5F4;">
+<button type="button" role="tab" aria-selected="true" style="flex:1;border:0;border-radius:999px;background:#ffffff;color:#0F766E;font-family:inherit;font-size:15px;font-weight:700;box-shadow:0 1px 3px rgba(13,79,72,0.15);">전체</button>
+<button type="button" role="tab" aria-selected="false" style="flex:1;border:0;border-radius:999px;background:transparent;color:#57534E;font-family:inherit;font-size:15px;font-weight:500;">즐겨찾기</button>
+</div>
+<div style="display:flex;gap:8px;">
+<label style="flex-grow:1;position:relative;display:block;">
+<span style="position:absolute;left:14px;top:14px;color:#57534E;display:flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span>
+<input type="search" aria-label="병원 이름 검색" placeholder="병원 이름을 검색해 보세요" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px 0 44px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</label>
+<button type="button" aria-label="필터 열기, 적용된 필터 2개" style="position:relative;width:48px;height:48px;flex-shrink:0;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:999px;background:#0F766E;color:#ffffff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">2</span></button>
+</div>
+<div style="display:flex;gap:8px;padding:2px 0 4px;">
+<button type="button" aria-pressed="true" style="height:40px;padding:0 14px;border:1px solid #0F766E;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:14px;font-weight:700;display:flex;align-items:center;gap:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.7-6.5-11a6.5 6.5 0 0 1 13 0c0 5.3-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>내 주변 3km</button>
+<button type="button" aria-pressed="false" style="height:40px;padding:0 14px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">24시간</button>
+<button type="button" aria-pressed="true" style="height:40px;padding:0 14px;border:1px solid #0F766E;border-radius:999px;background:#F0FDFA;color:#0F766E;font-family:inherit;font-size:14px;font-weight:700;">주차 가능</button>
+<button type="button" style="height:40px;padding:0 14px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">거리순</button>
+</div>
+<article style="position:relative;display:flex;gap:12px;padding:12px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<a href="/HospitalDetail.dc.html" aria-label="따뜻한마음 동물병원 상세 보기" style="position:absolute;top:0;left:0;right:0;bottom:0;border-radius:16px;"></a>
+<span style="width:92px;height:92px;flex-shrink:0;border-radius:12px;background:#CCFBF1;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></span>
+<div style="flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+<h3 style="margin:0;padding-right:36px;font-size:16px;font-weight:700;line-height:1.35;">따뜻한마음 동물병원</h3>
+<div style="display:flex;align-items:center;gap:4px;font-size:13px;"><span style="color:#B45309;display:flex;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg></span><b>4.8</b><span style="color:#57534E;">(126) · 1.2km</span></div>
+<p style="margin:0;font-size:13px;color:#57534E;">서울 ○○구 ○○로 12</p>
+<p style="margin:0;font-size:13px;color:#57534E;">내과 · 외과 · 피부과</p>
+<div style="display:flex;gap:6px;margin-top:4px;"><span style="height:22px;padding:0 8px;border-radius:999px;background:#F5F5F4;color:#44403C;font-size:12px;font-weight:700;display:flex;align-items:center;">주차 가능</span><span style="font-size:12px;color:#57534E;line-height:22px;">오늘 09:00–20:00</span></div>
+</div>
+<button type="button" aria-label="즐겨찾기 해제" style="position:absolute;top:2px;right:2px;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+</article>
+<article style="position:relative;display:flex;gap:12px;padding:12px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<a href="/HospitalDetail.dc.html" aria-label="튼튼 24시 동물의료센터 상세 보기" style="position:absolute;top:0;left:0;right:0;bottom:0;border-radius:16px;"></a>
+<span style="width:92px;height:92px;flex-shrink:0;border-radius:12px;background:#E0F2FE;color:#0369A1;display:flex;align-items:center;justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></span>
+<div style="flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+<h3 style="margin:0;padding-right:36px;font-size:16px;font-weight:700;line-height:1.35;">튼튼 24시 동물의료센터</h3>
+<div style="display:flex;align-items:center;gap:4px;font-size:13px;"><span style="color:#B45309;display:flex;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg></span><b>4.6</b><span style="color:#57534E;">(312) · 2.4km</span></div>
+<p style="margin:0;font-size:13px;color:#57534E;">서울 ○○구 ○○대로 88</p>
+<p style="margin:0;font-size:13px;color:#57534E;">응급 · 내과 · 영상의학</p>
+<div style="display:flex;gap:6px;margin-top:4px;"><span style="height:22px;padding:0 8px;border-radius:999px;background:#CCFBF1;color:#115E59;font-size:12px;font-weight:700;display:flex;align-items:center;">24시간</span><span style="height:22px;padding:0 8px;border-radius:999px;background:#F5F5F4;color:#44403C;font-size:12px;font-weight:700;display:flex;align-items:center;">주차 가능</span></div>
+</div>
+<button type="button" aria-label="즐겨찾기에 추가" style="position:absolute;top:2px;right:2px;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#57534E;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+</article>
+<article style="position:relative;display:flex;gap:12px;padding:12px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<a href="/HospitalDetail.dc.html" aria-label="별빛동물병원 상세 보기" style="position:absolute;top:0;left:0;right:0;bottom:0;border-radius:16px;"></a>
+<span style="width:92px;height:92px;flex-shrink:0;border-radius:12px;background:#FEF3C7;color:#B45309;display:flex;align-items:center;justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></span>
+<div style="flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+<h3 style="margin:0;padding-right:36px;font-size:16px;font-weight:700;line-height:1.35;">별빛동물병원</h3>
+<div style="display:flex;align-items:center;gap:4px;font-size:13px;"><span style="color:#B45309;display:flex;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg></span><b>4.7</b><span style="color:#57534E;">(58) · 2.9km</span></div>
+<p style="margin:0;font-size:13px;color:#57534E;">서울 ○○구 ○○길 5</p>
+<p style="margin:0;font-size:13px;color:#57534E;">치과 · 안과</p>
+<div style="display:flex;gap:6px;margin-top:4px;"><span style="height:22px;padding:0 8px;border-radius:999px;background:#F5F5F4;color:#44403C;font-size:12px;font-weight:700;display:flex;align-items:center;">주차 가능</span><span style="font-size:12px;color:#57534E;line-height:22px;">오늘 10:00–19:00</span></div>
+</div>
+<button type="button" aria-label="즐겨찾기에 추가" style="position:absolute;top:2px;right:2px;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#57534E;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+</article>
+<article style="position:relative;display:flex;gap:12px;padding:12px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<a href="/HospitalDetail.dc.html" aria-label="초록숲 동물병원 상세 보기" style="position:absolute;top:0;left:0;right:0;bottom:0;border-radius:16px;"></a>
+<span style="width:92px;height:92px;flex-shrink:0;border-radius:12px;background:#E7E5E4;color:#44403C;display:flex;align-items:center;justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></span>
+<div style="flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+<h3 style="margin:0;padding-right:36px;font-size:16px;font-weight:700;line-height:1.35;">초록숲 동물병원</h3>
+<div style="display:flex;align-items:center;gap:4px;font-size:13px;"><span style="color:#B45309;display:flex;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg></span><b>4.5</b><span style="color:#57534E;">(204) · 3.0km</span></div>
+<p style="margin:0;font-size:13px;color:#57534E;">서울 ○○구 ○○로 40</p>
+<p style="margin:0;font-size:13px;color:#57534E;">내과 · 외과</p>
+<div style="display:flex;gap:6px;margin-top:4px;"><span style="height:22px;padding:0 8px;border-radius:999px;background:#F5F5F4;color:#44403C;font-size:12px;font-weight:700;display:flex;align-items:center;">주차 가능</span><span style="font-size:12px;color:#57534E;line-height:22px;">오늘 09:30–18:30</span></div>
+</div>
+<button type="button" aria-label="즐겨찾기에 추가" style="position:absolute;top:2px;right:2px;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#57534E;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
+</article>
+</main>
+<div style="height:76px;flex-shrink:0;"><nav aria-label="하단 메뉴" style="width:390px;height:76px;box-sizing:border-box;background:#ffffff;border-top:1px solid #E7E5E4;display:flex;align-items:stretch;font-family:'Noto Sans KR',sans-serif;">
+<a href="/Main.dc.html" aria-current="false" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#57534E;">
+<span style="width:56px;height:30px;border-radius:999px;background:transparent;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5L12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/></svg></span>
+<span style="font-size:12px;line-height:1.3;font-weight:500;">홈</span>
+</a>
+<a href="/PetList.dc.html" aria-current="false" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#57534E;">
+<span style="width:56px;height:30px;border-radius:999px;background:transparent;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg></span>
+<span style="font-size:12px;line-height:1.3;font-weight:500;">반려동물</span>
+</a>
+<a href="/HospitalList.dc.html" aria-current="page" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#0F766E;">
+<span style="width:56px;height:30px;border-radius:999px;background:#CCFBF1;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></span>
+<span style="font-size:12px;line-height:1.3;font-weight:700;">병원</span>
+</a>
+<a href="/Reservations.dc.html" aria-current="false" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#57534E;">
+<span style="width:56px;height:30px;border-radius:999px;background:transparent;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg></span>
+<span style="font-size:12px;line-height:1.3;font-weight:500;">예약</span>
+</a>
+<a href="/MyPage.dc.html" aria-current="false" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#57534E;">
+<span style="width:56px;height:30px;border-radius:999px;background:transparent;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c.6-3.7 3.7-5.5 7.5-5.5s6.9 1.8 7.5 5.5"/></svg></span>
+<span style="font-size:12px;line-height:1.3;font-weight:500;">마이페이지</span>
+</a>
+</nav></div>
+</div>
+</body>
+</html>

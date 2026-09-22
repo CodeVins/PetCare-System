@@ -44,12 +44,17 @@ public class Reservation extends BaseEntity {
 	@Column(nullable = false, columnDefinition = "varchar(20)")
 	private ReservationStatus status;
 
+	@Enumerated(EnumType.STRING)
+	@Column(columnDefinition = "varchar(20)")
+	private ReservationType type;
+
 	@Builder
-	private Reservation(Slot slot, Pet pet, User user, ReservationStatus status) {
+	private Reservation(Slot slot, Pet pet, User user, ReservationStatus status, ReservationType type) {
 		this.slot = slot;
 		this.pet = pet;
 		this.user = user;
 		this.status = status;
+		this.type = type;
 	}
 
 	public boolean isOwnedBy(Long userId) {

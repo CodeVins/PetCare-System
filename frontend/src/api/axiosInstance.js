@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-export const BASE_URL = 'http://localhost:8080'
+// ponytail: hostname mirrors whatever the page was loaded from (localhost in dev,
+// LAN IP when opened from a phone on the same Wi-Fi) instead of a hardcoded host.
+export const BASE_URL = `http://${window.location.hostname}:8080`
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,

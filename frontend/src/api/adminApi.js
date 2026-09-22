@@ -4,6 +4,10 @@ export function getAllUsers() {
   return axiosInstance.get('/api/admin/users', { params: { size: 100 } })
 }
 
+export function getUserStats(userId) {
+  return axiosInstance.get(`/api/admin/users/${userId}/stats`)
+}
+
 export function updateUserRole(userId, role) {
   return axiosInstance.patch(`/api/admin/users/${userId}/role`, { role })
 }

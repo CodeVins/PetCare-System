@@ -1,6 +1,7 @@
 package com.petcare.domain.admin;
 
 import com.petcare.domain.admin.dto.RoleUpdateRequest;
+import com.petcare.domain.admin.dto.UserStatsResponse;
 import com.petcare.domain.user.dto.UserResponse;
 import com.petcare.global.common.ApiResponse;
 import com.petcare.global.common.PageResponse;
@@ -30,6 +31,11 @@ public class AdminUserController {
 	@GetMapping
 	public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(@PageableDefault(size = 20) Pageable pageable) {
 		return ResponseEntity.ok(ApiResponse.success(adminUserService.getAllUsers(pageable)));
+	}
+
+	@GetMapping("/{userId}/stats")
+	public ResponseEntity<ApiResponse<UserStatsResponse>> getStats(@PathVariable Long userId) {
+		return ResponseEntity.ok(ApiResponse.success(adminUserService.getStats(userId)));
 	}
 
 	@PatchMapping("/{userId}/role")

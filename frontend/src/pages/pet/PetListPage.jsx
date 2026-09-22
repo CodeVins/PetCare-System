@@ -3,21 +3,17 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BASE_URL } from '../../api/axiosInstance'
 import { getMyPets } from '../../api/petApi'
+import EmptyState from '../../components/common/EmptyState'
+import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
+import { calculateAge, SPECIES_LABEL } from '../../lib/format'
 
-const SPECIES_LABEL = { DOG: '강아지', CAT: '고양이' }
-
-function calculateAge(birthDate) {
-  if (!birthDate) return null
-  const birth = new Date(birthDate)
-  const now = new Date()
-  let age = now.getFullYear() - birth.getFullYear()
-  const hadBirthdayThisYear =
-    now.getMonth() > birth.getMonth() ||
-    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate())
-  if (!hadBirthdayThisYear) age -= 1
-  return age
-}
+// 카드마다 액센트를 teal → amber → sky 로 돌린다 (DESIGN_SPEC 보조 액센트 순환)
+const ACCENTS = [
+  ['icon-badge', 'bg-brand-50 text-brand-700'],
+  ['icon-badge icon-badge-amber', 'bg-amber-50 text-amber-800'],
+  ['icon-badge icon-badge-sky', 'bg-sky-50 text-sky-800'],
+]
 
 export default function PetListPage() {
   const [pets, setPets] = useState([])
@@ -34,57 +30,61 @@ export default function PetListPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900">반려동물</h1>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/health-check"
-            className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-brand-200 hover:text-brand-700"
-          >
-            <ClipboardText size={16} />
-            건강 자가문진
-          </Link>
-          <Link
-            to="/pets/new"
-            className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-          >
-            <Plus size={16} weight="bold" />
-            등록
-          </Link>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="반려동물"
+        action={
+          <>
+            <Link to="/health-check" className="btn btn-secondary btn-sm">
+              <ClipboardText size={18} />
+              <span className="hidden sm:inline">건강 자가문진</span>
+            </Link>
+            <Link to="/pets/new" className="btn btn-primary btn-sm">
+              <Plus size={18} weight="bold" />
+              등록
+            </Link>
+          </>
+        }
+      />
 
       {loading && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-stone-100" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-49 animate-pulse rounded-2xl bg-stone-100" />
           ))}
         </div>
       )}
 
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {!loading && error && <p className="text-[15px] text-red-600">{error}</p>}
 
       {!loading && !error && pets.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 py-16 text-center">
-          <PawPrint size={32} className="text-stone-300" />
-          <p className="text-sm text-stone-500">
-            등록된 반려동물이 없습니다. 첫 반려동물을 등록해보세요.
-          </p>
+        <div className="card">
+          <EmptyState
+            icon={PawPrint}
+            action={
+              <Link to="/pets/new" className="btn btn-primary btn-sm">
+                <Plus size={18} weight="bold" />
+                반려동물 등록
+              </Link>
+            }
+          >
+            등록된 반려동물이 없습니다. 첫 반려동물을 등록해 보세요.
+          </EmptyState>
         </div>
       )}
 
       {!loading && !error && pets.length > 0 && (
-        <Reveal className="grid grid-cols-1 gap-3 sm:grid-cols-2" stagger={0.05}>
-          {pets.map((pet) => {
+        <Reveal className="grid grid-cols-2 gap-3 lg:grid-cols-4" stagger={0.05}>
+          {pets.map((pet, index) => {
             const age = calculateAge(pet.birthDate)
+            const [avatarClass, speciesClass] = ACCENTS[index % ACCENTS.length]
             return (
               <RevealItem key={pet.id}>
                 <Link
                   to={`/pets/${pet.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+                  className="card-interactive flex h-full flex-col items-center gap-1.5 px-3 pb-4 pt-5 text-center"
                 >
-                  <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-50">
+                  <span className={`${avatarClass} mb-1 size-20 overflow-hidden`}>
                     {pet.imageUrl ? (
                       <img
                         src={`${BASE_URL}${pet.imageUrl}`}
@@ -92,27 +92,40 @@ export default function PetListPage() {
                         className="size-full object-cover"
                       />
                     ) : (
-                      <PawPrint weight="fill" size={22} className="text-brand-600" />
+                      <PawPrint size={38} />
                     )}
                   </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="truncate font-medium text-stone-900">{pet.name}</p>
-                      {pet.role === 'GUARDIAN' && (
-                        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
-                          공동보호자
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-sm text-stone-500">
-                      {SPECIES_LABEL[pet.species]} · {pet.breed || '품종 미등록'}
-                      {age !== null && ` · ${age}살`}
-                    </p>
-                  </div>
+                  <span className="w-full truncate text-[17px] font-bold">{pet.name}</span>
+                  <span className="flex flex-wrap justify-center gap-1.5">
+                    <span
+                      className={`badge h-6 px-2.5 text-xs ${speciesClass}`}
+                    >
+                      {SPECIES_LABEL[pet.species] ?? pet.species}
+                    </span>
+                    {pet.role === 'GUARDIAN' && (
+                      <span className="badge badge-neutral h-6 px-2.5 text-xs">
+                        공동보호자
+                      </span>
+                    )}
+                  </span>
+                  <span className="w-full truncate text-[13px] text-stone-600">
+                    {pet.breed || '품종 미등록'}
+                    {age !== null && ` · ${age}살`}
+                  </span>
                 </Link>
               </RevealItem>
             )
           })}
+
+          <RevealItem>
+            <Link
+              to="/pets/new"
+              className="flex h-full min-h-49 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-stone-300 p-4 text-stone-600 transition-colors hover:border-brand-600 hover:text-brand-600"
+            >
+              <Plus size={30} />
+              <span className="text-sm font-medium">반려동물 등록</span>
+            </Link>
+          </RevealItem>
         </Reveal>
       )}
     </div>

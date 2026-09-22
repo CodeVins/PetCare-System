@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>병원 필터</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#44403C;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:96px;flex-shrink:0;padding:64px 16px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;">
+<div style="height:24px;border-radius:12px;background:#57534E;"></div>
+</div>
+<section aria-labelledby="ft-h" style="flex-grow:1;box-sizing:border-box;padding:12px 16px 0;background:#ffffff;border-radius:24px 24px 0 0;display:flex;flex-direction:column;gap:20px;">
+<div style="align-self:center;width:40px;height:4px;border-radius:999px;background:#D6D3D1;"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;">
+<h2 id="ft-h" style="margin:0;font-family:'Jua',sans-serif;font-weight:400;font-size:24px;line-height:1.3;">필터</h2>
+<button type="button" aria-label="닫기" style="width:44px;height:44px;margin-right:-8px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<div style="display:flex;align-items:center;justify-content:space-between;">
+<span id="ft-near" style="font-size:16px;font-weight:700;">내 주변 검색</span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="ft-near" style="position:relative;width:52px;height:32px;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div role="group" aria-label="검색 반경" style="display:flex;gap:8px;">
+<button type="button" aria-pressed="false" style="flex:1;height:44px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">1km</button>
+<button type="button" aria-pressed="true" style="flex:1;height:44px;border:1px solid #0F766E;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:14px;font-weight:700;">3km</button>
+<button type="button" aria-pressed="false" style="flex:1;height:44px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">5km</button>
+<button type="button" aria-pressed="false" style="flex:1;height:44px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">10km</button>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<span style="font-size:16px;font-weight:700;">최소 평점</span>
+<div role="group" aria-label="최소 평점" style="display:flex;gap:8px;">
+<button type="button" aria-pressed="true" style="flex:1;height:44px;border:1px solid #0F766E;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:14px;font-weight:700;">전체</button>
+<button type="button" aria-pressed="false" style="flex:1;height:44px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">3.0 이상</button>
+<button type="button" aria-pressed="false" style="flex:1;height:44px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">4.0 이상</button>
+<button type="button" aria-pressed="false" style="flex:1;height:44px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:500;">4.5 이상</button>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<span style="font-size:16px;font-weight:700;">정렬</span>
+<div role="group" aria-label="정렬" style="display:flex;gap:8px;">
+<button type="button" disabled style="flex:1;height:44px;border:1px solid #E7E5E4;border-radius:999px;background:#FAFAF9;color:#78716C;font-family:inherit;font-size:14px;font-weight:500;">이름순</button>
+<button type="button" disabled style="flex:1;height:44px;border:1px solid #E7E5E4;border-radius:999px;background:#FAFAF9;color:#78716C;font-family:inherit;font-size:14px;font-weight:500;">평점순</button>
+<button type="button" disabled style="flex:1.3;height:44px;border:1px solid #E7E5E4;border-radius:999px;background:#FAFAF9;color:#78716C;font-family:inherit;font-size:14px;font-weight:500;">리뷰 많은순</button>
+</div>
+<p style="margin:0;font-size:13px;color:#57534E;">내 주변 검색 중에는 가까운 순서로 정렬돼요.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;">
+<span style="font-size:16px;font-weight:700;margin-bottom:4px;">편의</span>
+<label style="min-height:48px;display:flex;align-items:center;gap:12px;font-size:15px;"><input type="checkbox" style="width:22px;height:22px;margin:0;accent-color:#0F766E;">24시간 운영</label>
+<label style="min-height:48px;display:flex;align-items:center;gap:12px;font-size:15px;"><input type="checkbox" checked style="width:22px;height:22px;margin:0;accent-color:#0F766E;">주차 가능</label>
+</div>
+<div style="margin-top:auto;box-sizing:border-box;padding:12px 0 20px;display:flex;gap:10px;">
+<button type="button" style="width:104px;height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:16px;font-weight:500;">초기화</button>
+<button type="button" style="flex:1;height:52px;border:0;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:16px;font-weight:700;box-shadow:0 2px 6px rgba(13,79,72,0.25);">결과 보기</button>
+</div>
+</section>
+</div>
+</body>
+</html>

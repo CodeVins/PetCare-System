@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>대시보드 예약 슬롯</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:1280px;height:720px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:72px;flex-shrink:0;"><header style="width:1280px;height:72px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;justify-content:space-between;padding:0 48px;font-family:'Noto Sans KR',sans-serif;">
+<div style="display:flex;align-items:center;gap:10px;color:#0F766E;width:220px;">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg>
+<span style="font-family:'Jua',sans-serif;font-size:30px;line-height:1;">펫케어</span>
+</div>
+<nav aria-label="주 메뉴" style="display:flex;align-items:center;gap:4px;">
+<a href="/Main.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">홈</a>
+<a href="/PetList.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">반려동물</a>
+<a href="/HospitalList.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">병원</a>
+<a href="/Reservations.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">예약</a>
+<a href="/MyPage.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">마이페이지</a>
+<a href="/DashReservations.dc.html" aria-current="page" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;text-decoration:none;color:#0F766E;background:#CCFBF1;font-weight:700;">대시보드</a>
+
+</nav>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;width:220px;">
+<button type="button" aria-label="채팅" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"/></svg></button>
+<button type="button" aria-label="알림, 안 읽은 알림 3개" style="position:relative;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg><span style="position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#DC2626;color:#ffffff;font-size:12px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">3</span></button>
+<button type="button" style="height:44px;padding:0 18px;margin-left:8px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">로그아웃</button>
+</div>
+</header></div>
+<main style="width:1120px;box-sizing:border-box;align-self:center;padding:32px 0;display:flex;flex-direction:column;gap:24px;">
+<div style="display:flex;align-items:center;justify-content:space-between;">
+<h1 style="margin:0;font-family:'Jua',sans-serif;font-weight:400;font-size:34px;line-height:1.25;">대시보드</h1>
+<div style="display:flex;align-items:center;gap:12px;">
+<label for="db-h" style="font-size:14px;color:#57534E;">관리할 병원</label>
+<select id="db-h" style="height:48px;min-width:260px;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;"><option>따뜻한마음 동물병원</option></select>
+</div>
+</div>
+<div role="tablist" aria-label="대시보드 메뉴" style="display:flex;border-bottom:1px solid #E7E5E4;">
+<button type="button" role="tab" aria-selected="false" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid transparent;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#57534E;">예약 관리</button>
+<button type="button" role="tab" aria-selected="false" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid transparent;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#57534E;">병원 정보</button>
+<button type="button" role="tab" aria-selected="true" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid #0F766E;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0F766E;">예약 슬롯</button>
+<button type="button" role="tab" aria-selected="false" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid transparent;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#57534E;">리뷰 답글</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:start;">
+<section aria-labelledby="sl-new" style="grid-column:span 4;padding:20px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:16px;">
+<h2 id="sl-new" style="margin:0;font-size:17px;font-weight:700;">슬롯 등록</h2>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="sl-s" style="font-size:14px;font-weight:500;">시작</label>
+<input id="sl-s" type="text" value="2026.09.26 10:00" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="sl-e" style="font-size:14px;font-weight:500;">종료</label>
+<input id="sl-e" type="text" value="2026.09.26 10:30" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<button type="button" style="height:52px;border:0;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:16px;font-weight:700;">슬롯 등록</button>
+</section>
+<section aria-labelledby="sl-list" style="grid-column:span 8;padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:24px;">
+<h2 id="sl-list" style="margin:0;font-size:17px;font-weight:700;">등록된 슬롯</h2>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<h3 style="margin:0;font-size:15px;font-weight:700;">9월 25일 (금)</h3>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+<span style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-size:15px;">09:30 – 10:00</span>
+<span style="height:48px;border-radius:999px;background:#F5F5F4;color:#57534E;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;">10:30 – 11:00<b style="font-size:12px;">예약됨</b></span>
+<span style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-size:15px;">11:00 – 11:30</span>
+<span style="height:48px;border-radius:999px;background:#F5F5F4;color:#57534E;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;">14:00 – 14:30<b style="font-size:12px;">예약됨</b></span>
+<span style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-size:15px;">14:30 – 15:00</span>
+<span style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-size:15px;">15:00 – 15:30</span>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<h3 style="margin:0;font-size:15px;font-weight:700;">9월 26일 (토)</h3>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+<span style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-size:15px;">09:30 – 10:00</span>
+<span style="height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-size:15px;">10:00 – 10:30</span>
+<span style="height:48px;border-radius:999px;background:#F5F5F4;color:#57534E;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;">11:00 – 11:30<b style="font-size:12px;">예약됨</b></span>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body>
+</html>

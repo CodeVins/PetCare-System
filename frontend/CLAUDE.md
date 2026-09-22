@@ -88,10 +88,24 @@ src
 현재: 세팅·인증·핵심 화면·심화 기능(반려동물 확장/리뷰/예약 확장/병원·계정 폴리시)
 전부 완료 — CLAUDE.md 기준 백엔드 엔드포인트 전부 프론트 연동됨. 남은 작업 없음.
 **날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
-- 디자인: teal 계열 단일 accent 컬러, stone 중성 배경. 모양은 버튼 pill / 카드
-  rounded-2xl / 입력창 rounded-lg로 통일. `redesign-existing-projects` 스킬로
-  업그레이드 진행 중(1단계: motion 라이브러리, Reveal 스태거 애니메이션, 브랜드
-  톤 그림자, 헤딩 위계, 404 페이지, 파비콘 완료 — 상세는 PROGRESS.md)
+- 디자인: **DESIGN_SPEC.md**가 단일 기준(색·폰트·형태·레이아웃). `petcare-ui-source/`
+  는 화면별 HTML 시안 원본. 2026-09-22에 전 화면 이식 완료 — teal `#0F766E` accent,
+  stone 배경, Jua(제목)+Noto Sans KR(본문), 버튼 pill / 카드 rounded-2xl /
+  입력창 rounded-lg. 상세·의도적으로 시안과 다르게 둔 부분은 PROGRESS.md 참고.
+- 공통 클래스는 `src/index.css`에 **`@utility`로** 정의(`card` `btn-*` `input`
+  `chip*` `segmented` `badge-*` `icon-badge*` `h-section`). Tailwind v4의 @apply는
+  유틸리티만 받으므로 `@layer components`로 만들면 서로 조합이 안 된다.
+  동적 spacing은 정수만 생성됨 — `h-5.5` 같은 소수는 조용히 무시되니 쓰지 말 것.
+- 공통 컴포넌트(`src/components/common/`): Button, TextField, SelectField,
+  ChoiceGroup, Toggle, Tabs, Alert, EmptyState, StatusBadge, MenuList, PageHeader,
+  InfoRow, Stars, Reveal. 새 화면은 이것부터 찾아 쓰고, 날짜·종·D-day·예약
+  진료유형 포맷은 `src/lib/format.js`.
+- **관리자 패널(`/admin/*`, `src/pages/admin/`)은 소비자 앱과 별도 UI.**
+  `AdminLayout`(사이드바/상단 탭, stone-900 어두운 톤, pill 대신 rounded-lg 버튼)
+  아래에서 렌더되고 `Layout`(하단 탭바 등)은 안 씀 — 공용 컴포넌트도 재사용 안
+  하고 `admin-card` `admin-btn-*` `admin-input` `admin-th/td`(index.css @utility)
+  를 따로 씀. ADMIN 전용(HOSPITAL_OWNER는 기존 `/dashboard` 그대로), 로그인 시
+  role 보고 자동 이동. 상세는 PROGRESS.md, 엔드포인트는 API_MAP.md·ADMIN.md(백엔드).
 
 ## 반응형 정책
 - 모든 화면은 웹(데스크톱)과 모바일 브라우저 양쪽에서 정상 동작해야 함

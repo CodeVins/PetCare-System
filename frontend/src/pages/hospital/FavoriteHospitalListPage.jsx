@@ -1,7 +1,13 @@
 import { Heart } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getFavorites, removeFavorite } from '../../api/hospitalApi'
+import Alert from '../../components/common/Alert'
+import EmptyState from '../../components/common/EmptyState'
+import PageHeader from '../../components/common/PageHeader'
+import { Reveal, RevealItem } from '../../components/common/Reveal'
 import HospitalCard from './HospitalCard'
+import HospitalTabs from './HospitalTabs'
 
 export default function FavoriteHospitalListPage() {
   const [hospitals, setHospitals] = useState([])
@@ -18,46 +24,60 @@ export default function FavoriteHospitalListPage() {
   }, [])
 
   const handleToggle = async (hospitalId) => {
+    const removed = hospitals.find((hospital) => hospital.id === hospitalId)
     setHospitals((prev) => prev.filter((hospital) => hospital.id !== hospitalId))
     try {
       await removeFavorite(hospitalId)
     } catch (err) {
+      // 실패하면 목록에 되돌려 놓는다
+      setHospitals((prev) => [...prev, removed])
       setError(err.response?.data?.message || '삭제에 실패했습니다.')
     }
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-stone-900">즐겨찾기한 병원</h1>
+    <div>
+      <PageHeader title="병원" />
+      <HospitalTabs />
 
       {loading && (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {[0, 1].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-stone-100" />
+            <div key={i} className="h-30 animate-pulse rounded-2xl bg-stone-100" />
           ))}
         </div>
       )}
 
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {!loading && error && <Alert tone="error">{error}</Alert>}
 
       {!loading && !error && hospitals.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 py-16 text-center">
-          <Heart size={32} className="text-stone-300" />
-          <p className="text-sm text-stone-500">즐겨찾기한 병원이 없습니다.</p>
+        <div className="card">
+          <EmptyState
+            icon={Heart}
+            action={
+              <Link to="/hospitals" className="btn btn-primary btn-sm">
+                병원 둘러보기
+              </Link>
+            }
+          >
+            즐겨찾기한 병원이 없습니다.
+          </EmptyState>
         </div>
       )}
 
       {!loading && !error && hospitals.length > 0 && (
-        <div className="space-y-3">
-          {hospitals.map((hospital) => (
-            <HospitalCard
-              key={hospital.id}
-              hospital={hospital}
-              isFavorite
-              onToggleFavorite={handleToggle}
-            />
+        <Reveal className="flex flex-col gap-3 md:grid md:grid-cols-2" stagger={0.05}>
+          {hospitals.map((hospital, index) => (
+            <RevealItem key={hospital.id}>
+              <HospitalCard
+                hospital={hospital}
+                index={index}
+                isFavorite
+                onToggleFavorite={handleToggle}
+              />
+            </RevealItem>
           ))}
-        </div>
+        </Reveal>
       )}
     </div>
   )

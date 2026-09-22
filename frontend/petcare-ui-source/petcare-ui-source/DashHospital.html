@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>대시보드 병원 정보</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:1280px;height:1080px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:72px;flex-shrink:0;"><header style="width:1280px;height:72px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;justify-content:space-between;padding:0 48px;font-family:'Noto Sans KR',sans-serif;">
+<div style="display:flex;align-items:center;gap:10px;color:#0F766E;width:220px;">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg>
+<span style="font-family:'Jua',sans-serif;font-size:30px;line-height:1;">펫케어</span>
+</div>
+<nav aria-label="주 메뉴" style="display:flex;align-items:center;gap:4px;">
+<a href="/Main.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">홈</a>
+<a href="/PetList.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">반려동물</a>
+<a href="/HospitalList.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">병원</a>
+<a href="/Reservations.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">예약</a>
+<a href="/MyPage.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">마이페이지</a>
+<a href="/DashReservations.dc.html" aria-current="page" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;text-decoration:none;color:#0F766E;background:#CCFBF1;font-weight:700;">대시보드</a>
+
+</nav>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;width:220px;">
+<button type="button" aria-label="채팅" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"/></svg></button>
+<button type="button" aria-label="알림, 안 읽은 알림 3개" style="position:relative;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg><span style="position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#DC2626;color:#ffffff;font-size:12px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">3</span></button>
+<button type="button" style="height:44px;padding:0 18px;margin-left:8px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">로그아웃</button>
+</div>
+</header></div>
+<main style="width:1120px;box-sizing:border-box;align-self:center;padding:32px 0;display:flex;flex-direction:column;gap:24px;">
+<div style="display:flex;align-items:center;justify-content:space-between;">
+<h1 style="margin:0;font-family:'Jua',sans-serif;font-weight:400;font-size:34px;line-height:1.25;">대시보드</h1>
+<div style="display:flex;align-items:center;gap:12px;">
+<label for="db-h" style="font-size:14px;color:#57534E;">관리할 병원</label>
+<select id="db-h" style="height:48px;min-width:260px;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;"><option>따뜻한마음 동물병원</option></select>
+</div>
+</div>
+<div role="tablist" aria-label="대시보드 메뉴" style="display:flex;border-bottom:1px solid #E7E5E4;">
+<button type="button" role="tab" aria-selected="false" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid transparent;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#57534E;">예약 관리</button>
+<button type="button" role="tab" aria-selected="true" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid #0F766E;background:transparent;font-family:inherit;font-size:16px;font-weight:700;color:#0F766E;">병원 정보</button>
+<button type="button" role="tab" aria-selected="false" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid transparent;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#57534E;">예약 슬롯</button>
+<button type="button" role="tab" aria-selected="false" style="height:48px;padding:0 24px;border:0;border-bottom:3px solid transparent;background:transparent;font-family:inherit;font-size:16px;font-weight:500;color:#57534E;">리뷰 답글</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:start;">
+<section aria-labelledby="hi-photo" style="grid-column:span 4;padding:20px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:16px;">
+<h2 id="hi-photo" style="margin:0;font-size:17px;font-weight:700;">병원 사진</h2>
+<div style="height:200px;border-radius:12px;background:#CCFBF1;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></div>
+<div style="display:flex;gap:8px;">
+<button type="button" style="flex:1;height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:14px;font-weight:700;">사진 변경</button>
+<button type="button" style="flex:1;height:48px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#B91C1C;font-family:inherit;font-size:14px;font-weight:700;">사진 삭제</button>
+</div>
+<p style="margin:0;font-size:12px;color:#57534E;">jpg, png, webp 파일만 올릴 수 있어요</p>
+</section>
+<section aria-labelledby="hi-form" style="grid-column:span 8;padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:18px;">
+<h2 id="hi-form" style="margin:0;font-size:17px;font-weight:700;">병원 정보</h2>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-name" style="font-size:14px;font-weight:500;">병원 이름</label>
+<input id="hi-name" type="text" value="따뜻한마음 동물병원" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-addr" style="font-size:14px;font-weight:500;">주소</label>
+<input id="hi-addr" type="text" value="서울 ○○구 ○○로 12" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-lat" style="font-size:14px;font-weight:500;">위도</label>
+<input id="hi-lat" type="text" value="37.5665" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-lng" style="font-size:14px;font-weight:500;">경도</label>
+<input id="hi-lng" type="text" value="126.9780" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-hours" style="font-size:14px;font-weight:500;">운영시간</label>
+<input id="hi-hours" type="text" value="매일 09:00–20:00" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-fee" style="font-size:14px;font-weight:500;">평균 진료비</label>
+<input id="hi-fee" type="text" value="30,000" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<label for="hi-dept" style="font-size:14px;font-weight:500;">진료과목</label>
+<input id="hi-dept" type="text" value="내과, 외과, 피부과" style="width:100%;height:48px;box-sizing:border-box;padding:0 14px;border:1px solid #D6D3D1;border-radius:8px;background:#ffffff;font-family:inherit;font-size:15px;color:#1C1917;">
+</div>
+<div style="display:flex;gap:32px;">
+<label style="min-height:44px;display:flex;align-items:center;gap:12px;font-size:15px;"><input type="checkbox" style="width:22px;height:22px;margin:0;accent-color:#0F766E;">24시간 운영</label>
+<label style="min-height:44px;display:flex;align-items:center;gap:12px;font-size:15px;"><input type="checkbox" checked style="width:22px;height:22px;margin:0;accent-color:#0F766E;">주차 가능</label>
+</div>
+<div style="display:flex;justify-content:flex-end;">
+<button type="button" style="height:52px;padding:0 40px;border:0;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:16px;font-weight:700;box-shadow:0 2px 6px rgba(13,79,72,0.25);">저장</button>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body>
+</html>

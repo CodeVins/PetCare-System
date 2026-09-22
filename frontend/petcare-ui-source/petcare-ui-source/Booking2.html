@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>예약 날짜와 시간 선택</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:56px;flex-shrink:0;"><header style="width:390px;height:56px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;gap:4px;padding:0 16px 0 8px;font-family:'Noto Sans KR',sans-serif;color:#1C1917;">
+<button type="button" aria-label="뒤로 가기" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+<h1 style="margin:0;font-size:18px;font-weight:700;line-height:1.3;">예약하기</h1>
+</header></div>
+<main style="flex-grow:1;padding:20px 16px;display:flex;flex-direction:column;gap:20px;">
+<div role="group" aria-label="3단계 중 2단계" style="display:flex;align-items:center;">
+<div style="display:flex;align-items:center;gap:8px;">
+<span style="width:28px;height:28px;border-radius:999px;background:#0F766E;color:#ffffff;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+<span style="font-size:13px;color:#57534E;">반려동물</span>
+</div>
+<div style="flex:1;height:2px;margin:0 8px;background:#0F766E;"></div>
+<div style="display:flex;align-items:center;gap:8px;">
+<span style="width:28px;height:28px;border-radius:999px;background:#0F766E;color:#ffffff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">2</span>
+<span style="font-size:13px;font-weight:700;color:#0F766E;">날짜·시간</span>
+</div>
+<div style="flex:1;height:2px;margin:0 8px;background:#D6D3D1;"></div>
+<div style="display:flex;align-items:center;gap:8px;">
+<span style="width:28px;height:28px;box-sizing:border-box;border-radius:999px;border:2px solid #D6D3D1;color:#57534E;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;">3</span>
+<span style="font-size:13px;color:#57534E;">확인</span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#F0FDFA;border-radius:12px;color:#115E59;font-size:14px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg>
+<span><b>따뜻한마음 동물병원</b> · 보리</span>
+</div>
+<h2 style="margin:0;font-size:20px;font-weight:700;line-height:1.35;">날짜와 시간을 선택해 주세요</h2>
+<div role="group" aria-label="날짜 선택" style="display:flex;gap:6px;">
+<button type="button" aria-pressed="false" style="width:53px;height:68px;padding:0;border:1px solid #D6D3D1;border-radius:12px;background:#ffffff;color:#292524;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:12px;color:#57534E;">월</span><span style="font-size:18px;font-weight:700;">21</span></button>
+<button type="button" aria-pressed="false" style="width:53px;height:68px;padding:0;border:1px solid #D6D3D1;border-radius:12px;background:#ffffff;color:#292524;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:12px;color:#57534E;">화</span><span style="font-size:18px;font-weight:700;">22</span></button>
+<button type="button" aria-pressed="false" style="width:53px;height:68px;padding:0;border:1px solid #D6D3D1;border-radius:12px;background:#ffffff;color:#292524;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:12px;color:#57534E;">수</span><span style="font-size:18px;font-weight:700;">23</span></button>
+<button type="button" aria-pressed="false" style="width:53px;height:68px;padding:0;border:1px solid #D6D3D1;border-radius:12px;background:#ffffff;color:#292524;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:12px;color:#57534E;">목</span><span style="font-size:18px;font-weight:700;">24</span></button>
+<button type="button" aria-pressed="true" style="width:53px;height:68px;padding:0;border:1px solid #0F766E;border-radius:12px;background:#0F766E;color:#ffffff;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:12px;color:#CCFBF1;">금</span><span style="font-size:18px;font-weight:700;">25</span></button>
+<button type="button" aria-pressed="false" style="width:53px;height:68px;padding:0;border:1px solid #D6D3D1;border-radius:12px;background:#ffffff;color:#292524;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:12px;color:#57534E;">토</span><span style="font-size:18px;font-weight:700;">26</span></button>
+</div>
+<section aria-labelledby="h-slots" style="display:flex;flex-direction:column;gap:12px;">
+<h3 id="h-slots" style="margin:0;font-size:16px;font-weight:700;">9월 25일 (금)</h3>
+<div role="group" aria-label="예약 가능 시간" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">09:30</button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">10:00</button>
+<button type="button" aria-label="10시 30분, 마감, 대기 신청 가능" style="height:52px;border:1.5px dashed #A8A29E;border-radius:999px;background:transparent;color:#57534E;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;"><span style="font-size:15px;font-weight:500;">10:30</span><span style="font-size:12px;">대기 신청</span></button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">11:00</button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">11:30</button>
+<button type="button" aria-label="14시, 마감, 대기 신청 가능" style="height:52px;border:1.5px dashed #A8A29E;border-radius:999px;background:transparent;color:#57534E;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;"><span style="font-size:15px;font-weight:500;">14:00</span><span style="font-size:12px;">대기 신청</span></button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">14:30</button>
+<button type="button" aria-pressed="true" style="height:52px;border:1px solid #0F766E;border-radius:999px;background:#0F766E;color:#ffffff;font-family:inherit;font-size:15px;font-weight:700;">15:00</button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">15:30</button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">16:00</button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">16:30</button>
+<button type="button" style="height:52px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">17:00</button>
+</div>
+<p style="margin:0;font-size:13px;color:#57534E;">점선으로 표시된 시간은 마감됐어요. 눌러서 대기 신청을 하면 자리가 났을 때 알려드려요.</p>
+</section>
+</main>
+<div style="flex-shrink:0;box-sizing:border-box;padding:12px 16px 20px;background:#ffffff;border-top:1px solid #E7E5E4;display:flex;gap:10px;">
+<a href="/Booking1.dc.html" style="width:104px;height:52px;box-sizing:border-box;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-size:16px;font-weight:500;text-decoration:none;display:flex;align-items:center;justify-content:center;">이전</a>
+<a href="/Booking3.dc.html" style="flex:1;height:52px;border-radius:999px;background:#0F766E;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(13,79,72,0.25);">다음</a>
+</div>
+</div>
+</body>
+</html>

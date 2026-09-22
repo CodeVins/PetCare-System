@@ -41,6 +41,8 @@ public class PetService {
 				.breed(request.breed())
 				.birthDate(request.birthDate())
 				.size(request.size())
+				.sex(request.sex())
+				.neutered(request.neutered())
 				.build();
 
 		return PetResponse.of(petRepository.save(pet), PetRole.OWNER);
@@ -59,7 +61,9 @@ public class PetService {
 	@Transactional
 	public PetResponse update(Long userId, Long petId, PetUpdateRequest request) {
 		Pet pet = getAccessiblePet(userId, petId);
-		pet.update(request.name(), request.species(), request.breed(), request.birthDate(), request.size());
+		pet.update(
+				request.name(), request.species(), request.breed(), request.birthDate(), request.size(), request.sex(),
+				request.neutered());
 		return PetResponse.of(pet, roleOf(pet, userId));
 	}
 

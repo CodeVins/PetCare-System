@@ -1,29 +1,48 @@
 @import "tailwindcss";
 
+/* ── 디자인 토큰 (DESIGN_SPEC.md) ─────────────────────────────────────────
+   brand 램프를 스펙의 teal로 다시 매핑해서, 앱 전반에 이미 쓰인
+   bg-brand-600 / text-brand-700 / border-brand-200 이 호출부 수정 없이
+   새 팔레트를 그대로 집어가도록 했다. */
 @theme {
-  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+  --font-sans: "Noto Sans KR", -apple-system, BlinkMacSystemFont,
     "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-display: "Jua", "Noto Sans KR", sans-serif;
 
-  --color-brand-50: #eff7f6;
-  --color-brand-100: #dceeeb;
-  --color-brand-200: #b7ddd6;
-  --color-brand-500: #4f9d95;
-  --color-brand-600: #3f8079;
-  --color-brand-700: #336863;
+  --color-brand-50: #f0fdfa; /* 연한 액센트 배경 */
+  --color-brand-100: #ccfbf1; /* 아이콘 배지, 선택 상태 */
+  --color-brand-200: #99f6e4;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0f766e; /* 브랜드 액센트 — 버튼/활성탭/링크 */
+  --color-brand-700: #115e59; /* 연한 배경 위 텍스트 */
 
-  /* Shadows tinted toward the brand hue instead of generic black - every
-     existing shadow-sm/shadow usage across the app picks this up for free. */
-  --shadow-sm: 0 1px 2px 0 rgb(63 128 121 / 0.06), 0 1px 3px -1px rgb(63 128 121 / 0.07);
-  --shadow: 0 1px 3px 0 rgb(63 128 121 / 0.08), 0 4px 8px -2px rgb(63 128 121 / 0.06);
-  --shadow-md: 0 4px 10px -2px rgb(63 128 121 / 0.1), 0 8px 20px -4px rgb(63 128 121 / 0.08);
+  /* 카드 그림자: 브랜드 톤(13,79,72) */
+  --shadow-sm: 0 1px 3px rgb(13 79 72 / 0.08);
+  --shadow: 0 2px 6px rgb(13 79 72 / 0.1);
+  --shadow-md: 0 4px 12px rgb(13 79 72 / 0.12);
+  --shadow-lg: 0 8px 24px rgb(13 79 72 / 0.14);
 }
 
 body {
   @apply bg-stone-50 text-stone-900;
+  font-size: 15px;
   text-wrap: pretty;
 }
 
-h1, h2, h3 {
+@media (min-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+/* 페이지 제목은 전부 Jua. 크기는 각 페이지에서 지정 */
+h1 {
+  @apply font-display font-normal;
+}
+
+h1,
+h2,
+h3 {
   text-wrap: balance;
 }
 
@@ -33,9 +52,181 @@ h1, h2, h3 {
   }
 }
 
+/* ── 공통 컴포넌트 클래스 ─────────────────────────────────────────────────
+   Tailwind v4에서 @apply로 조합하려면 @layer components가 아니라 @utility로
+   정의해야 한다 (@apply는 유틸리티만 받는다). */
+
+/* 카드: radius 16 / border stone-200 / 브랜드 톤 그림자 */
+@utility card {
+  @apply rounded-2xl border border-stone-200 bg-white shadow-sm;
+}
+
+/* 눌리는 카드(링크/버튼 역할) */
+@utility card-interactive {
+  @apply card transition-[box-shadow,transform] duration-150 hover:shadow-md
+    active:scale-[0.995] motion-reduce:transform-none;
+}
+
+/* 버튼: 완전한 pill, 높이 48px (터치 영역 44px 이상) */
+@utility btn {
+  @apply inline-flex h-12 min-h-11 items-center justify-center gap-1.5 rounded-full
+    px-5 text-[15px] font-bold transition-[background-color,box-shadow,transform]
+    duration-150 active:scale-[0.97] disabled:cursor-not-allowed
+    disabled:active:scale-100 motion-reduce:transform-none;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand-600 text-white hover:bg-brand-700 hover:shadow
+    disabled:bg-stone-300 disabled:text-stone-500 disabled:shadow-none;
+}
+
+@utility btn-secondary {
+  @apply btn border border-stone-300 bg-white font-medium text-stone-800
+    hover:bg-stone-50 disabled:text-stone-400;
+}
+
+@utility btn-danger {
+  @apply btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100;
+}
+
+/* 작은 버튼 (카드 안 액션) */
+@utility btn-sm {
+  @apply h-10 min-h-10 px-4 text-sm;
+}
+
+/* 입력창: radius 8, 높이 48 */
+@utility input {
+  @apply h-12 w-full rounded-lg border border-stone-300 bg-white px-3.5 text-[15px]
+    text-stone-900 placeholder:text-stone-400 focus:border-brand-600
+    focus:outline-none focus:ring-2 focus:ring-brand-600/25;
+}
+
+@utility input-error {
+  @apply border-red-400 focus:border-red-400 focus:ring-red-400/25;
+}
+
+textarea.input {
+  @apply h-auto py-3;
+}
+
+/* 필터 칩 */
+@utility chip {
+  @apply inline-flex h-10 shrink-0 items-center gap-1 rounded-full border
+    border-stone-300 bg-white px-3.5 text-sm font-medium text-stone-800
+    transition-colors hover:bg-stone-50;
+}
+
+@utility chip-on {
+  @apply border-brand-600 bg-brand-600 font-bold text-white hover:bg-brand-700;
+}
+
+@utility chip-soft {
+  @apply border-brand-600 bg-brand-50 font-bold text-brand-600 hover:bg-brand-100;
+}
+
+/* 세그먼트 탭 (전체 / 즐겨찾기 형태) */
+@utility segmented {
+  @apply flex h-12 rounded-full bg-stone-100 p-1;
+}
+
+@utility seg-btn {
+  @apply flex-1 rounded-full text-[15px] font-medium text-stone-600 transition-colors;
+}
+
+@utility seg-btn-on {
+  @apply bg-white font-bold text-brand-600 shadow-sm;
+}
+
+/* 상태 뱃지 */
+@utility badge {
+  @apply inline-flex h-7 shrink-0 items-center rounded-full px-3 text-[13px] font-bold;
+}
+
+@utility badge-ok {
+  @apply bg-green-100 text-green-800; /* #DCFCE7 / #166534 */
+}
+
+@utility badge-wait {
+  @apply bg-amber-100 text-amber-800; /* #FEF3C7 / #92400E */
+}
+
+@utility badge-danger {
+  @apply bg-red-100 text-red-700; /* #FEE2E2 / #B91C1C */
+}
+
+@utility badge-neutral {
+  @apply bg-stone-100 text-stone-700; /* #F5F5F4 / #44403C */
+}
+
+/* 아이콘 배지: 색 배경 원(44px). 보조 액센트는 amber → sky 순으로 순환 */
+@utility icon-badge {
+  @apply flex size-11 shrink-0 items-center justify-center rounded-full
+    bg-brand-100 text-brand-600;
+}
+
+@utility icon-badge-amber {
+  @apply bg-amber-100 text-amber-700; /* #FEF3C7 / #B45309 */
+}
+
+@utility icon-badge-sky {
+  @apply bg-sky-100 text-sky-700; /* #E0F2FE / #0369A1 */
+}
+
+/* 섹션 제목 */
+@utility h-section {
+  @apply text-[17px] font-bold md:text-xl;
+}
+
+/* ── 관리자 패널 전용 ──────────────────────────────────────────────────────
+   소비자 앱(pill 버튼/rounded-2xl 카드/Jua 헤딩)과 일부러 다른, 밀도 높고
+   정적인 "관리 도구" 느낌의 톤. 색 체계(brand/stone/badge-*)는 그대로 공유해서
+   같은 앱이라는 건 유지하되 형태(둥근 정도·버튼 모양)만 다르게 간다. */
+@utility admin-card {
+  @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+}
+
+@utility admin-btn {
+  @apply inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3.5
+    text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility admin-btn-primary {
+  @apply admin-btn bg-brand-600 text-white hover:bg-brand-700;
+}
+
+@utility admin-btn-secondary {
+  @apply admin-btn border border-stone-300 bg-white text-stone-700 hover:bg-stone-50;
+}
+
+@utility admin-btn-danger {
+  @apply admin-btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100;
+}
+
+@utility admin-input {
+  @apply h-9 rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-900
+    placeholder:text-stone-400 focus:border-brand-600 focus:outline-none
+    focus:ring-2 focus:ring-brand-600/25;
+}
+
+@utility admin-th {
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-stone-500;
+}
+
+@utility admin-td {
+  @apply px-4 py-3 text-sm text-stone-800;
+}
+
 /* Visually hidden until keyboard-focused - skip-to-content link target */
 .skip-link {
   @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50
     focus:rounded-full focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm
     focus:font-semibold focus:text-white;
+}
+
+/* 가로 스크롤 칩 줄에서 스크롤바 숨김 */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

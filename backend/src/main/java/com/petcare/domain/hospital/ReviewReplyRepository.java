@@ -8,4 +8,6 @@ public interface ReviewReplyRepository extends JpaRepository<ReviewReply, Long> 
 	Optional<ReviewReply> findByReviewId(Long reviewId);
 
 	boolean existsByReviewId(Long reviewId);
+
+	long countByAuthorId(Long authorId);
 }

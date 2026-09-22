@@ -1,85 +1,44 @@
-import { CalendarCheck, HourglassMedium } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { CalendarCheck } from '@phosphor-icons/react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getHospitals, getSlots } from '../../api/hospitalApi'
-import { getMyPets } from '../../api/petApi'
-import { cancelReservation, getMyReservations } from '../../api/reservationApi'
-
-const STATUS_LABEL = {
-  PENDING: '대기중',
-  CONFIRMED: '확정',
-  REJECTED: '거절됨',
-  CANCELLED: '취소됨',
-  NO_SHOW: '노쇼',
-}
-
-const STATUS_STYLE = {
-  PENDING: 'bg-amber-50 text-amber-700',
-  CONFIRMED: 'bg-brand-50 text-brand-700',
-  REJECTED: 'bg-red-50 text-red-700',
-  CANCELLED: 'bg-stone-100 text-stone-500',
-  NO_SHOW: 'bg-stone-200 text-stone-600',
-}
+import { cancelReservation, getMyReservationsDetailed } from '../../api/reservationApi'
+import Alert from '../../components/common/Alert'
+import EmptyState from '../../components/common/EmptyState'
+import PageHeader from '../../components/common/PageHeader'
+import { Reveal, RevealItem } from '../../components/common/Reveal'
+import StatusBadge from '../../components/common/StatusBadge'
+import { formatSlot, RESERVATION_TYPE_LABEL } from '../../lib/format'
+import ReservationTabs from './ReservationTabs'
 
 const CANCELLABLE_STATUSES = ['PENDING', 'CONFIRMED']
 
-function formatSlot(slot) {
-  const format = (value, options) => new Date(value).toLocaleString('ko-KR', options)
-  const date = format(slot.startTime, { month: 'long', day: 'numeric', weekday: 'short' })
-  const start = format(slot.startTime, { hour: '2-digit', minute: '2-digit' })
-  const end = format(slot.endTime, { hour: '2-digit', minute: '2-digit' })
-  return `${date} ${start} - ${end}`
-}
+// 사용자가 보기 편한 3분류 + 전체. 거절·취소·노쇼는 "지난 예약"으로 묶는다
+// (전부 더 이상 손댈 게 없는 상태라 따로 볼 이유가 적어서).
+const FILTERS = [
+  { value: 'ALL', label: '전체', match: () => true },
+  { value: 'PENDING', label: '대기중', match: (s) => s === 'PENDING' },
+  { value: 'CONFIRMED', label: '확정', match: (s) => s === 'CONFIRMED' },
+  {
+    value: 'PAST',
+    label: '지난 예약',
+    match: (s) => s === 'CANCELLED' || s === 'REJECTED' || s === 'NO_SHOW',
+  },
+]
 
 export default function ReservationListPage() {
   const [reservations, setReservations] = useState([])
-  const [petMap, setPetMap] = useState({})
-  const [slotMap, setSlotMap] = useState({})
-  const [hospitalNameBySlot, setHospitalNameBySlot] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cancellingId, setCancellingId] = useState(null)
-
-  const load = async () => {
-    try {
-      const [reservationsRes, petsRes, hospitalsRes] = await Promise.all([
-        getMyReservations(),
-        getMyPets(),
-        getHospitals(),
-      ])
-
-      setPetMap(
-        Object.fromEntries(petsRes.data.data.content.map((pet) => [pet.id, pet.name])),
-      )
-
-      // ponytail: N+1 slot lookup across hospitals, fine for a handful of hospitals.
-      // If hospital count grows, add hospital/time fields to ReservationResponse instead.
-      const slotsByHospital = await Promise.all(
-        hospitalsRes.data.data.map((hospital) =>
-          getSlots(hospital.id).then(({ data }) => ({ hospital, slots: data.data.content })),
-        ),
-      )
-
-      const nextSlotMap = {}
-      const nextHospitalNameBySlot = {}
-      for (const { hospital, slots } of slotsByHospital) {
-        for (const slot of slots) {
-          nextSlotMap[slot.id] = slot
-          nextHospitalNameBySlot[slot.id] = hospital.name
-        }
-      }
-      setSlotMap(nextSlotMap)
-      setHospitalNameBySlot(nextHospitalNameBySlot)
-      setReservations(reservationsRes.data.data.content)
-    } catch (err) {
-      setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [statusFilter, setStatusFilter] = useState('ALL')
 
   useEffect(() => {
-    load()
+    getMyReservationsDetailed()
+      .then(setReservations)
+      .catch((err) =>
+        setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.'),
+      )
+      .finally(() => setLoading(false))
   }, [])
 
   const handleCancel = async (reservationId) => {
@@ -101,77 +60,123 @@ export default function ReservationListPage() {
     }
   }
 
+  const activeFilter = FILTERS.find((f) => f.value === statusFilter) ?? FILTERS[0]
+  const filteredReservations = useMemo(
+    () => reservations.filter((r) => activeFilter.match(r.status)),
+    [reservations, activeFilter],
+  )
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900">예약</h1>
-        <Link
-          to="/waitlist"
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-2 text-sm font-medium text-stone-700 transition-colors hover:border-brand-200 hover:text-brand-700"
+    <div>
+      <PageHeader title="예약" />
+      <ReservationTabs />
+
+      {!loading && !error && reservations.length > 0 && (
+        <div
+          role="tablist"
+          aria-label="예약 상태 필터"
+          className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0"
         >
-          <HourglassMedium size={16} />
-          대기 목록
-        </Link>
-      </div>
+          {FILTERS.map((filter) => {
+            const count = reservations.filter((r) => filter.match(r.status)).length
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === filter.value}
+                onClick={() => setStatusFilter(filter.value)}
+                className={`chip ${statusFilter === filter.value ? 'chip-on' : ''}`}
+              >
+                {filter.label}
+                <span
+                  className={
+                    statusFilter === filter.value ? 'text-white/80' : 'text-stone-500'
+                  }
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {loading && (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {[0, 1].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-stone-100" />
+            <div key={i} className="h-30 animate-pulse rounded-2xl bg-stone-100" />
           ))}
         </div>
       )}
 
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {!loading && error && <Alert tone="error">{error}</Alert>}
 
       {!loading && !error && reservations.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-stone-300 py-16 text-center">
-          <CalendarCheck size={32} className="text-stone-300" />
-          <p className="text-sm text-stone-500">예약 내역이 없습니다.</p>
+        <div className="card">
+          <EmptyState
+            icon={CalendarCheck}
+            action={
+              <Link to="/hospitals" className="btn btn-primary btn-sm">
+                병원 찾아보기
+              </Link>
+            }
+          >
+            예약 내역이 없습니다.
+          </EmptyState>
         </div>
       )}
 
-      {!loading && !error && reservations.length > 0 && (
-        <div className="space-y-3">
-          {reservations.map((reservation) => {
-            const slot = slotMap[reservation.slotId]
-            const hospitalName = hospitalNameBySlot[reservation.slotId] || '병원 정보 없음'
-            return (
-              <div
-                key={reservation.id}
-                className="rounded-2xl border border-stone-200 bg-white p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-stone-900">{hospitalName}</p>
-                    <p className="mt-0.5 text-sm text-stone-500">
-                      {slot ? formatSlot(slot) : '시간 정보 없음'}
-                    </p>
-                    <p className="mt-0.5 text-sm text-stone-500">
-                      {petMap[reservation.petId] || '반려동물 정보 없음'}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[reservation.status]}`}
-                  >
-                    {STATUS_LABEL[reservation.status]}
-                  </span>
-                </div>
-
-                {CANCELLABLE_STATUSES.includes(reservation.status) && (
-                  <button
-                    type="button"
-                    onClick={() => handleCancel(reservation.id)}
-                    disabled={cancellingId === reservation.id}
-                    className="mt-3 text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    예약 취소
-                  </button>
-                )}
-              </div>
-            )
-          })}
+      {!loading && !error && reservations.length > 0 && filteredReservations.length === 0 && (
+        <div className="card">
+          <EmptyState icon={CalendarCheck}>
+            {`${activeFilter.label} 예약이 없습니다.`}
+          </EmptyState>
         </div>
+      )}
+
+      {!loading && !error && filteredReservations.length > 0 && (
+        <Reveal
+          key={statusFilter}
+          className="flex flex-col gap-3 md:grid md:grid-cols-2"
+          stagger={0.05}
+        >
+          {filteredReservations.map((reservation) => (
+            <RevealItem key={reservation.id}>
+              <article className="card flex h-full flex-col gap-2.5 p-4 md:p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="min-w-0 truncate text-base font-bold">
+                    {reservation.hospitalName}
+                  </h2>
+                  <StatusBadge status={reservation.status} />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {reservation.type && (
+                    <span className="badge badge-neutral h-6 shrink-0 px-2 text-xs">
+                      {RESERVATION_TYPE_LABEL[reservation.type] ?? reservation.type}
+                    </span>
+                  )}
+                  <p className="min-w-0 truncate text-sm text-stone-600">
+                    {reservation.petName} ·{' '}
+                    {reservation.slot ? formatSlot(reservation.slot) : '시간 정보 없음'}
+                  </p>
+                </div>
+                {CANCELLABLE_STATUSES.includes(reservation.status) && (
+                  <div className="mt-auto flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(reservation.id)}
+                      disabled={cancellingId === reservation.id}
+                      className="chip h-11 px-4 font-bold text-red-700 disabled:opacity-50"
+                    >
+                      예약 취소
+                    </button>
+                  </div>
+                )}
+              </article>
+            </RevealItem>
+          ))}
+        </Reveal>
       )}
     </div>
   )

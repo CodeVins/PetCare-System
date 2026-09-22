@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>알림 설정</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:390px;height:844px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:56px;flex-shrink:0;"><header style="width:390px;height:56px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;gap:4px;padding:0 16px 0 8px;font-family:'Noto Sans KR',sans-serif;color:#1C1917;">
+<button type="button" aria-label="뒤로 가기" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+<h1 style="margin:0;font-size:18px;font-weight:700;line-height:1.3;">알림 설정</h1>
+</header></div>
+<main style="flex-grow:1;padding:20px 16px;display:flex;flex-direction:column;gap:12px;">
+<p style="margin:0 0 4px;font-size:14px;color:#57534E;">받고 싶은 알림만 골라 보세요. 바꾸면 바로 저장돼요.</p>
+<div style="background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);padding:0 16px;">
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="ns-1" style="font-weight:700;">예약</span><span style="font-size:13px;color:#57534E;">예약 확정, 거절, 취소, 리마인더</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="ns-1" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="ns-2" style="font-weight:700;">접종</span><span style="font-size:13px;color:#57534E;">접종 예정일이 다가올 때</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="ns-2" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="ns-3" style="font-weight:700;">즐겨찾기 병원</span><span style="font-size:13px;color:#57534E;">즐겨찾기한 병원의 소식</span></span>
+<button type="button" role="switch" aria-checked="false" aria-labelledby="ns-3" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#78716C;"><span style="position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #F5F5F4;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="ns-4" style="font-weight:700;">채팅</span><span style="font-size:13px;color:#57534E;">병원에서 온 새 메시지</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="ns-4" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:16px 0;">
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span id="ns-5" style="font-weight:700;">대기자 명단</span><span style="font-size:13px;color:#57534E;">대기한 시간에 자리가 났을 때</span></span>
+<button type="button" role="switch" aria-checked="true" aria-labelledby="ns-5" style="position:relative;width:52px;height:32px;flex-shrink:0;padding:0;border:0;border-radius:999px;background:#0F766E;"><span style="position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:999px;background:#ffffff;"></span></button>
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

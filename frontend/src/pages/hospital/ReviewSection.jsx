@@ -1,4 +1,4 @@
-import { Star, WarningCircle } from '@phosphor-icons/react'
+import { ChatCircleDots, Star, WarningCircle } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import {
   createReply,
@@ -10,7 +10,10 @@ import {
   updateReply,
   updateReview,
 } from '../../api/reviewApi'
+import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
+import EmptyState from '../../components/common/EmptyState'
+import Stars from '../../components/common/Stars'
 
 const MY_REVIEWS_KEY = 'myReviewIds'
 
@@ -37,22 +40,36 @@ function setMyReviewId(hospitalId, reviewId) {
   }
 }
 
-function StarRating({ value }) {
+// 별 자체를 누르는 평점 입력 (radiogroup 시맨틱 유지)
+function StarPicker({ value, onChange }) {
   return (
-    <span className="flex items-center gap-0.5">
+    <div role="radiogroup" aria-label="평점" className="-ml-1.5 flex">
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star
+        <button
           key={n}
-          size={14}
-          weight={n <= value ? 'fill' : 'regular'}
-          className="text-amber-500"
-        />
+          type="button"
+          role="radio"
+          aria-checked={n === value}
+          aria-label={`${n}점`}
+          onClick={() => onChange(n)}
+          className={`flex size-11 items-center justify-center transition-colors ${
+            n <= value ? 'text-amber-700' : 'text-stone-300'
+          }`}
+        >
+          <Star size={28} weight="fill" />
+        </button>
       ))}
-    </span>
+    </div>
   )
 }
 
-export default function ReviewSection({ hospitalId, isManager }) {
+export default function ReviewSection({
+  hospitalId,
+  isManager,
+  canWrite = true,
+  averageRating,
+  reviewCount,
+}) {
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -78,7 +95,6 @@ export default function ReviewSection({ hospitalId, isManager }) {
       .then(({ data }) => setReviews(data.data.content))
       .catch((err) => setError(err.response?.data?.message || '리뷰를 불러오지 못했습니다.'))
       .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hospitalId])
 
   const myReview = reviews.find((review) => review.id === myReviewId) || null
@@ -106,7 +122,9 @@ export default function ReviewSection({ hospitalId, isManager }) {
       if (editing && myReviewId) {
         const { data } = await updateReview(hospitalId, myReviewId, { rating, content })
         setReviews((prev) =>
-          prev.map((review) => (review.id === myReviewId ? { ...review, ...data.data } : review)),
+          prev.map((review) =>
+            review.id === myReviewId ? { ...review, ...data.data } : review,
+          ),
         )
       } else {
         const { data } = await createReview(hospitalId, { rating, content })
@@ -164,7 +182,9 @@ export default function ReviewSection({ hospitalId, isManager }) {
       const action = hasExistingReply ? updateReply : createReply
       const { data } = await action(hospitalId, reviewId, replyContent.trim())
       setReviews((prev) =>
-        prev.map((review) => (review.id === reviewId ? { ...review, reply: data.data } : review)),
+        prev.map((review) =>
+          review.id === reviewId ? { ...review, reply: data.data } : review,
+        ),
       )
       setReplyingId(null)
       setReplyContent('')
@@ -187,50 +207,59 @@ export default function ReviewSection({ hospitalId, isManager }) {
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <h2 className="text-sm font-semibold text-stone-700">리뷰</h2>
+  // 부모가 값을 안 주면 목록에서 직접 평균을 낸다
+  const average =
+    averageRating ??
+    (reviews.length > 0
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : null)
+  const count = reviewCount ?? reviews.length
 
-      {(!myReview || editing) && (
+  const linkBtn = 'text-[13px] font-medium hover:underline'
+
+  return (
+    <div className="flex flex-col gap-3">
+      {average != null && (
+        <section className="card flex items-center gap-4 p-5">
+          <span className="font-display text-[44px] leading-none">
+            {average.toFixed(1)}
+          </span>
+          <div className="flex flex-col gap-0.5">
+            <Stars value={Math.round(average)} size={18} />
+            <span className="text-[13px] text-stone-600">리뷰 {count}개</span>
+          </div>
+        </section>
+      )}
+
+      {canWrite && (!myReview || editing) && (
         <form
           onSubmit={handleSubmit}
-          className="space-y-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+          className="card flex flex-col gap-3 p-5"
+          aria-labelledby="h-review-write"
         >
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-stone-700">평점</span>
-            <select
-              value={rating}
-              onChange={(event) => setRating(Number(event.target.value))}
-              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-            >
-              {[5, 4, 3, 2, 1].map((n) => (
-                <option key={n} value={n}>
-                  {n}점
-                </option>
-              ))}
-            </select>
+          <h3 id="h-review-write" className="text-base font-bold">
+            {editing ? '리뷰 수정' : '리뷰 쓰기'}
+          </h3>
+          <StarPicker value={rating} onChange={setRating} />
+          <label htmlFor="review-content" className="sr-only">
+            리뷰 내용
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-stone-700">내용</span>
-            <textarea
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              rows={3}
-              required
-              className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-            />
-          </label>
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          <textarea
+            id="review-content"
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            rows={3}
+            required
+            placeholder="진료 경험을 남겨 주세요"
+            className="input resize-none"
+          />
+          <Alert tone="error">{formError}</Alert>
           <div className="flex gap-2">
             <Button type="submit" loading={saving} className="flex-1">
               {editing ? '리뷰 수정' : '리뷰 등록'}
             </Button>
             {editing && (
-              <button
-                type="button"
-                onClick={cancelEdit}
-                className="rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:bg-stone-100"
-              >
+              <button type="button" onClick={cancelEdit} className="btn btn-secondary">
                 취소
               </button>
             )}
@@ -238,49 +267,52 @@ export default function ReviewSection({ hospitalId, isManager }) {
         </form>
       )}
 
-      {loading && <div className="h-20 animate-pulse rounded-2xl bg-stone-100" />}
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <div className="h-24 animate-pulse rounded-2xl bg-stone-100" />}
+      {!loading && error && <Alert tone="error">{error}</Alert>}
 
       {!loading && !error && reviews.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-stone-300 py-8 text-center text-sm text-stone-500">
-          아직 리뷰가 없습니다.
-        </p>
+        <div className="card">
+          <EmptyState icon={ChatCircleDots}>아직 리뷰가 없습니다.</EmptyState>
+        </div>
       )}
 
       {!loading && !error && reviews.length > 0 && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-3">
           {reviews.map((review) => {
             const isMine = review.id === myReviewId
             return (
-              <div
-                key={review.id}
-                className="rounded-2xl border border-stone-200 bg-white p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <StarRating value={review.rating} />
-                  <span className="text-xs text-stone-400">
-                    {review.createdAt.slice(0, 10)}
+              <article key={review.id} className="card flex flex-col gap-2 p-4 md:p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Stars value={review.rating} />
+                  <span className="text-[13px] text-stone-600">
+                    {review.createdAt.slice(0, 10).replaceAll('-', '.')}
                   </span>
+                  {isMine && (
+                    <span className="badge h-6 bg-brand-50 px-2 text-xs text-brand-700">
+                      내 리뷰
+                    </span>
+                  )}
                 </div>
-                <p className="mt-2 text-sm text-stone-700">{review.content}</p>
+
+                <p className="whitespace-pre-wrap text-[15px]">{review.content}</p>
 
                 {review.reply && (
-                  <div className="mt-3 rounded-xl bg-stone-50 p-3">
-                    <p className="text-xs font-medium text-stone-500">병원 답글</p>
-                    <p className="mt-1 text-sm text-stone-700">{review.reply.content}</p>
+                  <div className="flex flex-col gap-0.5 rounded-xl bg-stone-100 px-3.5 py-3">
+                    <span className="text-xs font-bold text-brand-700">병원 답글</span>
+                    <span className="text-sm text-stone-800">{review.reply.content}</span>
                     {isManager && (
                       <div className="mt-2 flex gap-3">
                         <button
                           type="button"
                           onClick={() => startReplyEdit(review)}
-                          className="text-xs font-medium text-stone-500 hover:text-brand-700"
+                          className={`${linkBtn} text-stone-600`}
                         >
                           답글 수정
                         </button>
                         <button
                           type="button"
                           onClick={() => handleReplyDelete(review.id)}
-                          className="text-xs font-medium text-red-600 hover:text-red-700"
+                          className={`${linkBtn} text-red-700`}
                         >
                           답글 삭제
                         </button>
@@ -289,35 +321,34 @@ export default function ReviewSection({ hospitalId, isManager }) {
                   </div>
                 )}
 
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  {isMine && (
+                <div className="flex flex-wrap items-center gap-3">
+                  {isMine ? (
                     <>
                       <button
                         type="button"
                         onClick={startEdit}
-                        className="text-xs font-medium text-brand-700 hover:underline"
+                        className={`${linkBtn} text-brand-600`}
                       >
                         수정
                       </button>
                       <button
                         type="button"
                         onClick={handleDelete}
-                        className="text-xs font-medium text-red-600 hover:underline"
+                        className={`${linkBtn} text-red-700`}
                       >
                         삭제
                       </button>
                     </>
-                  )}
-                  {!isMine && (
+                  ) : (
                     <button
                       type="button"
                       onClick={() => {
                         setReportingId(review.id)
                         setReportMessage('')
                       }}
-                      className="flex items-center gap-1 text-xs font-medium text-stone-400 hover:text-red-600"
+                      className={`${linkBtn} flex items-center gap-1 text-stone-600 hover:text-red-700`}
                     >
-                      <WarningCircle size={12} />
+                      <WarningCircle size={14} />
                       신고
                     </button>
                   )}
@@ -325,7 +356,7 @@ export default function ReviewSection({ hospitalId, isManager }) {
                     <button
                       type="button"
                       onClick={() => startReplyEdit({ id: review.id, reply: null })}
-                      className="text-xs font-medium text-brand-600 hover:underline"
+                      className={`${linkBtn} text-brand-600`}
                     >
                       답글 달기
                     </button>
@@ -333,48 +364,52 @@ export default function ReviewSection({ hospitalId, isManager }) {
                 </div>
 
                 {reportingId === review.id && (
-                  <div className="mt-3 space-y-2">
+                  <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={reportReason}
                         onChange={(event) => setReportReason(event.target.value)}
                         placeholder="신고 사유"
-                        className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none"
+                        aria-label="신고 사유"
+                        className="input h-11 flex-1 text-sm"
                       />
                       <button
                         type="button"
                         onClick={() => handleReport(review.id)}
                         disabled={reporting}
-                        className="text-xs font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="btn btn-danger btn-sm disabled:opacity-50"
                       >
                         제출
                       </button>
                     </div>
-                    {reportMessage && <p className="text-xs text-stone-500">{reportMessage}</p>}
+                    {reportMessage && (
+                      <p className="text-[13px] text-stone-600">{reportMessage}</p>
+                    )}
                   </div>
                 )}
 
                 {replyingId === review.id && (
-                  <div className="mt-3 flex gap-2">
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={replyContent}
                       onChange={(event) => setReplyContent(event.target.value)}
                       placeholder="답글 내용"
-                      className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none"
+                      aria-label="답글 내용"
+                      className="input h-11 flex-1 text-sm"
                     />
                     <button
                       type="button"
                       onClick={() => handleReplySubmit(review.id, Boolean(review.reply))}
                       disabled={replySaving}
-                      className="text-xs font-medium text-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="btn btn-primary btn-sm disabled:opacity-50"
                     >
                       등록
                     </button>
                   </div>
                 )}
-              </div>
+              </article>
             )
           })}
         </div>

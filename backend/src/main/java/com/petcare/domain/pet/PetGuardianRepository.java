@@ -3,6 +3,8 @@ package com.petcare.domain.pet;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PetGuardianRepository extends JpaRepository<PetGuardian, Long> {
 
@@ -13,4 +15,7 @@ public interface PetGuardianRepository extends JpaRepository<PetGuardian, Long> 
 	Optional<PetGuardian> findByPetIdAndUserId(Long petId, Long userId);
 
 	void deleteAllByPetId(Long petId);
+
+	@Query("select count(distinct g.user.id) from PetGuardian g where g.pet.user.id = :ownerId")
+	long countDistinctGuardiansByPetOwnerId(@Param("ownerId") Long ownerId);
 }

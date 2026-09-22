@@ -47,29 +47,43 @@ public class Pet extends BaseEntity {
 	@Column(columnDefinition = "varchar(20)")
 	private PetSize size;
 
+	@Enumerated(EnumType.STRING)
+	@Column(columnDefinition = "varchar(10)")
+	private PetSex sex;
+
+	private Boolean neutered;
+
 	@Column(name = "image_url")
 	private String imageUrl;
 
 	@Builder
-	private Pet(User user, String name, PetSpecies species, String breed, LocalDate birthDate, PetSize size) {
+	private Pet(
+			User user, String name, PetSpecies species, String breed, LocalDate birthDate, PetSize size, PetSex sex,
+			Boolean neutered) {
 		this.user = user;
 		this.name = name;
 		this.species = species;
 		this.breed = breed;
 		this.birthDate = birthDate;
 		this.size = size;
+		this.sex = sex;
+		this.neutered = neutered;
 	}
 
 	public boolean isOwnedBy(Long userId) {
 		return this.user.getId().equals(userId);
 	}
 
-	public void update(String name, PetSpecies species, String breed, LocalDate birthDate, PetSize size) {
+	public void update(
+			String name, PetSpecies species, String breed, LocalDate birthDate, PetSize size, PetSex sex,
+			Boolean neutered) {
 		this.name = name;
 		this.species = species;
 		this.breed = breed;
 		this.birthDate = birthDate;
 		this.size = size;
+		this.sex = sex;
+		this.neutered = neutered;
 	}
 
 	public void changeImageUrl(String imageUrl) {

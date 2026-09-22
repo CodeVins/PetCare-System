@@ -1,9 +1,10 @@
-import { PawPrint } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signup } from '../../api/authApi'
+import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
+import AuthShell from './AuthShell'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -28,57 +29,41 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-stone-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-brand-50">
-            <PawPrint weight="fill" size={26} className="text-brand-600" />
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">펫케어 회원가입</h1>
-          <p className="text-sm text-stone-500">
-            이메일과 비밀번호로 간편하게 시작하세요.
-          </p>
-        </div>
+    <AuthShell title="회원가입" description="이메일과 비밀번호만 있으면 시작할 수 있어요">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <TextField
+          label="이메일"
+          type="email"
+          autoComplete="email"
+          placeholder="user@example.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+        <TextField
+          label="비밀번호"
+          type="password"
+          autoComplete="new-password"
+          placeholder="비밀번호를 입력하세요"
+          minLength={8}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
-        >
-          <TextField
-            label="이메일"
-            type="email"
-            autoComplete="email"
-            placeholder="example@email.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-          <TextField
-            label="비밀번호"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
+        <Alert tone="error">{error}</Alert>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+        <Button type="submit" loading={loading} className="mt-2 w-full">
+          가입하기
+        </Button>
+      </form>
 
-          <Button type="submit" loading={loading} className="w-full">
-            회원가입
-          </Button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-stone-500">
-          이미 계정이 있으신가요?{' '}
-          <Link
-            to="/login"
-            className="font-medium text-brand-600 hover:text-brand-700"
-          >
-            로그인
-          </Link>
-        </p>
+      <div className="flex items-center justify-center gap-1.5 text-sm text-stone-600">
+        이미 계정이 있나요?
+        <Link to="/login" className="flex min-h-11 items-center font-bold text-brand-600">
+          로그인
+        </Link>
       </div>
-    </div>
+    </AuthShell>
   )
 }

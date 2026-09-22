@@ -56,6 +56,7 @@ public class ReservationService {
 				.pet(pet)
 				.user(user)
 				.status(ReservationStatus.PENDING)
+				.type(request.type())
 				.build();
 
 		ReservationResponse response = ReservationResponse.from(reservationRepository.save(reservation));

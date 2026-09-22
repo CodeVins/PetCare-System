@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>데스크톱 홈</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:1280px;height:860px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:16px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:72px;flex-shrink:0;"><header style="width:1280px;height:72px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;justify-content:space-between;padding:0 48px;font-family:'Noto Sans KR',sans-serif;">
+<div style="display:flex;align-items:center;gap:10px;color:#0F766E;width:240px;">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg>
+<span style="font-family:'Jua',sans-serif;font-size:30px;line-height:1;">펫케어</span>
+</div>
+<nav aria-label="주 메뉴" style="display:flex;align-items:center;gap:8px;">
+<a href="/Main.dc.html" aria-current="page" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#0F766E;background:#CCFBF1;font-weight:700;">홈</a>
+<a href="/PetList.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">반려동물</a>
+<a href="/HospitalList.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">병원</a>
+<a href="/Reservations.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">예약</a>
+<a href="/MyPage.dc.html" aria-current="false" style="height:44px;padding:0 20px;border-radius:999px;display:flex;align-items:center;font-size:16px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">마이페이지</a>
+</nav>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;width:240px;">
+<button type="button" aria-label="채팅" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"/></svg></button>
+<button type="button" aria-label="알림, 안 읽은 알림 3개" style="position:relative;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg><span style="position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#DC2626;color:#ffffff;font-size:12px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">3</span></button>
+<button type="button" style="height:44px;padding:0 20px;margin-left:8px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">로그아웃</button>
+</div>
+</header></div>
+<main style="width:1120px;box-sizing:border-box;align-self:center;padding:40px 0;display:flex;flex-direction:column;gap:32px;">
+<div>
+<h1 style="margin:0;font-family:'Jua',sans-serif;font-weight:400;font-size:38px;line-height:1.25;">안녕하세요</h1>
+<p style="margin:4px 0 0;font-size:17px;color:#57534E;">보리와 콩이의 오늘을 확인해 보세요.</p>
+</div>
+<div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;align-items:start;">
+<div style="grid-column:span 7;display:flex;flex-direction:column;gap:24px;">
+<section aria-labelledby="d-vac" style="padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<h2 id="d-vac" style="margin:0 0 16px;font-size:20px;font-weight:700;">다가오는 접종</h2>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<a href="/PetHealth.dc.html" style="display:flex;align-items:center;gap:16px;padding:16px;background:#FAFAF9;border-radius:12px;text-decoration:none;color:#1C1917;">
+<span style="width:48px;height:48px;border-radius:999px;background:#CCFBF1;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4.5l4.5 4.5M17 6.5l-9 9-3 1 1-3 9-9M13 8.5l2.5 2.5M4 20l3-3"/></svg></span>
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span style="font-weight:700;">보리</span><span style="font-size:14px;color:#57534E;">예정일 9월 24일 (목)</span></span>
+<span style="height:30px;padding:0 14px;border-radius:999px;background:#FEE2E2;color:#B91C1C;font-size:14px;font-weight:700;display:flex;align-items:center;">D-4</span>
+</a>
+<a href="/PetHealth.dc.html" style="display:flex;align-items:center;gap:16px;padding:16px;background:#FAFAF9;border-radius:12px;text-decoration:none;color:#1C1917;">
+<span style="width:48px;height:48px;border-radius:999px;background:#FEF3C7;color:#B45309;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4.5l4.5 4.5M17 6.5l-9 9-3 1 1-3 9-9M13 8.5l2.5 2.5M4 20l3-3"/></svg></span>
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span style="font-weight:700;">콩이</span><span style="font-size:14px;color:#57534E;">예정일 10월 15일 (목)</span></span>
+<span style="height:30px;padding:0 14px;border-radius:999px;background:#F5F5F4;color:#44403C;font-size:14px;font-weight:700;display:flex;align-items:center;">D-25</span>
+</a>
+</div>
+</section>
+<section aria-labelledby="d-res" style="padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+<h2 id="d-res" style="margin:0;font-size:20px;font-weight:700;">다가오는 예약</h2>
+<a href="/Reservations.dc.html" style="min-height:44px;display:flex;align-items:center;color:#0F766E;font-size:15px;font-weight:500;text-decoration:none;">전체 보기</a>
+</div>
+<a href="/Reservations.dc.html" style="display:flex;align-items:center;gap:16px;padding:16px;background:#FAFAF9;border-radius:12px;text-decoration:none;color:#1C1917;">
+<span style="width:52px;height:52px;border-radius:12px;background:#CCFBF1;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/><path d="M10 21v-3.5h4V21"/></svg></span>
+<span style="flex-grow:1;display:flex;flex-direction:column;"><span style="font-weight:700;">따뜻한마음 동물병원</span><span style="font-size:14px;color:#57534E;">9월 23일 (수) 오후 2:30 · 보리</span></span>
+<span style="height:30px;padding:0 14px;border-radius:999px;background:#DCFCE7;color:#166534;font-size:14px;font-weight:700;display:flex;align-items:center;">확정</span>
+</a>
+</section>
+</div>
+<div style="grid-column:span 5;display:flex;flex-direction:column;gap:24px;">
+<section aria-labelledby="d-pets" style="padding:24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+<h2 id="d-pets" style="margin:0;font-size:20px;font-weight:700;">내 반려동물</h2>
+<a href="/PetList.dc.html" style="min-height:44px;display:flex;align-items:center;color:#0F766E;font-size:15px;font-weight:500;text-decoration:none;">전체 보기</a>
+</div>
+<div style="display:flex;gap:16px;">
+<a href="/PetHealth.dc.html" style="width:80px;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#1C1917;">
+<span style="width:68px;height:68px;border-radius:999px;background:#CCFBF1;color:#0F766E;display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg></span>
+<span style="font-weight:700;">보리</span>
+<span style="font-size:13px;color:#57534E;">강아지 · 3살</span>
+</a>
+<a href="/PetList.dc.html" style="width:80px;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#1C1917;">
+<span style="width:68px;height:68px;border-radius:999px;background:#FEF3C7;color:#B45309;display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg></span>
+<span style="font-weight:700;">콩이</span>
+<span style="font-size:13px;color:#57534E;">고양이 · 2살</span>
+</a>
+<a href="/PetList.dc.html" style="width:80px;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#1C1917;">
+<span style="width:68px;height:68px;border-radius:999px;background:#E7E5E4;color:#44403C;display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg></span>
+<span style="font-weight:700;">초코</span>
+<span style="font-size:13px;color:#57534E;">강아지 · 7살</span>
+</a>
+<a href="/PetForm.dc.html" style="width:80px;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#57534E;">
+<span style="width:68px;height:68px;box-sizing:border-box;border-radius:999px;border:2px dashed #A8A29E;display:flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+<span style="font-weight:500;">등록</span>
+</a>
+</div>
+</section>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+<a href="/HospitalList.dc.html" style="min-height:132px;box-sizing:border-box;padding:20px;border-radius:16px;background:#0F766E;color:#ffffff;text-decoration:none;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 2px 6px rgba(13,79,72,0.25);">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+<span style="display:flex;flex-direction:column;"><span style="font-size:17px;font-weight:700;">병원 찾기</span><span style="font-size:14px;color:#CCFBF1;">내 주변 병원 검색</span></span>
+</a>
+<a href="/HealthCheck1.dc.html" style="min-height:132px;box-sizing:border-box;padding:20px;border-radius:16px;background:#ffffff;border:1px solid #E7E5E4;color:#1C1917;text-decoration:none;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(13,79,72,0.08);">
+<span style="color:#0F766E;display:flex;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5V3.5h6v1M9 11h6M9 15h4"/></svg></span>
+<span style="display:flex;flex-direction:column;"><span style="font-size:17px;font-weight:700;">건강 자가문진</span><span style="font-size:14px;color:#57534E;">8개 문항으로 확인</span></span>
+</a>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

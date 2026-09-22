@@ -1,5 +1,11 @@
 package com.petcare.domain.admin;
 
+import com.petcare.domain.admin.dto.UserStatsResponse;
+import com.petcare.domain.hospital.ReviewReplyRepository;
+import com.petcare.domain.pet.PetGuardianRepository;
+import com.petcare.domain.pet.PetRepository;
+import com.petcare.domain.reservation.ReservationRepository;
+import com.petcare.domain.reservation.ReservationStatus;
 import com.petcare.domain.user.Role;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
@@ -18,9 +24,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminUserService {
 
 	private final UserRepository userRepository;
+	private final ReservationRepository reservationRepository;
+	private final ReviewReplyRepository reviewReplyRepository;
+	private final PetRepository petRepository;
+	private final PetGuardianRepository petGuardianRepository;
 
 	public PageResponse<UserResponse> getAllUsers(Pageable pageable) {
 		return PageResponse.from(userRepository.findAll(pageable).map(UserResponse::from));
+	}
+
+	public UserStatsResponse getStats(Long userId) {
+		if (!userRepository.existsById(userId)) {
+			throw new NotFoundException("사용자를 찾을 수 없습니다.");
+		}
+		return new UserStatsResponse(
+				reservationRepository.countByUserId(userId),
+				reservationRepository.countByUserIdAndStatus(userId, ReservationStatus.NO_SHOW),
+				reviewReplyRepository.countByAuthorId(userId),
+				petRepository.countByUserId(userId),
+				petGuardianRepository.countDistinctGuardiansByPetOwnerId(userId));
 	}
 
 	@Transactional

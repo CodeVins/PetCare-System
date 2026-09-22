@@ -1,3 +1,4 @@
+import { UserCircle } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -6,7 +7,9 @@ import {
   leaveGuardian,
   removeGuardian,
 } from '../../api/petGuardianApi'
+import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
+import EmptyState from '../../components/common/EmptyState'
 import TextField from '../../components/common/TextField'
 
 export default function GuardianSection({ petId, isOwner }) {
@@ -23,18 +26,13 @@ export default function GuardianSection({ petId, isOwner }) {
 
   const navigate = useNavigate()
 
-  const load = () => {
+  useEffect(() => {
     getGuardians(petId)
       .then(({ data }) => setGuardians(data.data))
       .catch((err) =>
         setError(err.response?.data?.message || '보호자 목록을 불러오지 못했습니다.'),
       )
       .finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [petId])
 
   const handleInvite = async (event) => {
@@ -78,65 +76,82 @@ export default function GuardianSection({ petId, isOwner }) {
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-sm font-semibold text-stone-700">공동보호자</h2>
-
-      {loading && <div className="h-16 animate-pulse rounded-2xl bg-stone-100" />}
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && guardians.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-stone-300 py-8 text-center text-sm text-stone-500">
-          등록된 공동보호자가 없습니다.
-        </p>
-      )}
-
-      {!loading && !error && guardians.length > 0 && (
-        <div className="space-y-2">
-          {guardians.map((guardian) => (
-            <div
-              key={guardian.userId}
-              className="flex items-center justify-between rounded-2xl border border-stone-200 bg-white p-4"
-            >
-              <p className="truncate text-sm text-stone-900">{guardian.email}</p>
-              {isOwner && (
-                <button
-                  type="button"
-                  onClick={() => handleRemove(guardian.userId)}
-                  disabled={actingUserId === guardian.userId}
-                  className="text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  내보내기
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {isOwner ? (
+    <div className="flex flex-col gap-4">
+      {isOwner && (
         <form
           onSubmit={handleInvite}
-          className="space-y-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
+          className="card flex flex-col gap-3 p-5 md:p-6"
+          aria-labelledby="h-guardian-invite"
         >
+          <h2 id="h-guardian-invite" className="h-section">
+            공동보호자 초대
+          </h2>
+          <p className="text-[13px] text-stone-600">
+            함께 돌보는 가족의 이메일을 입력하면 이 아이의 기록을 같이 볼 수 있어요.
+          </p>
           <TextField
-            label="보호자로 초대할 이메일"
+            label="이메일"
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="example@email.com"
+            placeholder="family@example.com"
             required
           />
-          {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
+          <Alert tone="error">{inviteError}</Alert>
           <Button type="submit" loading={inviting} className="w-full">
             초대하기
           </Button>
         </form>
-      ) : (
+      )}
+
+      <section className="card p-5 md:p-6" aria-labelledby="h-guardian-list">
+        <h2 id="h-guardian-list" className="h-section mb-2">
+          현재 보호자
+        </h2>
+
+        {loading && <div className="h-16 animate-pulse rounded-xl bg-stone-100" />}
+        {!loading && error && <Alert tone="error">{error}</Alert>}
+
+        {!loading && !error && guardians.length === 0 && (
+          <EmptyState icon={UserCircle}>등록된 공동보호자가 없습니다.</EmptyState>
+        )}
+
+        {!loading && !error && guardians.length > 0 && (
+          <ul className="flex flex-col">
+            {guardians.map((guardian) => (
+              <li
+                key={guardian.userId}
+                className="flex items-center gap-3 border-b border-stone-100 py-2.5 last:border-0"
+              >
+                <span className="icon-badge bg-stone-100 text-stone-700">
+                  <UserCircle size={22} />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-bold">{guardian.email}</span>
+                  <span className="text-[13px] text-stone-600">공동보호자</span>
+                </span>
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(guardian.userId)}
+                    disabled={actingUserId === guardian.userId}
+                    className="chip h-11 font-bold text-red-700 disabled:opacity-50"
+                  >
+                    내보내기
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {!isOwner && (
         <button
           type="button"
           onClick={handleLeave}
           disabled={leaving}
-          className="w-full rounded-full border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-danger w-full disabled:opacity-50"
         >
           공동보호자에서 나가기
         </button>

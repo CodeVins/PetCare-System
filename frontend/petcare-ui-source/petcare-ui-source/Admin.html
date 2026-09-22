@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>관리자</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+
+* { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div style="width:1280px;height:820px;box-sizing:border-box;background:#FAFAF9;color:#1C1917;font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;">
+<div style="height:72px;flex-shrink:0;"><header style="width:1280px;height:72px;box-sizing:border-box;background:#ffffff;border-bottom:1px solid #E7E5E4;display:flex;align-items:center;justify-content:space-between;padding:0 48px;font-family:'Noto Sans KR',sans-serif;">
+<div style="display:flex;align-items:center;gap:10px;color:#0F766E;width:220px;">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="17.5" cy="10" r="1.8"/><path d="M12 11.5c-2.7 0-5 2.6-5 4.7 0 1.5 1.2 2.3 2.6 2.3 1 0 1.5-.4 2.4-.4s1.4.4 2.4.4c1.4 0 2.6-.8 2.6-2.3 0-2.1-2.3-4.7-5-4.7z"/></svg>
+<span style="font-family:'Jua',sans-serif;font-size:30px;line-height:1;">펫케어</span>
+</div>
+<nav aria-label="주 메뉴" style="display:flex;align-items:center;gap:4px;">
+<a href="/Main.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">홈</a>
+<a href="/PetList.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">반려동물</a>
+<a href="/HospitalList.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">병원</a>
+<a href="/Reservations.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">예약</a>
+<a href="/MyPage.dc.html" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;font-weight:500;text-decoration:none;color:#44403C;">마이페이지</a>
+<a href="/DashReservations.dc.html" aria-current="false" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;text-decoration:none;color:#44403C;background:transparent;font-weight:500;">대시보드</a>
+
+<a href="/Admin.dc.html" aria-current="page" style="height:44px;padding:0 14px;border-radius:999px;display:flex;align-items:center;font-size:15px;text-decoration:none;color:#0F766E;background:#CCFBF1;font-weight:700;">관리자</a>
+
+</nav>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;width:220px;">
+<button type="button" aria-label="채팅" style="width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"/></svg></button>
+<button type="button" aria-label="알림, 안 읽은 알림 3개" style="position:relative;width:44px;height:44px;border:0;border-radius:999px;background:transparent;color:#292524;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4"/></svg><span style="position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:999px;background:#DC2626;color:#ffffff;font-size:12px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">3</span></button>
+<button type="button" style="height:44px;padding:0 18px;margin-left:8px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#292524;font-family:inherit;font-size:15px;font-weight:500;">로그아웃</button>
+</div>
+</header></div>
+<main style="width:1120px;box-sizing:border-box;align-self:center;padding:32px 0;display:flex;flex-direction:column;gap:24px;">
+<h1 style="margin:0;font-family:'Jua',sans-serif;font-weight:400;font-size:34px;line-height:1.25;">관리자</h1>
+<section aria-label="전체 현황" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
+<div style="padding:20px 24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:4px;"><span style="font-size:14px;color:#57534E;">전체 사용자</span><span style="font-family:'Jua',sans-serif;font-size:40px;line-height:1.2;color:#0F766E;">128</span></div>
+<div style="padding:20px 24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:4px;"><span style="font-size:14px;color:#57534E;">등록된 반려동물</span><span style="font-family:'Jua',sans-serif;font-size:40px;line-height:1.2;color:#0F766E;">203</span></div>
+<div style="padding:20px 24px;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);display:flex;flex-direction:column;gap:4px;"><span style="font-size:14px;color:#57534E;">등록된 병원</span><span style="font-family:'Jua',sans-serif;font-size:40px;line-height:1.2;color:#0F766E;">24</span></div>
+</section>
+<section aria-labelledby="ad-rep" style="display:flex;flex-direction:column;gap:12px;">
+<h2 id="ad-rep" style="margin:0;font-size:20px;font-weight:700;">신고된 리뷰</h2>
+<table style="width:100%;border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #E7E5E4;border-radius:16px;box-shadow:0 1px 3px rgba(13,79,72,0.08);overflow:hidden;">
+<thead>
+<tr style="background:#FAFAF9;">
+<th scope="col" style="padding:14px 20px;text-align:left;font-size:13px;font-weight:500;color:#57534E;border-bottom:1px solid #E7E5E4;">리뷰 내용</th>
+<th scope="col" style="padding:14px 20px;text-align:left;font-size:13px;font-weight:500;color:#57534E;border-bottom:1px solid #E7E5E4;">평점</th>
+<th scope="col" style="padding:14px 20px;text-align:left;font-size:13px;font-weight:500;color:#57534E;border-bottom:1px solid #E7E5E4;">신고 사유</th>
+<th scope="col" style="padding:14px 20px;text-align:left;font-size:13px;font-weight:500;color:#57534E;border-bottom:1px solid #E7E5E4;">노출 상태</th>
+<th scope="col" style="padding:14px 20px;text-align:right;font-size:13px;font-weight:500;color:#57534E;border-bottom:1px solid #E7E5E4;">처리</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;">여기 진짜 별로예요. 다시는 안 갑니다.</td>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;">1점</td>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;">욕설·비방</td>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;"><span style="display:inline-flex;height:26px;padding:0 12px;align-items:center;border-radius:999px;background:#DCFCE7;color:#166534;font-size:13px;font-weight:700;">노출 중</span></td>
+<td style="padding:10px 20px;border-bottom:1px solid #F5F5F4;text-align:right;"><button type="button" style="height:44px;padding:0 20px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#B91C1C;font-family:inherit;font-size:14px;font-weight:700;">숨기기</button></td>
+</tr>
+<tr>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;">치료비가 너무 비싸요. 예약도 마음대로 취소했어요.</td>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;">2점</td>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;">허위 사실</td>
+<td style="padding:14px 20px;border-bottom:1px solid #F5F5F4;"><span style="display:inline-flex;height:26px;padding:0 12px;align-items:center;border-radius:999px;background:#F5F5F4;color:#44403C;font-size:13px;font-weight:700;">숨김</span></td>
+<td style="padding:10px 20px;border-bottom:1px solid #F5F5F4;text-align:right;"><button type="button" style="height:44px;padding:0 20px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#0F766E;font-family:inherit;font-size:14px;font-weight:700;">숨김 해제</button></td>
+</tr>
+<tr>
+<td style="padding:14px 20px;">친절하셔서 좋았어요.</td>
+<td style="padding:14px 20px;">5점</td>
+<td style="padding:14px 20px;">기타</td>
+<td style="padding:14px 20px;"><span style="display:inline-flex;height:26px;padding:0 12px;align-items:center;border-radius:999px;background:#DCFCE7;color:#166534;font-size:13px;font-weight:700;">노출 중</span></td>
+<td style="padding:10px 20px;text-align:right;"><button type="button" style="height:44px;padding:0 20px;border:1px solid #D6D3D1;border-radius:999px;background:#ffffff;color:#B91C1C;font-family:inherit;font-size:14px;font-weight:700;">숨기기</button></td>
+</tr>
+</tbody>
+</table>
+</section>
+</main>
+</div>
+</body>
+</html>

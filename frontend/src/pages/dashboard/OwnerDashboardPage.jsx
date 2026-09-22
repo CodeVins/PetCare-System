@@ -1,17 +1,36 @@
+import { Buildings } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { getHospitals } from '../../api/hospitalApi'
-import HospitalManageSection from './HospitalManageSection'
+import Alert from '../../components/common/Alert'
+import EmptyState from '../../components/common/EmptyState'
+import PageHeader from '../../components/common/PageHeader'
+import SelectField from '../../components/common/SelectField'
+import Tabs from '../../components/common/Tabs'
+import ReviewSection from '../hospital/ReviewSection'
+import HospitalInfoSection from './HospitalInfoSection'
 import ReservationQueueSection from './ReservationQueueSection'
+import SlotSection from './SlotSection'
+
+const TABS = [
+  { value: 'reservations', label: '예약 관리' },
+  { value: 'hospital', label: '병원 정보' },
+  { value: 'slots', label: '예약 슬롯' },
+  { value: 'reviews', label: '리뷰 답글' },
+]
 
 export default function OwnerDashboardPage() {
   const [hospitals, setHospitals] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tab, setTab] = useState('reservations')
 
   useEffect(() => {
     getHospitals()
-      .then(({ data }) => setHospitals(data.data))
+      .then(({ data }) => {
+        setHospitals(data.data)
+        if (data.data.length > 0) setSelectedId(String(data.data[0].id))
+      })
       .catch((err) =>
         setError(err.response?.data?.message || '병원 목록을 불러오지 못했습니다.'),
       )
@@ -24,44 +43,79 @@ export default function OwnerDashboardPage() {
     setHospitals((prev) => prev.map((h) => (h.id === updated.id ? updated : h)))
   }
 
+  const needsHospital = tab !== 'reservations'
+
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold tracking-tight text-stone-900">병원 대시보드</h1>
+    <div>
+      <div className="mb-5 flex flex-col gap-3 md:mb-6 md:flex-row md:items-end md:justify-between">
+        <PageHeader title="대시보드" />
+        <div className="flex items-center gap-3 md:mb-6 md:min-w-[320px]">
+          {loading ? (
+            <div className="h-12 w-full animate-pulse rounded-lg bg-stone-100" />
+          ) : (
+            <SelectField
+              label="관리할 병원"
+              className="md:min-w-65"
+              value={selectedId}
+              onChange={(event) => setSelectedId(event.target.value)}
+              options={[
+                { value: '', label: '병원을 선택하세요' },
+                ...hospitals.map((h) => ({ value: h.id, label: h.name })),
+              ]}
+            />
+          )}
+        </div>
+      </div>
 
-      <ReservationQueueSection />
+      <Alert tone="error" className="mb-4">
+        {error}
+      </Alert>
 
-      <div className="space-y-4">
-        <h2 className="text-sm font-semibold text-stone-700">병원 관리</h2>
-        <p className="text-xs text-stone-400">
-          목록에는 등록된 모든 병원이 뜨지만, 실제 저장/슬롯 등록은 내가 관리 권한이
-          있는 병원에서만 됩니다.
-        </p>
+      <Tabs
+        tabs={TABS}
+        value={tab}
+        onChange={setTab}
+        label="대시보드 메뉴"
+        layoutId="dashboard-tab"
+      />
 
-        {loading && <div className="h-10 animate-pulse rounded-lg bg-stone-100" />}
-        {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {tab === 'reservations' && <ReservationQueueSection />}
 
-        {!loading && !error && (
-          <select
-            value={selectedId}
-            onChange={(event) => setSelectedId(event.target.value)}
-            className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3.5 py-2.5 text-sm text-stone-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/40"
-          >
-            <option value="">관리할 병원을 선택하세요</option>
-            {hospitals.map((hospital) => (
-              <option key={hospital.id} value={hospital.id}>
-                {hospital.name}
-              </option>
-            ))}
-          </select>
-        )}
+      {needsHospital && !selectedHospital && !loading && (
+        <div className="card">
+          <EmptyState icon={Buildings}>
+            먼저 위에서 관리할 병원을 선택해 주세요.
+          </EmptyState>
+        </div>
+      )}
 
-        {selectedHospital && (
-          <HospitalManageSection
+      {selectedHospital && tab === 'hospital' && (
+        <>
+          <p className="mb-3 text-[13px] text-stone-600">
+            목록에는 등록된 모든 병원이 뜨지만, 실제 저장/슬롯 등록은 관리 권한이 있는
+            병원에서만 됩니다.
+          </p>
+          <HospitalInfoSection
             hospital={selectedHospital}
             onHospitalUpdated={handleHospitalUpdated}
           />
-        )}
-      </div>
+        </>
+      )}
+
+      {selectedHospital && tab === 'slots' && (
+        <SlotSection hospitalId={selectedHospital.id} />
+      )}
+
+      {selectedHospital && tab === 'reviews' && (
+        <ReviewSection
+          key={selectedHospital.id}
+          hospitalId={selectedHospital.id}
+          isManager
+          canWrite={false}
+          averageRating={selectedHospital.averageRating}
+          reviewCount={selectedHospital.reviewCount}
+        />
+      )}
     </div>
   )
 }
