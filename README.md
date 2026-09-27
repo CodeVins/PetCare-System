@@ -60,7 +60,7 @@ petcare-project
 │       │       ├── exception     # GlobalExceptionHandler + 공통 예외
 │       │       ├── file          # FileStorageService (반려동물/병원 사진 공용)
 │       │       └── common        # ApiResponse, PageResponse, BaseEntity
-│       └── test                  # AuthFlowTest, ReservationFlowTest (H2)
+│       └── test                  # AuthFlowTest, ReservationFlowTest, BusinessRuleTest (H2)
 └── frontend                   # React (Vite) SPA
     ├── CLAUDE.md              # 개요/스택/API 계약/컨벤션
     ├── PROGRESS.md            # 날짜별 상세 변경 이력·설계 이유·알려진 한계
@@ -308,7 +308,7 @@ stateDiagram-v2
 ### 병원 운영 대시보드 (`/dashboard`, HOSPITAL_OWNER·ADMIN)
 - 예약 관리: 대기 예약 확정/거절, 확정 예약 노쇼 처리
 - 병원 정보 수정, 병원 사진 업로드
-- 예약 슬롯 등록(시간 검증 포함)
+- 예약 슬롯 등록(과거 시간·같은 병원 겹치는 시간대 거부)
 - 리뷰 답글 작성/수정/삭제
 - 백엔드는 리뷰 신고 조회·숨김 API도 HOSPITAL_OWNER에게 본인 병원 범위로 열어두었음(현재 화면은 관리자 패널에만 있음)
 
@@ -540,7 +540,9 @@ cd backend
 
 | 테스트 | 검증 내용 |
 |---|---|
-| `AuthFlowTest` | 회원가입 → 로그인, 이메일 중복 가입 거부, 잘못된 비밀번호 로그인 실패 || `ReservationFlowTest` | 예약 생성 시 PENDING → 관리자 확정 흐름, **멀티스레드로 같은 슬롯에 동시 예약 시 정확히 1건만 성공**(낙관적 락) |
+| `AuthFlowTest` | 회원가입 → 로그인, 이메일 중복 가입 거부, 잘못된 비밀번호 로그인 실패 |
+| `BusinessRuleTest` | 과거/겹치는 슬롯 생성 거부, 지난 슬롯 예약·대기신청·취소 거부와 노쇼 시점 제한, 다른 병원 소유자의 예약 확정 403과 새 예약 알림, 공동보호자의 반려동물 삭제 403, 예약 취소 시 대기 1순위에게만 알림, 계정 정지 즉시 반영(기존 토큰 401·재발급 403) |
+| `ReservationFlowTest` | 예약 생성 시 PENDING → 관리자 확정 흐름, **멀티스레드로 같은 슬롯에 동시 예약 시 정확히 1건만 성공**(낙관적 락) |
 
 - 개발용 MySQL을 건드리지 않도록 H2 인메모리 DB(`application-test.yml`, `@ActiveProfiles("test")`)로 실행합니다.
 - 자동화 테스트 외에도 기능 추가 시마다 `bootRun`으로 서버를 띄우고 curl로 정상 케이스와 에러 케이스(권한 없음/중복/유효성 실패 등)를 직접 호출해 검증했습니다.

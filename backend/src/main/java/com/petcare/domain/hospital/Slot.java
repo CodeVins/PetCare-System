@@ -56,6 +56,10 @@ public class Slot extends BaseEntity {
 		return this.status == SlotStatus.AVAILABLE;
 	}
 
+	public boolean hasStarted() {
+		return !this.startTime.isAfter(LocalDateTime.now());
+	}
+
 	public void reserve() {
 		this.status = SlotStatus.RESERVED;
 	}

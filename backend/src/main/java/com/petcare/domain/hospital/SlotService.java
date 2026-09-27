@@ -7,6 +7,7 @@ import com.petcare.domain.notification.NotificationType;
 import com.petcare.domain.user.User;
 import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.BadRequestException;
+import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,11 @@ public class SlotService {
 		Hospital hospital = hospitalService.findHospital(hospitalId);
 		if (!hospital.isManagedBy(currentUser)) {
 			throw new ForbiddenException("해당 병원을 관리할 권한이 없습니다.");
+		}
+		// 변경(2026-09-27): 같은 병원의 겹치는 슬롯 생성 차단 (이전: 중복 검사 없어서 같은 시간대 슬롯이 여러 개 생길 수 있었음)
+		if (slotRepository.existsByHospitalIdAndStartTimeLessThanAndEndTimeGreaterThan(
+				hospitalId, request.endTime(), request.startTime())) {
+			throw new ConflictException("이미 같은 시간대에 슬롯이 있습니다.");
 		}
 
 		Slot slot = Slot.builder()

@@ -45,6 +45,10 @@ public class ReservationService {
 
 		Slot slot = slotRepository.findById(request.slotId())
 				.orElseThrow(() -> new NotFoundException("예약 가능 시간을 찾을 수 없습니다."));
+		// 변경(2026-09-27): 이미 시작된 슬롯 예약 차단 (이전: 상태만 보고 AVAILABLE이면 지난 시간도 예약됨)
+		if (slot.hasStarted()) {
+			throw new ConflictException("이미 지난 시간은 예약할 수 없습니다.");
+		}
 		if (!slot.isAvailable()) {
 			throw new ConflictException("이미 예약된 시간입니다.");
 		}
@@ -84,6 +88,10 @@ public class ReservationService {
 		Reservation reservation = getOwnedReservation(userId, reservationId);
 		if (!isCancellable(reservation.getStatus())) {
 			throw new ConflictException("취소할 수 없는 예약 상태입니다.");
+		}
+		// 변경(2026-09-27): 지난 예약 취소 차단 (이전: 지난 예약도 취소돼서 지난 슬롯이 다시 열리고 대기자에게 "자리 났어요" 알림까지 감)
+		if (reservation.getSlot().hasStarted()) {
+			throw new ConflictException("이미 지난 예약은 취소할 수 없습니다.");
 		}
 		reservation.cancel();
 		reservation.getSlot().release();
@@ -130,6 +138,10 @@ public class ReservationService {
 		checkManagePermission(currentUser, reservation);
 		if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
 			throw new ConflictException("확정된 예약만 노쇼 처리할 수 있습니다.");
+		}
+		// 변경(2026-09-27): 예약 시작 전 노쇼 처리 차단 (이전: 상태만 보고 아직 오지도 않은 미래 예약을 노쇼로 만들 수 있었음)
+		if (!reservation.getSlot().hasStarted()) {
+			throw new ConflictException("예약 시간이 지난 뒤에만 노쇼 처리할 수 있습니다.");
 		}
 		reservation.markNoShow();
 		notificationService.notify(reservation.getUser().getId(), NotificationType.RESERVATION_NO_SHOW, "예약이 노쇼로 처리되었습니다.");

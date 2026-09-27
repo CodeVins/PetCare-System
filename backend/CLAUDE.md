@@ -80,7 +80,9 @@ com.petcare
 ## 컨벤션
 - API 응답은 공통 `ApiResponse<T>`(success/data/message) 포맷 사용, 전부 `GlobalExceptionHandler`를 거침
 - 예약 동시성 제어는 낙관적 락(@Version) 우선 적용 (Slot 기준, 충돌 시 409)
-- 커밋 메시지: "타입: 설명" 형식 (예: feat: 회원가입 API 추가), 한국어- 엔티티: `@NoArgsConstructor(PROTECTED)` + `@Builder`가 붙은 private 생성자만 사용, public setter 없음. 상태 변경은 `update()`/`cancel()`/`reserve()`/`changeEmail()` 같은 의미 있는 메서드로만
+- 커밋 메시지: "타입: 설명" 형식 (예: feat: 회원가입 API 추가), 한국어
+- **기존 코드를 수정하면 수정 지점에 이유 주석을 남길 것** (나중에 변경 이력/회고 글을 쓸 때 근거로 쓰기 위함). 형식: `// 변경(YYYY-MM-DD): 무엇을 어떻게 바꿨는지 — 왜 (이전: 기존 동작/문제)`. 한두 줄로 짧게, 여러 줄이 필요하면 이어서 `//`로. 새로 추가한 코드(새 메서드/클래스/엔드포인트)에는 붙이지 않고, 기존 동작이 바뀐 곳에만 붙임. 같은 목적의 수정이 여러 곳이면 각 지점마다 한 줄씩
+- 엔티티: `@NoArgsConstructor(PROTECTED)` + `@Builder`가 붙은 private 생성자만 사용, public setter 없음. 상태 변경은 `update()`/`cancel()`/`reserve()`/`changeEmail()` 같은 의미 있는 메서드로만
 - 소유권 검증: `엔티티.isOwnedBy(userId)`를 서비스 계층에서 체크, 위반 시 `ForbiddenException`(403)
 - 공통 예외(`global/exception`): `NotFoundException`(404), `ForbiddenException`(403), `ConflictException`(409) — 도메인별로 새 예외 클래스 만들지 않고 이 3개 재사용. 이메일 중복/로그인 실패만 전용 예외(`DuplicateEmailException`, `InvalidCredentialsException`) 사용
 - 인증: JWT Bearer 토큰, stateless. 토큰의 subject는 이메일이라서 **이메일을 변경하면 기존 토큰이 즉시 무효화됨**(재로그인 필요) — 프론트에서 이메일 변경 후 자동 로그아웃 처리 필요
@@ -90,7 +92,9 @@ com.petcare
 - 병원 소유자(HOSPITAL_OWNER): `Hospital.owner`로 병원 하나에 소유자 한 명 연결. `PATCH /api/admin/hospitals/{hospitalId}/owner`(ADMIN 전용)로 지정 — 지정 시 대상 유저가 USER면 자동으로 HOSPITAL_OWNER로 승격됨. 슬롯 생성(`POST /api/hospitals/{id}/slots`)과 예약 확정/거절/목록(`/api/admin/reservations/**`)은 `@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")`로 게이트를 열어두고, 서비스 계층에서 `Hospital.isManagedBy(currentUser)`(ADMIN은 항상 true, HOSPITAL_OWNER는 본인 소유 병원만 true)로 세밀하게 재검증. 병원 생성 자체는 여전히 ADMIN 전용 유지 — 새 병원 등록 후 소유자를 배정하는 구조
 - `PATCH /api/hospitals/{hospitalId}` — 병원 정보 수정(이름/주소/위경도/운영시간/진료과목), ADMIN 또는 소유 HOSPITAL_OWNER만. 필드 전체를 다시 받는 방식이라 일부 필드 생략하면 null로 덮어써짐 (Pet/HealthRecord 수정 API와 동일한 컨벤션)
 - 슬롯 생성 시 그 병원을 찜한 유저들에게 `FAVORITE_HOSPITAL_NEW_SLOT` 알림 자동 발송 (`SlotService.notifyFavoriters`)
-- 예약 생성 시 요청자뿐 아니라 병원 소유자(`Hospital.owner`, 있을 때만)에게도 `RESERVATION_REQUESTED` 알림 발송 — 확정/거절할 사람이 대시보드를 안 열어도 알 수 있게- `PATCH /api/notifications/read-all` — 내 안읽은 알림 전체 읽음(벌크 update 쿼리, 처리 건수 반환)
+- 예약 생성 시 요청자뿐 아니라 병원 소유자(`Hospital.owner`, 있을 때만)에게도 `RESERVATION_REQUESTED` 알림 발송 — 확정/거절할 사람이 대시보드를 안 열어도 알 수 있게
+- 슬롯/예약 시간 규칙(`Slot.hasStarted()` 기준): 슬롯 생성은 `@Future`(과거 400) + 같은 병원 겹치는 시간대 409(경계 맞닿음은 허용), 지난 슬롯은 예약·대기신청 409, 지난 예약은 취소 409, 노쇼는 시작 시간이 지난 뒤에만(시작 전 409), `WaitlistService.notifyNextInLine()`은 지난 슬롯이면 알림 생략
+- `PATCH /api/notifications/read-all` — 내 안읽은 알림 전체 읽음(벌크 update 쿼리, 처리 건수 반환)
 - `application.yml`에 `hibernate.default_batch_fetch_size: 100` — fetch join 없이 지연 로딩 연관(리뷰 답글, 예약→펫 등)을 IN 쿼리로 묶어 N+1 완화
 - `GET /api/hospitals`에 `&is24Hours=&hasParking=` 필터 추가 (Querydsl where절, null이면 무시)
 
@@ -164,7 +168,8 @@ com.petcare
 - MySQL은 Docker 컨테이너(`petcare-mysql`)로 로컬 상시 구동, `docker start petcare-mysql`로 재시작
 
 ## 자동화 테스트
-- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증)
+- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영)
+- 과거 시간 슬롯은 API로 못 만들게 막혀 있어서, 지난 슬롯/지난 예약이 필요한 테스트는 `SlotRepository`/`ReservationRepository`로 직접 저장함
 - 테스트는 개발용 MySQL을 안 건드리고 별도 H2 인메모리 DB 사용 (`src/test/resources/application-test.yml`, `@ActiveProfiles("test")` 필요). `NON_KEYWORDS=USER` 빠뜨리면 H2에서 `user` 테이블명이 예약어라 DDL이 깨짐(겪은 문제)
 - `@SpringBootTest` 클래스 내 테스트 메서드들은 스프링 컨텍스트(=DB)를 공유하므로, 유니크 제약 있는 데이터(이메일 등)는 테스트마다 고유한 값 써야 함(`System.nanoTime()` 등으로) — 안 그러면 두 번째 테스트의 `@BeforeEach`에서 충돌남(겪은 문제)
 - 동시성 테스트는 멀티스레드로 같은 슬롯에 동시 요청 보내서 성공 횟수가 1인지 검증. 테스트 클래스에 `@Transactional`을 걸면 워커 스레드가 메인 스레드의 미커밋 데이터를 못 보게 되므로 걸지 말 것

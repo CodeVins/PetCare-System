@@ -42,6 +42,10 @@ public class WaitlistService {
 
 		Slot slot = slotRepository.findById(request.slotId())
 				.orElseThrow(() -> new NotFoundException("예약 가능 시간을 찾을 수 없습니다."));
+		// 변경(2026-09-27): 이미 시작된 슬롯 대기 신청 차단 (이전: 지난 슬롯에도 대기 등록 가능)
+		if (slot.hasStarted()) {
+			throw new ConflictException("이미 지난 시간에는 대기 신청할 수 없습니다.");
+		}
 		if (slot.isAvailable()) {
 			throw new ConflictException("지금 바로 예약할 수 있는 시간입니다. 대기 신청이 필요 없습니다.");
 		}
@@ -72,6 +76,11 @@ public class WaitlistService {
 	// "먼저 예약하는 사람이 임자" 방식이 필요해지면 여기서 findAllBySlotIdOrderByCreatedAtAsc로 바꿀 것.
 	@Transactional
 	public void notifyNextInLine(Slot slot) {
+		// 변경(2026-09-27): 지난 슬롯이면 대기자 알림 생략 — 취소/거절 호출부 전부 여기를 거치므로 한 곳에서 막음
+		// (이전: 지난 PENDING 예약을 거절해도 이미 지난 시간에 대해 "예약 가능해졌습니다" 알림 발송)
+		if (slot.hasStarted()) {
+			return;
+		}
 		waitlistRepository.findFirstBySlotIdOrderByCreatedAtAsc(slot.getId()).ifPresent(waitlist -> {
 			notificationService.notify(
 					waitlist.getUser().getId(), NotificationType.WAITLIST_SLOT_AVAILABLE,
