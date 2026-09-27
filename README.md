@@ -309,7 +309,7 @@ stateDiagram-v2
 ### 병원 운영 대시보드 (`/dashboard`, HOSPITAL_OWNER·ADMIN)
 - 예약 관리: 대기 예약 확정/거절, 확정 예약 노쇼 처리
 - 병원 정보 수정, 병원 사진 업로드
-- 예약 슬롯 등록(과거 시간·같은 병원 겹치는 시간대 거부)
+- 예약 슬롯 등록(과거 시간·같은 병원 겹치는 시간대 거부), 반복 일괄 등록(기간·요일·시간대·간격 지정, 겹치는 칸은 건너뜀), 예약 이력 없는 슬롯 삭제
 - 리뷰 답글 작성/수정/삭제
 - 백엔드는 리뷰 신고 조회·숨김 API도 HOSPITAL_OWNER에게 본인 병원 범위로 열어두었음(현재 화면은 관리자 패널에만 있음)
 
@@ -396,7 +396,9 @@ stateDiagram-v2
 | PATCH | `/api/hospitals/{hospitalId}` 🏥 | 정보 수정 |
 | POST / DELETE | `/api/hospitals/{hospitalId}/image` 🏥 | 사진 업로드 / 삭제 |
 | POST | `/api/hospitals/{hospitalId}/slots` 🏥 | 슬롯 등록 (찜한 유저에게 알림) |
-| GET | `/api/hospitals/{hospitalId}/slots` | 슬롯 목록 |
+| POST | `/api/hospitals/{hospitalId}/slots/bulk` 🏥 | 슬롯 일괄 등록 (최대 31일·500개, `{created, skipped}` 반환) |
+| DELETE | `/api/hospitals/{hospitalId}/slots/{slotId}` 🏥 | 슬롯 삭제 (예약 가능 + 예약 이력 없음만) |
+| GET | `/api/hospitals/{hospitalId}/slots` | 슬롯 목록 (지난 슬롯 제외, 시간순) |
 | POST / DELETE | `/api/hospitals/{hospitalId}/favorites` | 찜 / 찜 해제 |
 | GET | `/api/favorites` | 내 찜 목록 |
 | POST | `/api/hospitals/{hospitalId}/reviews` | 리뷰 작성 (CONFIRMED 이력자만) |
@@ -542,7 +544,7 @@ cd backend
 | 테스트 | 검증 내용 |
 |---|---|
 | `AuthFlowTest` | 회원가입 → 로그인, 이메일 중복 가입 거부, 잘못된 비밀번호 로그인 실패 |
-| `BusinessRuleTest` | 과거/겹치는 슬롯 생성 거부, 지난 슬롯 예약·대기신청·취소 거부와 노쇼 시점 제한, 다른 병원 소유자의 예약 확정 403과 새 예약 알림, 공동보호자의 반려동물 삭제 403, 예약 취소 시 대기 1순위에게만 알림, 계정 정지 즉시 반영(기존 토큰 401·재발급 403) |
+| `BusinessRuleTest` | 과거/겹치는 슬롯 생성 거부, 지난 슬롯 예약·대기신청·취소 거부와 노쇼 시점 제한, 다른 병원 소유자의 예약 확정 403과 새 예약 알림, 공동보호자의 반려동물 삭제 403, 예약 취소 시 대기 1순위에게만 알림, 계정 정지 즉시 반영(기존 토큰 401·재발급 403), 슬롯 일괄 등록(겹치는 칸 건너뛰기·31일/500개 제한)과 삭제 조건, 슬롯 조회의 지난 슬롯 제외·시간순, 예약 응답의 병원명·시간과 리뷰 `mine` |
 | `ReservationFlowTest` | 예약 생성 시 PENDING → 관리자 확정 흐름, **멀티스레드로 같은 슬롯에 동시 예약 시 정확히 1건만 성공**(낙관적 락) |
 
 - 개발용 MySQL을 건드리지 않도록 H2 인메모리 DB(`application-test.yml`, `@ActiveProfiles("test")`)로 실행합니다.

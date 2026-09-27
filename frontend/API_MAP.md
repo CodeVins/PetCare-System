@@ -23,7 +23,9 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   (이름+주소만, 나머지는 등록 후 대시보드에서). GET/PATCH /api/hospitals/{id} →
   상세/대시보드 수정폼(24시간·주차·평균진료비 입력 추가). POST·DELETE
   /api/hospitals/{id}/image → 대시보드 HospitalManageSection 썸네일 업로드.
-  /api/hospitals/{id}/slots → 예약 가능 시간 + 대시보드 슬롯 등록.
+  /api/hospitals/{id}/slots → 예약 가능 시간 + 대시보드 슬롯 등록(지난 슬롯 제외,
+  시간순으로 옴). .../slots/bulk(반복 등록 → {created, skipped}), DELETE
+  .../slots/{slotId}(예약 가능 슬롯만) → 대시보드 SlotSection.
   /api/hospitals/{id}/favorites, GET /api/favorites → 하트 토글, /favorites.
   /api/hospitals/{id}/reviews (CRUD), .../report, .../reply(CRUD, ADMIN/소유
   HOSPITAL_OWNER 전용) → ReviewSection(병원 상세 하단). "내 리뷰"는 응답의

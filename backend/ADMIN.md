@@ -30,7 +30,9 @@
 | 병원 생성 | `POST /api/hospitals` | ADMIN | `HospitalController`. 소유자 없이 생성 후 별도 배정 |
 | 병원 정보 수정 | `PATCH /api/hospitals/{hospitalId}` | ADMIN 또는 소유 HOSPITAL_OWNER | 전체 필드 재입력 방식, 생략 필드는 null로 덮어써짐 |
 | 병원 소유자 지정 | `PATCH /api/admin/hospitals/{hospitalId}/owner` | ADMIN | 대상이 USER면 HOSPITAL_OWNER로 자동 승격 |
-| 슬롯 생성 | `POST /api/hospitals/{hospitalId}/slots` | ADMIN 또는 소유 HOSPITAL_OWNER | 생성 시 찜한 유저에게 `FAVORITE_HOSPITAL_NEW_SLOT` 알림 자동 발송 |
+| 슬롯 생성 | `POST /api/hospitals/{hospitalId}/slots` | ADMIN 또는 소유 HOSPITAL_OWNER | 생성 시 찜한 유저에게 `FAVORITE_HOSPITAL_NEW_SLOT` 알림 자동 발송. 같은 병원 겹치는 시간대 409 |
+| 슬롯 일괄 생성 | `POST /api/hospitals/{hospitalId}/slots/bulk` | ADMIN 또는 소유 HOSPITAL_OWNER | `{startDate, endDate, daysOfWeek, startTime, endTime, intervalMinutes}` → `{created, skipped}`. 최대 31일·500개(초과 시 400), 간격 10~240분. 지난 시간/기존 슬롯과 겹치는 칸은 실패 대신 건너뜀. 찜 알림은 슬롯마다가 아니라 1번만 |
+| 슬롯 삭제 | `DELETE /api/hospitals/{hospitalId}/slots/{slotId}` | ADMIN 또는 소유 HOSPITAL_OWNER | AVAILABLE이고 예약 이력(취소/거절 포함)이 없는 슬롯만. 예약됨/이력 있음은 409 |
 | 병원 사진 업로드/삭제 | `POST`/`DELETE /api/hospitals/{hospitalId}/image` | ADMIN 또는 소유 HOSPITAL_OWNER | |
 
 ### 예약 관리 (`AdminReservationController`)

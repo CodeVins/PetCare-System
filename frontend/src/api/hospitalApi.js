@@ -20,6 +20,17 @@ export function createSlot(hospitalId, { startTime, endTime }) {
   return axiosInstance.post(`/api/hospitals/${hospitalId}/slots`, { startTime, endTime })
 }
 
+// { startDate, endDate, daysOfWeek: ['MONDAY', ...], startTime: '10:00', endTime: '18:00', intervalMinutes }
+// → { created, skipped } (지난 시간·기존 슬롯과 겹치는 칸은 서버가 건너뜀)
+export function createSlotsBulk(hospitalId, payload) {
+  return axiosInstance.post(`/api/hospitals/${hospitalId}/slots/bulk`, payload)
+}
+
+export function deleteSlot(hospitalId, slotId) {
+  return axiosInstance.delete(`/api/hospitals/${hospitalId}/slots/${slotId}`)
+}
+
+// 서버가 지난 슬롯을 빼고 시작 시간순으로 내려준다
 export function getSlots(hospitalId, status) {
   // size: 100 — slots are paginated now (default 20); bump so a hospital's
   // full slot list realistically fits on one page without adding pager UI.

@@ -20,6 +20,7 @@ import com.petcare.domain.reservation.ReservationType;
 import com.petcare.domain.user.Role;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,6 +131,60 @@ class BusinessRuleTest {
 		mockMvc.perform(patch("/api/admin/reservations/" + futureReservationId + "/no-show")
 						.header("Authorization", "Bearer " + adminToken))
 				.andExpect(status().isConflict());
+	}
+
+	// ---------- 슬롯 일괄 등록 / 삭제 / 조회 ----------
+
+	@Test
+	void 일괄_등록은_겹치는_칸만_건너뛰고_조회는_지난_슬롯_없이_시간순이다() throws Exception {
+		LocalDate day1 = LocalDate.now().plusDays(1);
+		createSlot(hospitalId, day1.atTime(10, 0), day1.atTime(10, 30)); // 겹칠 기존 슬롯
+		Slot pastSlot = savePastSlot();
+
+		MvcResult result = mockMvc.perform(bulkRequest(day1, day1.plusDays(1), "10:00", "12:00", 30))
+				.andExpect(status().isCreated())
+				.andReturn();
+		assertThat(data(result).get("created").asInt()).isEqualTo(7); // 2일 × 4칸 - 겹침 1
+		assertThat(data(result).get("skipped").asInt()).isEqualTo(1);
+
+		JsonNode slots = data(mockMvc.perform(get("/api/hospitals/" + hospitalId + "/slots?size=100")
+						.header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk())
+				.andReturn()).get("content");
+		assertThat(slots).hasSize(8);
+		assertThat(slots.toString()).doesNotContain("\"id\":" + pastSlot.getId() + ",");
+		for (int i = 1; i < slots.size(); i++) {
+			assertThat(slots.get(i).get("startTime").asText()).isGreaterThan(slots.get(i - 1).get("startTime").asText());
+		}
+	}
+
+	@Test
+	void 일괄_등록은_31일_또는_500개를_넘으면_400이다() throws Exception {
+		LocalDate day1 = LocalDate.now().plusDays(1);
+		mockMvc.perform(bulkRequest(day1, day1.plusDays(31), "10:00", "11:00", 60))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(bulkRequest(day1, day1.plusDays(30), "08:00", "20:00", 10))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void 슬롯_삭제는_예약_가능하고_예약_이력이_없는_슬롯만_된다() throws Exception {
+		LocalDateTime start = future(24);
+		long freeSlot = createSlot(hospitalId, start, start.plusMinutes(30));
+		long reservedSlot = createSlot(hospitalId, start.plusHours(1), start.plusHours(1).plusMinutes(30));
+		long cancelledSlot = createSlot(hospitalId, start.plusHours(2), start.plusHours(2).plusMinutes(30));
+		long petId = createPet(userToken, "삭제펫");
+		createReservation(userToken, petId, reservedSlot);
+		long cancelled = createReservation(userToken, petId, cancelledSlot);
+		mockMvc.perform(patch("/api/reservations/" + cancelled + "/cancel").header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(deleteSlot(freeSlot)).andExpect(status().isOk());
+		mockMvc.perform(deleteSlot(reservedSlot)).andExpect(status().isConflict());
+		mockMvc.perform(deleteSlot(cancelledSlot)).andExpect(status().isConflict());
+		mockMvc.perform(delete("/api/hospitals/" + hospitalId + "/slots/" + freeSlot)
+						.header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isForbidden());
 	}
 
 	// ---------- 권한 ----------
@@ -329,6 +384,20 @@ class BusinessRuleTest {
 				.header("Authorization", "Bearer " + adminToken)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"startTime\":\"" + start + "\",\"endTime\":\"" + end + "\"}");
+	}
+
+	private MockHttpServletRequestBuilder bulkRequest(
+			LocalDate startDate, LocalDate endDate, String startTime, String endTime, int interval) {
+		return post("/api/hospitals/" + hospitalId + "/slots/bulk")
+				.header("Authorization", "Bearer " + adminToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"startDate\":\"" + startDate + "\",\"endDate\":\"" + endDate + "\","
+						+ "\"daysOfWeek\":[\"MONDAY\",\"TUESDAY\",\"WEDNESDAY\",\"THURSDAY\",\"FRIDAY\",\"SATURDAY\",\"SUNDAY\"],"
+						+ "\"startTime\":\"" + startTime + "\",\"endTime\":\"" + endTime + "\",\"intervalMinutes\":" + interval + "}");
+	}
+
+	private MockHttpServletRequestBuilder deleteSlot(long slotId) {
+		return delete("/api/hospitals/" + hospitalId + "/slots/" + slotId).header("Authorization", "Bearer " + adminToken);
 	}
 
 	private long createSlot(long hospitalId, LocalDateTime start, LocalDateTime end) throws Exception {

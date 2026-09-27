@@ -1,11 +1,34 @@
-import { CalendarBlank } from '@phosphor-icons/react'
+import { CalendarBlank, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
-import { createSlot, getSlots } from '../../api/hospitalApi'
+import { createSlot, createSlotsBulk, deleteSlot, getSlots } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
+import ChoiceGroup from '../../components/common/ChoiceGroup'
 import EmptyState from '../../components/common/EmptyState'
+import SelectField from '../../components/common/SelectField'
 import TextField from '../../components/common/TextField'
 import { formatDateLabel, formatTimeRange } from '../../lib/format'
+
+const DAYS = [
+  { value: 'MONDAY', label: '월' },
+  { value: 'TUESDAY', label: '화' },
+  { value: 'WEDNESDAY', label: '수' },
+  { value: 'THURSDAY', label: '목' },
+  { value: 'FRIDAY', label: '금' },
+  { value: 'SATURDAY', label: '토' },
+  { value: 'SUNDAY', label: '일' },
+]
+
+const INTERVAL_OPTIONS = [15, 20, 30, 60].map((m) => ({ value: m, label: `${m}분` }))
+
+const INITIAL_BULK = {
+  startDate: '',
+  endDate: '',
+  daysOfWeek: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
+  startTime: '10:00',
+  endTime: '18:00',
+  intervalMinutes: 30,
+}
 
 function groupByDate(slots) {
   const groups = new Map()
@@ -21,9 +44,13 @@ export default function SlotSection({ hospitalId }) {
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [mode, setMode] = useState('single')
   const [newSlot, setNewSlot] = useState({ startTime: '', endTime: '' })
+  const [bulk, setBulk] = useState(INITIAL_BULK)
   const [creating, setCreating] = useState(false)
   const [formError, setFormError] = useState('')
+  const [formResult, setFormResult] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
 
   const loadSlots = useCallback(() => {
     setLoading(true)
@@ -38,26 +65,68 @@ export default function SlotSection({ hospitalId }) {
     loadSlots()
   }, [loadSlots])
 
+  const toggleDay = (day) =>
+    setBulk((b) => ({
+      ...b,
+      daysOfWeek: b.daysOfWeek.includes(day)
+        ? b.daysOfWeek.filter((d) => d !== day)
+        : [...b.daysOfWeek, day],
+    }))
+
+  const validate = () => {
+    if (mode === 'single') {
+      if (!newSlot.startTime || !newSlot.endTime) return '시작/종료 시간을 입력해 주세요.'
+      if (newSlot.endTime <= newSlot.startTime) return '종료 시간은 시작 시간보다 뒤여야 합니다.'
+      return ''
+    }
+    if (!bulk.startDate || !bulk.endDate) return '기간을 입력해 주세요.'
+    if (bulk.endDate < bulk.startDate) return '종료 날짜는 시작 날짜와 같거나 뒤여야 합니다.'
+    if (bulk.daysOfWeek.length === 0) return '요일을 하나 이상 선택해 주세요.'
+    if (bulk.endTime <= bulk.startTime) return '하루 종료 시간은 시작 시간보다 뒤여야 합니다.'
+    return ''
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setFormError('')
-    if (!newSlot.startTime || !newSlot.endTime) {
-      setFormError('시작/종료 시간을 입력해 주세요.')
-      return
-    }
-    if (newSlot.endTime <= newSlot.startTime) {
-      setFormError('종료 시간은 시작 시간보다 뒤여야 합니다.')
-      return
-    }
+    setFormResult('')
+    const message = validate()
+    setFormError(message)
+    if (message) return
+
     setCreating(true)
     try {
-      await createSlot(hospitalId, newSlot)
-      setNewSlot({ startTime: '', endTime: '' })
+      if (mode === 'single') {
+        await createSlot(hospitalId, newSlot)
+        setNewSlot({ startTime: '', endTime: '' })
+        setFormResult('슬롯을 등록했습니다.')
+      } else {
+        const { data } = await createSlotsBulk(hospitalId, bulk)
+        const { created, skipped } = data.data
+        setFormResult(
+          `${created}개 등록했습니다.` +
+            (skipped > 0 ? ` (지난 시간이거나 기존 슬롯과 겹친 ${skipped}개는 건너뜀)` : ''),
+        )
+      }
       loadSlots()
     } catch (err) {
       setFormError(err.response?.data?.message || '슬롯 등록에 실패했습니다.')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDelete = async (slot) => {
+    const label = `${formatDateLabel(slot.startTime.slice(0, 10))} ${formatTimeRange(slot.startTime, slot.endTime)}`
+    if (!window.confirm(`${label} 슬롯을 삭제할까요?`)) return
+    setDeletingId(slot.id)
+    setError('')
+    try {
+      await deleteSlot(hospitalId, slot.id)
+      setSlots((prev) => prev.filter((s) => s.id !== slot.id))
+    } catch (err) {
+      setError(err.response?.data?.message || '슬롯 삭제에 실패했습니다.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -71,36 +140,113 @@ export default function SlotSection({ hospitalId }) {
         <h2 id="h-slot-form" className="h-section">
           슬롯 등록
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <TextField
-            label="시작"
-            type="datetime-local"
-            value={newSlot.startTime}
-            onChange={(event) => setNewSlot((s) => ({ ...s, startTime: event.target.value }))}
-          />
-          <TextField
-            label="종료"
-            type="datetime-local"
-            value={newSlot.endTime}
-            onChange={(event) => setNewSlot((s) => ({ ...s, endTime: event.target.value }))}
-          />
-        </div>
+        <ChoiceGroup
+          value={mode}
+          onChange={(value) => {
+            setMode(value)
+            setFormError('')
+            setFormResult('')
+          }}
+          options={[
+            { value: 'single', label: '한 개씩' },
+            { value: 'bulk', label: '반복 등록' },
+          ]}
+        />
+
+        {mode === 'single' ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <TextField
+              label="시작"
+              type="datetime-local"
+              value={newSlot.startTime}
+              onChange={(event) => setNewSlot((s) => ({ ...s, startTime: event.target.value }))}
+            />
+            <TextField
+              label="종료"
+              type="datetime-local"
+              value={newSlot.endTime}
+              onChange={(event) => setNewSlot((s) => ({ ...s, endTime: event.target.value }))}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextField
+                label="시작 날짜"
+                type="date"
+                value={bulk.startDate}
+                onChange={(event) => setBulk((b) => ({ ...b, startDate: event.target.value }))}
+              />
+              <TextField
+                label="종료 날짜"
+                type="date"
+                hint="최대 31일"
+                value={bulk.endDate}
+                onChange={(event) => setBulk((b) => ({ ...b, endDate: event.target.value }))}
+              />
+            </div>
+            <div>
+              <span className="mb-1.5 block text-sm font-medium text-stone-700">요일</span>
+              <div className="flex flex-wrap gap-2">
+                {DAYS.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    aria-pressed={bulk.daysOfWeek.includes(day.value)}
+                    onClick={() => toggleDay(day.value)}
+                    className={`chip min-w-11 justify-center ${
+                      bulk.daysOfWeek.includes(day.value) ? 'chip-on' : ''
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <TextField
+                label="하루 시작"
+                type="time"
+                value={bulk.startTime}
+                onChange={(event) => setBulk((b) => ({ ...b, startTime: event.target.value }))}
+              />
+              <TextField
+                label="하루 종료"
+                type="time"
+                value={bulk.endTime}
+                onChange={(event) => setBulk((b) => ({ ...b, endTime: event.target.value }))}
+              />
+              <SelectField
+                label="간격"
+                value={bulk.intervalMinutes}
+                options={INTERVAL_OPTIONS}
+                onChange={(event) =>
+                  setBulk((b) => ({ ...b, intervalMinutes: Number(event.target.value) }))
+                }
+              />
+            </div>
+          </>
+        )}
+
         <Alert tone="error">{formError}</Alert>
+        <Alert tone="ok">{formResult}</Alert>
         <Button type="submit" loading={creating} className="w-full">
-          슬롯 등록
+          {mode === 'single' ? '슬롯 등록' : '반복 등록'}
         </Button>
       </form>
 
       {loading && <div className="h-32 animate-pulse rounded-2xl bg-stone-100" />}
       {!loading && error && <Alert tone="error">{error}</Alert>}
 
-      {!loading && !error && slots.length === 0 && (
+      {/* 변경(2026-09-27): 에러가 있어도 슬롯 목록은 계속 보여줌 — 삭제 실패(409 등) 메시지가 목록을 가리지 않게
+          (이전: 에러가 있으면 목록 자체를 숨김, 조회 실패만 있던 시절 기준) */}
+      {!loading && slots.length === 0 && !error && (
         <div className="card">
           <EmptyState icon={CalendarBlank}>등록된 슬롯이 없습니다.</EmptyState>
         </div>
       )}
 
-      {!loading && !error && slots.length > 0 && (
+      {!loading && slots.length > 0 && (
         <div className="card flex flex-col gap-4 p-5 md:p-6">
           {groupByDate(slots).map(([dateKey, dateSlots]) => (
             <div key={dateKey}>
@@ -108,19 +254,29 @@ export default function SlotSection({ hospitalId }) {
                 {formatDateLabel(dateKey)}
               </p>
               <div className="flex flex-wrap gap-2">
-                {dateSlots.map((slot) => (
-                  <span
-                    key={slot.id}
-                    className={`chip cursor-default ${
-                      slot.status === 'AVAILABLE'
-                        ? ''
-                        : 'bg-stone-100 text-stone-500 hover:bg-stone-100'
-                    }`}
-                  >
-                    {formatTimeRange(slot.startTime, slot.endTime)}
-                    {slot.status === 'RESERVED' && ' · 예약됨'}
-                  </span>
-                ))}
+                {dateSlots.map((slot) =>
+                  slot.status === 'AVAILABLE' ? (
+                    <span key={slot.id} className="chip cursor-default gap-1 pr-1.5">
+                      {formatTimeRange(slot.startTime, slot.endTime)}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(slot)}
+                        disabled={deletingId === slot.id}
+                        aria-label={`${formatTimeRange(slot.startTime, slot.endTime)} 슬롯 삭제`}
+                        className="flex size-7 items-center justify-center rounded-full text-stone-500 hover:bg-stone-200 hover:text-red-700 disabled:opacity-50"
+                      >
+                        <X size={14} weight="bold" />
+                      </button>
+                    </span>
+                  ) : (
+                    <span
+                      key={slot.id}
+                      className="chip cursor-default bg-stone-100 text-stone-500 hover:bg-stone-100"
+                    >
+                      {formatTimeRange(slot.startTime, slot.endTime)} · 예약됨
+                    </span>
+                  ),
+                )}
               </div>
             </div>
           ))}
