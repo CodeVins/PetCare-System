@@ -4,6 +4,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,6 +31,16 @@ public class SecurityConfig {
 			"/swagger-ui/**",
 			"/v3/api-docs/**",
 			"/uploads/**"
+	};
+
+	// 변경(2026-09-27): 비회원도 병원 목록/상세/리뷰/예약 가능 슬롯을 볼 수 있게 GET만 공개 — 프론트 랜딩·병원 둘러보기용
+	// (이전: auth/swagger/uploads 외 전부 인증 필요라 첫 화면부터 로그인으로 튕김). 하위 경로를 **로 열지 않고
+	// 명시한 건 나중에 /api/hospitals 아래 GET이 추가돼도 실수로 공개되지 않게 하려는 것
+	private static final String[] PUBLIC_GET_PATHS = {
+			"/api/hospitals",
+			"/api/hospitals/*",
+			"/api/hospitals/*/reviews",
+			"/api/hospitals/*/slots"
 	};
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -69,6 +80,7 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(PERMIT_ALL_PATHS).permitAll()
+						.requestMatchers(HttpMethod.GET, PUBLIC_GET_PATHS).permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

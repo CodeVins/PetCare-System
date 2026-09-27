@@ -92,6 +92,7 @@ com.petcare
 - 인증: JWT Bearer 토큰, stateless. 토큰의 subject는 이메일이라서 **이메일을 변경하면 기존 토큰이 즉시 무효화됨**(재로그인 필요) — 프론트에서 이메일 변경 후 자동 로그아웃 처리 필요
 - Refresh Token: 로그인 시 accessToken(1시간)+refreshToken(14일, 랜덤 opaque 문자열)을 같이 발급. `RefreshToken` 엔티티는 유저당 1개(멀티 디바이스 미지원, 재로그인/재발급 시 기존 걸 교체). `POST /api/auth/reissue`로 재발급하며, 재발급마다 refreshToken도 회전(재사용 방지). `POST /api/auth/logout`(인증 필요)은 refreshToken을 DB에서 삭제만 함 — accessToken 자체는 stateless라 즉시 무효화 안 되고 최대 1시간 뒤 자연 만료됨(알려진 한계)
 - `/api/auth/**` 전체를 permitAll 하면 안 됨 — `signup`/`login`/`reissue`만 열고 `logout`은 인증 필요(겪은 버그: 전체를 열어놔서 `logout`이 인증 없이 호출되던 문제)
+- 비회원 공개 GET(2026-09-27, 프론트 랜딩·병원 둘러보기용): `SecurityConfig.PUBLIC_GET_PATHS` = `/api/hospitals`, `/api/hospitals/*`, `/api/hospitals/*/reviews`, `/api/hospitals/*/slots` (GET만). `/**`로 열지 않고 경로를 명시 — 같은 경로의 POST/PATCH/DELETE와 즐겨찾기는 계속 인증 필요. 공개 GET 핸들러에서 `@AuthenticationPrincipal`을 쓰면 **null일 수 있음**(ReviewController.getReviews가 처리). `AuthFlowTest`에 비회원 허용/차단 테스트 있음
 - ADMIN 권한: `@PreAuthorize("hasRole('ADMIN')")` (병원 생성 등 플랫폼 전역 작업). 회원가입은 전부 USER로 생성되고 공개 ADMIN 가입 경로는 없음(의도적)
 - 병원 소유자(HOSPITAL_OWNER): `Hospital.owner`로 병원 하나에 소유자 한 명 연결. `PATCH /api/admin/hospitals/{hospitalId}/owner`(ADMIN 전용)로 지정 — 지정 시 대상 유저가 USER면 자동으로 HOSPITAL_OWNER로 승격됨. 슬롯 생성(`POST /api/hospitals/{id}/slots`)과 예약 확정/거절/목록(`/api/admin/reservations/**`)은 `@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")`로 게이트를 열어두고, 서비스 계층에서 `Hospital.isManagedBy(currentUser)`(ADMIN은 항상 true, HOSPITAL_OWNER는 본인 소유 병원만 true)로 세밀하게 재검증. 병원 생성 자체는 여전히 ADMIN 전용 유지 — 새 병원 등록 후 소유자를 배정하는 구조
 - `PATCH /api/hospitals/{hospitalId}` — 병원 정보 수정(이름/주소/위경도/운영시간/진료과목), ADMIN 또는 소유 HOSPITAL_OWNER만. 필드 전체를 다시 받는 방식이라 일부 필드 생략하면 null로 덮어써짐 (Pet/HealthRecord 수정 API와 동일한 컨벤션)
@@ -99,7 +100,7 @@ com.petcare
 - 예약 생성 시 요청자뿐 아니라 병원 소유자(`Hospital.owner`, 있을 때만)에게도 `RESERVATION_REQUESTED` 알림 발송 — 확정/거절할 사람이 대시보드를 안 열어도 알 수 있게
 - 슬롯/예약 시간 규칙(`Slot.hasStarted()` 기준): 슬롯 생성은 `@Future`(과거 400) + 같은 병원 겹치는 시간대 409(경계 맞닿음은 허용), 지난 슬롯은 예약·대기신청 409, 지난 예약은 취소 409, 노쇼는 시작 시간이 지난 뒤에만(시작 전 409), `WaitlistService.notifyNextInLine()`은 지난 슬롯이면 알림 생략
 - 슬롯 일괄 생성 `POST /api/hospitals/{hospitalId}/slots/bulk`(기간×요일×하루 시간대를 간격으로 분할, 최대 31일·500개, 지난 시간/겹치는 칸은 건너뛰고 `{created, skipped}` 반환 — 기간 내 기존 슬롯을 한 번에 읽어 메모리에서 겹침 검사), 슬롯 삭제 `DELETE .../slots/{slotId}`(AVAILABLE + 예약 이력 없음만, 취소/거절 예약도 slot_id FK로 참조하므로 이력 있으면 409 — Pet 삭제 정책과 같은 이유). `GET .../slots`는 지난 슬롯 제외 + 기본 정렬 startTime 오름차순
-- 응답 DTO: `ReservationResponse`/`WaitlistResponse`에 `hospitalId`/`hospitalName`/`startTime`/`endTime`(대기는 `petName`도) 포함 — 프론트가 슬롯/병원을 따로 조인하지 않게. `ReviewResponse.mine`은 요청자 본인 리뷰 여부(작성자 id는 노출 안 함, 목록 조회는 전부 인증 필요라 항상 계산 가능)
+- 응답 DTO: `ReservationResponse`/`WaitlistResponse`에 `hospitalId`/`hospitalName`/`startTime`/`endTime`(대기는 `petName`도) 포함 — 프론트가 슬롯/병원을 따로 조인하지 않게. `ReviewResponse.mine`은 요청자 본인 리뷰 여부(작성자 id는 노출 안 함, 비회원 조회면 전부 false)
 - `PATCH /api/notifications/read-all` — 내 안읽은 알림 전체 읽음(벌크 update 쿼리, 처리 건수 반환)
 - `application.yml`에 `hibernate.default_batch_fetch_size: 100` — fetch join 없이 지연 로딩 연관(리뷰 답글, 예약→펫 등)을 IN 쿼리로 묶어 N+1 완화
 - `GET /api/hospitals`에 `&is24Hours=&hasParking=` 필터 추가 (Querydsl where절, null이면 무시)

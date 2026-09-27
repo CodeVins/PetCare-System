@@ -1,5 +1,6 @@
 package com.petcare;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -46,5 +47,16 @@ class AuthFlowTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.accessToken").exists())
 				.andExpect(jsonPath("$.data.refreshToken").exists());
+	}
+
+	@Test
+	void 비회원은_병원_조회만_가능하고_그_외는_401() throws Exception {
+		mockMvc.perform(get("/api/hospitals")).andExpect(status().isOk());
+		mockMvc.perform(get("/api/hospitals/999999/reviews")).andExpect(status().isOk());
+		mockMvc.perform(get("/api/hospitals/999999/slots")).andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/hospitals/1/favorites")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/favorites")).andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/reservations")).andExpect(status().isUnauthorized());
 	}
 }

@@ -45,8 +45,10 @@ public class ReviewController {
 	public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getReviews(
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
 			@PageableDefault(size = 20) Pageable pageable) {
-		return ResponseEntity.ok(ApiResponse.success(
-				reviewService.getReviews(userDetails.getUser().getId(), hospitalId, pageable)));
+		// 변경(2026-09-27): 비회원 조회 허용으로 userDetails가 null일 수 있음 → userId null이면 mine은 전부 false
+		// (이전: 인증 필수 엔드포인트라 null 체크 없이 getUser() 호출)
+		Long userId = userDetails == null ? null : userDetails.getUser().getId();
+		return ResponseEntity.ok(ApiResponse.success(reviewService.getReviews(userId, hospitalId, pageable)));
 	}
 
 	@PatchMapping("/{reviewId}")
