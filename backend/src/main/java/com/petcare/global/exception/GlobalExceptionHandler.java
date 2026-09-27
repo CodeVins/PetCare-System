@@ -65,9 +65,13 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
 	}
 
+	// 변경(2026-09-27): ForbiddenException은 서비스가 넣은 메시지를 그대로 내려줌, @PreAuthorize의 AccessDeniedException만
+	// 공통 문구 유지(Spring 기본 메시지가 영어 "Access Denied"라서) — 아래 handleConflict와 같은 방식
+	// (이전: 전부 "접근 권한이 없습니다."로 덮어써서 "정지된 계정입니다", "최초 등록자만 삭제할 수 있습니다" 같은 안내가 사용자에게 안 보였음)
 	@ExceptionHandler({ForbiddenException.class, AccessDeniedException.class})
 	public ResponseEntity<ApiResponse<Void>> handleForbidden(RuntimeException e) {
-		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("접근 권한이 없습니다."));
+		String message = e instanceof ForbiddenException ? e.getMessage() : "접근 권한이 없습니다.";
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(message));
 	}
 
 	@ExceptionHandler({ConflictException.class, ObjectOptimisticLockingFailureException.class})

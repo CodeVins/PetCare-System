@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -184,7 +185,8 @@ class BusinessRuleTest {
 		mockMvc.perform(deleteSlot(cancelledSlot)).andExpect(status().isConflict());
 		mockMvc.perform(delete("/api/hospitals/" + hospitalId + "/slots/" + freeSlot)
 						.header("Authorization", "Bearer " + userToken))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("접근 권한이 없습니다.")); // @PreAuthorize 거부는 공통 문구
 	}
 
 	// ---------- 권한 ----------
@@ -209,7 +211,8 @@ class BusinessRuleTest {
 
 		mockMvc.perform(patch("/api/admin/reservations/" + otherReservation + "/confirm")
 						.header("Authorization", "Bearer " + ownerToken))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("해당 병원의 예약을 관리할 권한이 없습니다."));
 		mockMvc.perform(patch("/api/admin/reservations/" + ownReservation + "/confirm")
 						.header("Authorization", "Bearer " + ownerToken))
 				.andExpect(status().isOk());
@@ -231,7 +234,8 @@ class BusinessRuleTest {
 		mockMvc.perform(get("/api/pets/" + petId).header("Authorization", "Bearer " + guardianToken))
 				.andExpect(status().isOk());
 		mockMvc.perform(delete("/api/pets/" + petId).header("Authorization", "Bearer " + guardianToken))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("반려동물 삭제는 최초 등록자만 할 수 있습니다."));
 	}
 
 	// ---------- 대기자 명단 ----------
@@ -339,7 +343,8 @@ class BusinessRuleTest {
 		mockMvc.perform(post("/api/auth/reissue")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"refreshToken\":\"" + refreshToken + "\"}"))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의해주세요."));
 	}
 
 	// ---------- helpers ----------

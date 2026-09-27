@@ -86,6 +86,7 @@ com.petcare
 - **기존 코드를 수정하면 수정 지점에 이유 주석을 남길 것** (나중에 변경 이력/회고 글을 쓸 때 근거로 쓰기 위함). 형식: `// 변경(YYYY-MM-DD): 무엇을 어떻게 바꿨는지 — 왜 (이전: 기존 동작/문제)`. 한두 줄로 짧게, 여러 줄이 필요하면 이어서 `//`로. 새로 추가한 코드(새 메서드/클래스/엔드포인트)에는 붙이지 않고, 기존 동작이 바뀐 곳에만 붙임. 같은 목적의 수정이 여러 곳이면 각 지점마다 한 줄씩
 - 엔티티: `@NoArgsConstructor(PROTECTED)` + `@Builder`가 붙은 private 생성자만 사용, public setter 없음. 상태 변경은 `update()`/`cancel()`/`reserve()`/`changeEmail()` 같은 의미 있는 메서드로만
 - 소유권 검증: `엔티티.isOwnedBy(userId)`를 서비스 계층에서 체크, 위반 시 `ForbiddenException`(403)
+- 예외 메시지는 응답 `message`로 사용자에게 그대로 노출됨(`NotFound`/`Forbidden`/`Conflict`/`BadRequest` 전부) — 사용자가 읽을 한국어 안내문으로 쓰고, 내부 id·SQL 같은 정보는 넣지 말 것. 예외: `@PreAuthorize` 거부(`AccessDeniedException`)와 낙관적 락 충돌은 Spring 기본 메시지 대신 공통 문구로 대체(`GlobalExceptionHandler`). 겪은 문제: 예전엔 403만 전부 "접근 권한이 없습니다."로 덮어써서 "정지된 계정입니다" 안내가 사용자에게 안 보였음
 - 공통 예외(`global/exception`): `NotFoundException`(404), `ForbiddenException`(403), `ConflictException`(409) — 도메인별로 새 예외 클래스 만들지 않고 이 3개 재사용. 이메일 중복/로그인 실패만 전용 예외(`DuplicateEmailException`, `InvalidCredentialsException`) 사용
 - 인증: JWT Bearer 토큰, stateless. 토큰의 subject는 이메일이라서 **이메일을 변경하면 기존 토큰이 즉시 무효화됨**(재로그인 필요) — 프론트에서 이메일 변경 후 자동 로그아웃 처리 필요
 - Refresh Token: 로그인 시 accessToken(1시간)+refreshToken(14일, 랜덤 opaque 문자열)을 같이 발급. `RefreshToken` 엔티티는 유저당 1개(멀티 디바이스 미지원, 재로그인/재발급 시 기존 걸 교체). `POST /api/auth/reissue`로 재발급하며, 재발급마다 refreshToken도 회전(재사용 방지). `POST /api/auth/logout`(인증 필요)은 refreshToken을 DB에서 삭제만 함 — accessToken 자체는 stateless라 즉시 무효화 안 되고 최대 1시간 뒤 자연 만료됨(알려진 한계)
