@@ -1,5 +1,6 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { CalendarCheck } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   confirmReservation,
   getAdminReservations,
@@ -10,9 +11,11 @@ import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import StatusBadge from '../../components/common/StatusBadge'
+import { usePagedList } from '../../hooks/usePagedList'
 import { formatSlot, RESERVATION_TYPE_LABEL, reservationPetCaption } from '../../lib/format'
+import type { ReservationStatus } from '../../types/api'
 
-const FILTER_OPTIONS = [
+const FILTER_OPTIONS: { value: ReservationStatus | ''; label: string }[] = [
   { value: 'PENDING', label: '대기중' },
   { value: 'CONFIRMED', label: '확정' },
   { value: 'REJECTED', label: '거절됨' },
@@ -28,25 +31,25 @@ const ACTION_FNS = {
 }
 
 export default function ReservationQueueSection() {
-  const [statusFilter, setStatusFilter] = useState('PENDING')
-  const [reservations, setReservations] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [actingId, setActingId] = useState(null)
+  const [statusFilter, setStatusFilter] = useState<ReservationStatus | ''>('PENDING')
+  // 변경(2026-09-27): usePagedList로 "더 보기" 페이지네이션 (이전: 첫 페이지 20개만 보임)
+  const {
+    items: reservations,
+    setItems: setReservations,
+    loading,
+    error,
+    setError,
+    hasMore,
+    loadMore,
+    loadingMore,
+  } = usePagedList(
+    (page) => getAdminReservations(statusFilter || undefined, page),
+    statusFilter,
+    '예약 목록을 불러오지 못했습니다.',
+  )
+  const [actingId, setActingId] = useState<number | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    setError('')
-    // 변경(2026-09-27): ReservationResponse에 병원명/시간이 실려 와서 예약 목록만 조회 (이전: getSlotIndex()로 조인)
-    getAdminReservations(statusFilter || undefined)
-      .then((res) => setReservations(res.data.data.content))
-      .catch((err) =>
-        setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.'),
-      )
-      .finally(() => setLoading(false))
-  }, [statusFilter])
-
-  const handleAction = async (reservationId, action) => {
+  const handleAction = async (reservationId: number, action: keyof typeof ACTION_FNS) => {
     setActingId(reservationId)
     try {
       await ACTION_FNS[action](reservationId)
@@ -54,7 +57,7 @@ export default function ReservationQueueSection() {
         prev.filter((reservation) => reservation.id !== reservationId),
       )
     } catch (err) {
-      setError(err.response?.data?.message || '처리에 실패했습니다.')
+      setError(errorMessage(err, '처리에 실패했습니다.'))
     } finally {
       setActingId(null)
     }
@@ -162,6 +165,18 @@ export default function ReservationQueueSection() {
             )
           })}
         </div>
+      )}
+
+      {!loading && !error && hasMore && (
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={loadMore}
+          loading={loadingMore}
+          className="w-full"
+        >
+          더 보기
+        </Button>
       )}
     </div>
   )

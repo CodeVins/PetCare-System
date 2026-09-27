@@ -1,3 +1,5 @@
+import type { HealthRecord } from '../../types/api'
+
 const WIDTH = 326
 const HEIGHT = 132
 const LEFT = 28 // y축 눈금 라벨 자리
@@ -6,9 +8,12 @@ const TOP = 20
 const BOTTOM = 40 // x축 날짜 라벨 자리
 const BRAND = '#0F766E'
 
-const monthLabel = (recordedAt) => `${new Date(recordedAt).getMonth() + 1}월`
+const monthLabel = (recordedAt: string) => `${new Date(recordedAt).getMonth() + 1}월`
 
-export default function WeightChart({ records }) {
+// 체중이 있는 기록만 넘어온다 (HealthRecordSection에서 필터)
+type WeightRecord = HealthRecord & { weight: number }
+
+export default function WeightChart({ records }: { records: WeightRecord[] }) {
   if (records.length < 2) return null
 
   const weights = records.map((record) => record.weight)
@@ -20,8 +25,8 @@ export default function WeightChart({ records }) {
   const high = max + pad
   const range = high - low
 
-  const x = (index) => LEFT + (index / (records.length - 1)) * (WIDTH - LEFT - RIGHT)
-  const y = (weight) =>
+  const x = (index: number) => LEFT + (index / (records.length - 1)) * (WIDTH - LEFT - RIGHT)
+  const y = (weight: number) =>
     TOP + (1 - (weight - low) / range) * (HEIGHT - TOP - BOTTOM)
 
   const points = records.map((record, index) => ({

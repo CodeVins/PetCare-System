@@ -1,5 +1,12 @@
 import { CaretDown } from '@phosphor-icons/react'
-import { useId } from 'react'
+import { useId, type ComponentProps, type ReactNode } from 'react'
+
+interface SelectFieldProps extends ComponentProps<'select'> {
+  label?: string
+  error?: string
+  hint?: ReactNode
+  options?: { value: string | number; label: string }[]
+}
 
 // TextField와 같은 라벨/에러 규칙을 쓰는 select. 화살표는 네이티브를 숨기고
 // 직접 그린다 (브라우저마다 기본 화살표 모양이 달라 입력창과 높이가 안 맞음).
@@ -11,7 +18,7 @@ export default function SelectField({
   className = '',
   children,
   ...props
-}) {
+}: SelectFieldProps) {
   const autoId = useId()
   const id = props.id ?? autoId
   const errorId = `${id}-error`

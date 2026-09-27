@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { errorMessage } from '../../api/axiosInstance'
+import { useEffect, useState, type FormEvent } from 'react'
 import { changePassword, getMe, updateEmail } from '../../api/userApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
@@ -25,14 +26,14 @@ export default function AccountSettingsPage() {
     getMe()
       .then(({ data }) => setEmail(data.data.email))
       .catch((err) =>
-        setLoadError(err.response?.data?.message || '내 정보를 불러오지 못했습니다.'),
+        setLoadError(errorMessage(err, '내 정보를 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
   const mismatch = newPasswordConfirm.length > 0 && newPassword !== newPasswordConfirm
 
-  const handleEmailSubmit = async (event) => {
+  const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setEmailError('')
     setEmailSuccess(false)
@@ -41,13 +42,13 @@ export default function AccountSettingsPage() {
       await updateEmail(email)
       setEmailSuccess(true)
     } catch (err) {
-      setEmailError(err.response?.data?.message || '이메일 변경에 실패했습니다.')
+      setEmailError(errorMessage(err, '이메일 변경에 실패했습니다.'))
     } finally {
       setEmailSaving(false)
     }
   }
 
-  const handlePasswordSubmit = async (event) => {
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setPasswordError('')
     setPasswordSuccess(false)
@@ -63,7 +64,7 @@ export default function AccountSettingsPage() {
       setNewPassword('')
       setNewPasswordConfirm('')
     } catch (err) {
-      setPasswordError(err.response?.data?.message || '비밀번호 변경에 실패했습니다.')
+      setPasswordError(errorMessage(err, '비밀번호 변경에 실패했습니다.'))
     } finally {
       setPasswordSaving(false)
     }

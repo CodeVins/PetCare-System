@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { useEffect, useState } from 'react'
 import { getReviewReports, hideReview, unhideReview } from '../../api/adminApi'
 import { getHospitals } from '../../api/hospitalApi'
@@ -5,13 +6,14 @@ import Alert from '../../components/common/Alert'
 import Stars from '../../components/common/Stars'
 import { formatDateTime } from '../../lib/format'
 import AdminPageHeader from './AdminPageHeader'
+import type { ReviewReport } from '../../types/api'
 
 export default function AdminReviewsPage() {
-  const [reports, setReports] = useState([])
-  const [hospitalNameById, setHospitalNameById] = useState({})
+  const [reports, setReports] = useState<ReviewReport[]>([])
+  const [hospitalNameById, setHospitalNameById] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [actingId, setActingId] = useState(null)
+  const [actingId, setActingId] = useState<number | null>(null)
   const [onlyPending, setOnlyPending] = useState(false)
 
   useEffect(() => {
@@ -23,12 +25,12 @@ export default function AdminReviewsPage() {
         )
       })
       .catch((err) =>
-        setError(err.response?.data?.message || '신고 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '신고 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
-  const handleToggleHide = async (report) => {
+  const handleToggleHide = async (report: ReviewReport) => {
     setActingId(report.id)
     try {
       if (report.reviewHidden) {
@@ -40,7 +42,7 @@ export default function AdminReviewsPage() {
         prev.map((r) => (r.id === report.id ? { ...r, reviewHidden: !r.reviewHidden } : r)),
       )
     } catch (err) {
-      setError(err.response?.data?.message || '처리에 실패했습니다.')
+      setError(errorMessage(err, '처리에 실패했습니다.'))
     } finally {
       setActingId(null)
     }

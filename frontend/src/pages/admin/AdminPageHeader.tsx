@@ -1,6 +1,15 @@
+import type { ReactNode } from 'react'
+
 // 소비자 앱 PageHeader(Jua 헤딩·둥근 뒤로가기 버튼)와 다르게, 관리자 패널은
 // 평범한 굵은 산세리프 + 좌측 브레드크럼 스타일 back 링크를 쓴다.
-export default function AdminPageHeader({ title, description, action, back }) {
+interface AdminPageHeaderProps {
+  title: string
+  description?: ReactNode
+  action?: ReactNode
+  back?: ReactNode
+}
+
+export default function AdminPageHeader({ title, description, action, back }: AdminPageHeaderProps) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">

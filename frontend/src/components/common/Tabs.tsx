@@ -1,8 +1,22 @@
 import { motion, useReducedMotion } from 'motion/react'
 
+interface TabsProps<V extends string> {
+  tabs: readonly { value: V; label: string }[]
+  value: V
+  onChange: (value: V) => void
+  layoutId?: string
+  label: string
+}
+
 // 밑줄형 탭 (시안의 반려동물 상세 / 대시보드). 활성 밑줄은 layoutId로 이어져
 // 탭을 옮길 때 미끄러지듯 따라간다.
-export default function Tabs({ tabs, value, onChange, layoutId = 'tab-underline', label }) {
+export default function Tabs<V extends string>({
+  tabs,
+  value,
+  onChange,
+  layoutId = 'tab-underline',
+  label,
+}: TabsProps<V>) {
   const reduceMotion = useReducedMotion()
 
   return (

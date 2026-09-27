@@ -1,18 +1,36 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { CaretDown, CaretUp, MagnifyingGlass, Star } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { getHospitalStats, getStatsSummary } from '../../api/adminApi'
 import Alert from '../../components/common/Alert'
 import AdminPageHeader from './AdminPageHeader'
 import StatTile from './StatTile'
+import type { HospitalStats, StatsSummary } from '../../types/api'
 
-const COLUMNS = [
+type SortKey = keyof Omit<HospitalStats, 'hospitalId'>
+type SortDir = 'asc' | 'desc'
+
+interface Column {
+  key: SortKey
+  label: string
+  align: 'left' | 'right'
+}
+
+const COLUMNS: Column[] = [
   { key: 'hospitalName', label: '병원명', align: 'left' },
   { key: 'reservationCount', label: '확정 예약', align: 'right' },
   { key: 'reviewCount', label: '리뷰 수', align: 'right' },
   { key: 'averageRating', label: '평균 평점', align: 'right' },
 ]
 
-function SortHeader({ column, sortKey, sortDir, onSort }) {
+interface SortHeaderProps {
+  column: Column
+  sortKey: SortKey
+  sortDir: SortDir
+  onSort: (key: SortKey) => void
+}
+
+function SortHeader({ column, sortKey, sortDir, onSort }: SortHeaderProps) {
   const active = sortKey === column.key
   return (
     <th
@@ -35,13 +53,13 @@ function SortHeader({ column, sortKey, sortDir, onSort }) {
 }
 
 export default function AdminStatsPage() {
-  const [summary, setSummary] = useState(null)
-  const [hospitalStats, setHospitalStats] = useState([])
+  const [summary, setSummary] = useState<StatsSummary | null>(null)
+  const [hospitalStats, setHospitalStats] = useState<HospitalStats[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [sortKey, setSortKey] = useState('reservationCount')
-  const [sortDir, setSortDir] = useState('desc')
+  const [sortKey, setSortKey] = useState<SortKey>('reservationCount')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   useEffect(() => {
     Promise.all([getStatsSummary(), getHospitalStats()])
@@ -49,11 +67,11 @@ export default function AdminStatsPage() {
         setSummary(summaryRes.data.data)
         setHospitalStats(hospitalStatsRes.data.data)
       })
-      .catch((err) => setError(err.response?.data?.message || '통계를 불러오지 못했습니다.'))
+      .catch((err) => setError(errorMessage(err, '통계를 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [])
 
-  const handleSort = (key) => {
+  const handleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -70,7 +88,7 @@ export default function AdminStatsPage() {
     return filtered.sort((a, b) => {
       const av = a[sortKey] ?? -1
       const bv = b[sortKey] ?? -1
-      if (typeof av === 'string') return av.localeCompare(bv) * dir
+      if (typeof av === 'string' || typeof bv === 'string') return String(av).localeCompare(String(bv)) * dir
       return (av - bv) * dir
     })
   }, [hospitalStats, keyword, sortKey, sortDir])
@@ -84,7 +102,7 @@ export default function AdminStatsPage() {
     )
   }
 
-  if (error) {
+  if (error || !summary) {
     return (
       <div>
         <AdminPageHeader title="통계" />

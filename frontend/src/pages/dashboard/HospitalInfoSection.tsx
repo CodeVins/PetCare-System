@@ -1,6 +1,6 @@
 import { Buildings } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
-import { BASE_URL } from '../../api/axiosInstance'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { BASE_URL, errorMessage } from '../../api/axiosInstance'
 import {
   deleteHospitalImage,
   updateHospital,
@@ -10,8 +10,9 @@ import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
 import Toggle from '../../components/common/Toggle'
+import type { Hospital } from '../../types/api'
 
-function toFormState(hospital) {
+function toFormState(hospital: Hospital) {
   return {
     name: hospital.name,
     address: hospital.address || '',
@@ -25,7 +26,12 @@ function toFormState(hospital) {
   }
 }
 
-export default function HospitalInfoSection({ hospital, onHospitalUpdated }) {
+interface HospitalInfoSectionProps {
+  hospital: Hospital
+  onHospitalUpdated: (hospital: Hospital) => void
+}
+
+export default function HospitalInfoSection({ hospital, onHospitalUpdated }: HospitalInfoSectionProps) {
   const [form, setForm] = useState(toFormState(hospital))
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
@@ -40,7 +46,7 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }) {
     // 선택한 병원이 바뀌면 폼도 그 병원 값으로 갈아끼운다
   }, [hospital])
 
-  const handleFormSubmit = async (event) => {
+  const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormError('')
     setFormSuccess(false)
@@ -61,13 +67,13 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }) {
       onHospitalUpdated(data.data)
       setFormSuccess(true)
     } catch (err) {
-      setFormError(err.response?.data?.message || '저장에 실패했습니다.')
+      setFormError(errorMessage(err, '저장에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
   }
 
-  const handleImageChange = async (event) => {
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -77,7 +83,7 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }) {
       const { data } = await uploadHospitalImage(hospital.id, file)
       onHospitalUpdated(data.data)
     } catch (err) {
-      setImageError(err.response?.data?.message || '이미지 업로드에 실패했습니다.')
+      setImageError(errorMessage(err, '이미지 업로드에 실패했습니다.'))
     } finally {
       setImageSaving(false)
     }
@@ -91,13 +97,13 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }) {
       await deleteHospitalImage(hospital.id)
       onHospitalUpdated({ ...hospital, imageUrl: null })
     } catch (err) {
-      setImageError(err.response?.data?.message || '삭제에 실패했습니다.')
+      setImageError(errorMessage(err, '삭제에 실패했습니다.'))
     } finally {
       setImageSaving(false)
     }
   }
 
-  const switchRow = (key, label) => (
+  const switchRow = (key: 'is24Hours' | 'hasParking', label: string) => (
     <div className="flex items-center gap-3 border-b border-stone-100 py-3 last:border-0">
       <span id={`hospital-${key}`} className="flex-1 font-medium">
         {label}

@@ -17,8 +17,9 @@ import Alert from '../../components/common/Alert'
 import MenuList from '../../components/common/MenuList'
 import PageHeader from '../../components/common/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
+import type { Role } from '../../types/api'
 
-const ROLE_LABEL = {
+const ROLE_LABEL: Record<Role, string> = {
   USER: '보호자',
   HOSPITAL_OWNER: '병원 관리자',
   ADMIN: '관리자',
@@ -43,7 +44,7 @@ const ADMIN_MENU = [{ to: '/admin', label: '관리자', icon: ShieldCheck }]
 
 export default function MyPage() {
   const [email, setEmail] = useState('')
-  const [petCount, setPetCount] = useState(null)
+  const [petCount, setPetCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
 
@@ -80,7 +81,7 @@ export default function MyPage() {
 
   const summary = [
     petCount != null && `반려동물 ${petCount}마리`,
-    ROLE_LABEL[role] ?? '보호자',
+    (role && ROLE_LABEL[role]) ?? '보호자',
   ]
     .filter(Boolean)
     .join(' · ')

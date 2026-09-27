@@ -1,7 +1,15 @@
+import type { ComponentProps } from 'react'
+
 const VARIANTS = {
   primary: 'btn-primary',
   secondary: 'btn-secondary',
   danger: 'btn-danger',
+}
+
+interface ButtonProps extends ComponentProps<'button'> {
+  loading?: boolean
+  variant?: keyof typeof VARIANTS
+  size?: 'sm'
 }
 
 export default function Button({
@@ -12,14 +20,12 @@ export default function Button({
   size,
   className = '',
   ...props
-}) {
+}: ButtonProps) {
   return (
     <button
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={`${VARIANTS[variant] ?? VARIANTS.primary} ${
-        size === 'sm' ? 'btn-sm' : ''
-      } ${className}`}
+      className={`${VARIANTS[variant]} ${size === 'sm' ? 'btn-sm' : ''} ${className}`}
       {...props}
     >
       {loading && (

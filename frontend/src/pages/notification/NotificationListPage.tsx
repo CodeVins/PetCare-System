@@ -5,16 +5,24 @@ import {
   ChatCircleDots,
   Clock,
   Syringe,
+  type Icon,
 } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
-import { getNotifications, markNotificationAsRead } from '../../api/notificationApi'
+import { useState } from 'react'
+import {
+  getNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from '../../api/notificationApi'
 import Alert from '../../components/common/Alert'
+import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { useNotifications } from '../../hooks/useNotifications'
+import { usePagedList } from '../../hooks/usePagedList'
 import { formatDateTime } from '../../lib/format'
+import type { Notification, NotificationType } from '../../types/api'
 
-const TYPE_ICON = {
+const TYPE_ICON: Partial<Record<NotificationType, Icon>> = {
   RESERVATION_REQUESTED: Clock,
   RESERVATION_CONFIRMED: CalendarCheck,
   RESERVATION_REJECTED: CalendarX,
@@ -27,19 +35,33 @@ const TYPE_ICON = {
 }
 
 export default function NotificationListPage() {
-  const [notifications, setNotifications] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // 변경(2026-09-27): usePagedList로 "더 보기" 페이지네이션 (이전: 첫 페이지 20개만 보임)
+  const {
+    items: notifications,
+    setItems: setNotifications,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    loadingMore,
+  } = usePagedList(getNotifications, null, '알림을 불러오지 못했습니다.')
+  const [markingAll, setMarkingAll] = useState(false)
   const { decrementUnread, refreshUnreadCount } = useNotifications()
 
-  useEffect(() => {
-    getNotifications()
-      .then(({ data }) => setNotifications(data.data.content))
-      .catch((err) => setError(err.response?.data?.message || '알림을 불러오지 못했습니다.'))
-      .finally(() => setLoading(false))
-  }, [])
+  const handleMarkAll = async () => {
+    setMarkingAll(true)
+    try {
+      await markAllNotificationsAsRead()
+      setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))
+    } catch {
+      // 실패해도 목록은 그대로 두고 뱃지만 서버 기준으로 다시 맞춤
+    } finally {
+      refreshUnreadCount()
+      setMarkingAll(false)
+    }
+  }
 
-  const handleClick = async (notification) => {
+  const handleClick = async (notification: Notification) => {
     if (notification.read) return
     setNotifications((prev) =>
       prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
@@ -55,13 +77,28 @@ export default function NotificationListPage() {
     }
   }
 
-  const unreadCount = notifications.filter((item) => !item.read).length
+  // 변경(2026-09-27): 불러온 목록 대신 전역 뱃지 수 사용 — 페이지 단위로 받으면 아직 안
+  // 불러온 안읽음이 빠지기 때문 (이전: notifications.filter(!read).length)
+  const { unreadCount } = useNotifications()
 
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
         title="알림"
         subtitle={unreadCount > 0 ? `읽지 않은 알림 ${unreadCount}개` : undefined}
+        action={
+          unreadCount > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleMarkAll}
+              loading={markingAll}
+            >
+              모두 읽음
+            </Button>
+          )
+        }
       />
 
       {loading && (
@@ -120,6 +157,18 @@ export default function NotificationListPage() {
             )
           })}
         </div>
+      )}
+
+      {!loading && !error && hasMore && (
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={loadMore}
+          loading={loadingMore}
+          className="mt-4 w-full"
+        >
+          더 보기
+        </Button>
       )}
     </div>
   )

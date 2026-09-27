@@ -1,3 +1,5 @@
+import { errorMessage } from '../../api/axiosInstance'
+import type { Waitlist } from '../../types/api'
 import { Bell, HourglassMedium } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -10,10 +12,10 @@ import { formatSlot } from '../../lib/format'
 import ReservationTabs from './ReservationTabs'
 
 export default function WaitlistPage() {
-  const [waitlist, setWaitlist] = useState([])
+  const [waitlist, setWaitlist] = useState<Waitlist[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [leavingId, setLeavingId] = useState(null)
+  const [leavingId, setLeavingId] = useState<number | null>(null)
 
   useEffect(() => {
     // 변경(2026-09-27): WaitlistResponse에 병원명/시간/반려동물 이름이 실려 와서 대기 목록만 조회
@@ -21,19 +23,19 @@ export default function WaitlistPage() {
     getMyWaitlist()
       .then((res) => setWaitlist(res.data.data.content))
       .catch((err) =>
-        setError(err.response?.data?.message || '대기 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '대기 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
-  const handleLeave = async (waitlistId) => {
+  const handleLeave = async (waitlistId: number) => {
     if (!window.confirm('대기 신청을 취소할까요?')) return
     setLeavingId(waitlistId)
     try {
       await leaveWaitlist(waitlistId)
       setWaitlist((prev) => prev.filter((item) => item.id !== waitlistId))
     } catch (err) {
-      setError(err.response?.data?.message || '취소에 실패했습니다.')
+      setError(errorMessage(err, '취소에 실패했습니다.'))
     } finally {
       setLeavingId(null)
     }

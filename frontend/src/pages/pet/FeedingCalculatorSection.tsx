@@ -1,25 +1,33 @@
-import { useState } from 'react'
+import { errorMessage } from '../../api/axiosInstance'
+import { useState, type FormEvent } from 'react'
 import { calculateFeeding } from '../../api/petApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import ChoiceGroup from '../../components/common/ChoiceGroup'
 import TextField from '../../components/common/TextField'
+import type { FeedingCalculatorResult, ActivityLevel, PetSpecies } from '../../types/api'
 
-const ACTIVITY_OPTIONS = [
+const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string }[] = [
   { value: 'LOW', label: '낮음' },
   { value: 'NORMAL', label: '보통' },
   { value: 'HIGH', label: '높음' },
 ]
 
-export default function FeedingCalculatorSection({ petId, species }) {
+export default function FeedingCalculatorSection({
+  petId,
+  species,
+}: {
+  petId: number | string
+  species: PetSpecies
+}) {
   const [weightKg, setWeightKg] = useState('')
-  const [activityLevel, setActivityLevel] = useState('NORMAL')
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>('NORMAL')
   const [foodCalorieDensityPer100g, setFoodCalorieDensityPer100g] = useState('')
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<FeedingCalculatorResult | null>(null)
   const [calculating, setCalculating] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
     setResult(null)
@@ -35,7 +43,7 @@ export default function FeedingCalculatorSection({ petId, species }) {
       })
       setResult(data.data)
     } catch (err) {
-      setError(err.response?.data?.message || '계산에 실패했습니다.')
+      setError(errorMessage(err, '계산에 실패했습니다.'))
     } finally {
       setCalculating(false)
     }

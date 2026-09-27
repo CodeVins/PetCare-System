@@ -16,6 +16,9 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   → GuardianSection.
   /api/pets/{petId}/feeding-calculator → FeedingCalculatorSection.
   /api/health-check/questions, /api/health-check/submit → /health-check
+- **비회원 공개(GET만)**: /api/hospitals, /api/hospitals/{id}, .../reviews(mine 전부 false),
+  .../slots → 홈(평점 높은 병원 5곳), /hospitals(홈 검색·바로 찾기가 ?keyword= ?is24Hours=true ?hasParking=true ?minRating=4 로 넘김),
+  /hospitals/:id. 즐겨찾기·예약·대기·문의·리뷰 작성은 비회원이면 LoginRequired 안내
 - 병원: GET /api/hospitals(검색 — keyword/minRating/sort/lat/lng/radiusKm/is24Hours/
   hasParking, 응답에 openingHours/specialty/is24Hours/hasParking/avgTreatmentPrice/
   imageUrl/averageRating/reviewCount/distanceKm 포함, 배열 그대로) → /hospitals(필터
@@ -47,8 +50,9 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   병원 상세에서 마감된 슬롯에 "대기 신청" 버튼으로 진입. 슬롯이 풀리면 대기 1순위
   에게만 WAITLIST_SLOT_AVAILABLE 알림(선착순, 나머지는 못 받음 — 백엔드 의도적 설계)
 - 알림: GET /api/notifications, GET /unread-count, GET /subscribe(SSE, 쿼리파라미터
-  ?token={accessToken}로 인증, "connect"/"notification" 이벤트), PATCH /{id}/read
-  → /notifications, Header 벨 아이콘 뱃지(useNotifications 컨텍스트).
+  ?token={accessToken}로 인증, "connect"/"notification" 이벤트), PATCH /{id}/read,
+  PATCH /read-all(모두 읽음, data=처리 건수) → /notifications, Header 벨 아이콘
+  뱃지(useNotifications 컨텍스트). SSE 끊기면 unread-count 호출(=토큰 reissue) 후 재연결.
   GET/PATCH /api/notifications/preferences (카테고리별 RESERVATION/VACCINATION/
   FAVORITE/CHAT/WAITLIST on/off) → /mypage/notifications (NotificationPreferenceSection)
 - 채팅: /api/chat-rooms (방 생성/목록/메시지) → /chats, /chats/:roomId. 새 메시지는
@@ -61,7 +65,8 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   승격) + /api/hospitals(POST, 생성) → /admin/hospitals.
   /api/admin/reservations(ADMIN 전체/HOSPITAL_OWNER 본인 병원만 — 서버가
   스코핑) → /admin/reservations, HOSPITAL_OWNER는 기존처럼 /dashboard.
-  /api/admin/reviews/reports(+hide/unhide, 동일 스코핑) → /admin/reviews.
+  /api/admin/reviews/reports(+hide/unhide, 동일 스코핑) → /admin/reviews,
+  /dashboard "리뷰 신고" 탭(ReviewReportSection, 소비자 앱 톤).
   /api/admin/stats/summary, /api/admin/stats/hospitals(ADMIN 전용) →
   /admin(대시보드 요약) + /admin/stats(상세 표+분포).
   /api/admin/reminders/run(ADMIN 전용) → /admin 대시보드의 퀵액션 카드.

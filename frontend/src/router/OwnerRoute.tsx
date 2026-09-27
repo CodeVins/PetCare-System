@@ -1,7 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-
-const OWNER_ROLES = ['HOSPITAL_OWNER', 'ADMIN']
+import { OWNER_ROLES } from '../lib/roles'
 
 export default function OwnerRoute() {
   const { role } = useAuth()

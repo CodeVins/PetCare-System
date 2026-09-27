@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import {
   CalendarCheck,
   CaretLeft,
@@ -13,14 +14,15 @@ import Alert from '../../components/common/Alert'
 import { useAuth } from '../../hooks/useAuth'
 import AdminPageHeader from './AdminPageHeader'
 import StatTile from './StatTile'
+import type { Role, User, UserStats } from '../../types/api'
 
 const ROLE_OPTIONS = ['USER', 'HOSPITAL_OWNER', 'ADMIN']
 
 export default function AdminUserDetailPage() {
-  const { userId } = useParams()
+  const { userId = '' } = useParams()
   const { userId: myUserId } = useAuth()
-  const [user, setUser] = useState(null)
-  const [stats, setStats] = useState(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updating, setUpdating] = useState(false)
@@ -42,19 +44,19 @@ export default function AdminUserDetailPage() {
         setStats(statsRes.data.data)
       })
       .catch((err) =>
-        setError(err.response?.data?.message || '사용자 정보를 불러오지 못했습니다.'),
+        setError(errorMessage(err, '사용자 정보를 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [userId])
 
-  const handleRoleChange = async (role) => {
+  const handleRoleChange = async (role: Role) => {
     setUpdating(true)
     setActionError('')
     try {
-      const { data } = await updateUserRole(userId, role)
+      const { data } = await updateUserRole(Number(userId), role)
       setUser(data.data)
     } catch (err) {
-      setActionError(err.response?.data?.message || '역할 변경에 실패했습니다.')
+      setActionError(errorMessage(err, '역할 변경에 실패했습니다.'))
     } finally {
       setUpdating(false)
     }
@@ -64,10 +66,13 @@ export default function AdminUserDetailPage() {
     setUpdating(true)
     setActionError('')
     try {
-      const { data } = user.suspended ? await activateUser(userId) : await suspendUser(userId)
+      if (!user) return
+      const { data } = user.suspended
+        ? await activateUser(Number(userId))
+        : await suspendUser(Number(userId))
       setUser(data.data)
     } catch (err) {
-      setActionError(err.response?.data?.message || '처리에 실패했습니다.')
+      setActionError(errorMessage(err, '처리에 실패했습니다.'))
     } finally {
       setUpdating(false)
     }
@@ -92,7 +97,7 @@ export default function AdminUserDetailPage() {
     )
   }
 
-  if (error || !user) {
+  if (error || !user || !stats) {
     return (
       <div>
         <AdminPageHeader title="사용자 상세" back={back} />
@@ -127,7 +132,7 @@ export default function AdminUserDetailPage() {
             <select
               value={user.role}
               disabled={isSelf || updating}
-              onChange={(event) => handleRoleChange(event.target.value)}
+              onChange={(event) => handleRoleChange(event.target.value as Role)}
               className="admin-input disabled:opacity-50"
             >
               {ROLE_OPTIONS.map((role) => (

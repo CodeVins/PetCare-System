@@ -1,39 +1,41 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { PaperPlaneTilt } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { getChatMessages, sendChatMessage } from '../../api/chatApi'
 import Alert from '../../components/common/Alert'
 import PageHeader from '../../components/common/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
 import { useNotifications } from '../../hooks/useNotifications'
+import type { ChatMessage } from '../../types/api'
 
-const dayLabel = (value) =>
+const dayLabel = (value: string) =>
   new Date(value).toLocaleDateString('ko-KR', {
     month: 'long',
     day: 'numeric',
     weekday: 'short',
   })
 
-const timeLabel = (value) =>
+const timeLabel = (value: string) =>
   new Date(value).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
 
 export default function ChatRoomPage() {
-  const { roomId } = useParams()
+  const { roomId = '' } = useParams()
   const { userId } = useAuth()
   const { lastNotificationAt } = useNotifications()
 
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
-  const bottomRef = useRef(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const loadMessages = useCallback(() => {
     getChatMessages(roomId)
       .then(({ data }) => setMessages(data.data.content))
       .catch((err) =>
-        setError(err.response?.data?.message || '메시지를 불러오지 못했습니다.'),
+        setError(errorMessage(err, '메시지를 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [roomId])
@@ -52,7 +54,7 @@ export default function ChatRoomPage() {
     bottomRef.current?.scrollIntoView({ block: 'nearest' })
   }, [messages])
 
-  const handleSend = async (event) => {
+  const handleSend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const content = draft.trim()
     if (!content) return
@@ -63,7 +65,7 @@ export default function ChatRoomPage() {
       setMessages((prev) => [...prev, data.data])
       setDraft('')
     } catch (err) {
-      setError(err.response?.data?.message || '전송에 실패했습니다.')
+      setError(errorMessage(err, '전송에 실패했습니다.'))
     } finally {
       setSending(false)
     }

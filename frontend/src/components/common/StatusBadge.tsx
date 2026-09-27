@@ -1,6 +1,10 @@
+import type { ReservationStatus, RiskLevel } from '../../types/api'
+
 // DESIGN_SPEC 상태 표시 패턴 — 예약 상태와 자가문진 위험도가 같은 뱃지 형태를
 // 재사용한다. 라벨/색 매핑을 여기 한 곳에만 두고 각 화면은 코드만 넘긴다.
-const STATUS = {
+type StatusCode = ReservationStatus | RiskLevel
+
+const STATUS: Record<StatusCode, [string, string]> = {
   PENDING: ['대기중', 'badge-wait'],
   CONFIRMED: ['확정', 'badge-ok'],
   REJECTED: ['거절됨', 'badge-danger'],
@@ -12,11 +16,15 @@ const STATUS = {
   HIGH: ['높음', 'badge-danger'],
 }
 
-export const statusLabel = (code) => STATUS[code]?.[0] ?? code
+export const statusLabel = (code: StatusCode) => STATUS[code]?.[0] ?? code
 
-export default function StatusBadge({ status, label, className = '' }) {
+interface StatusBadgeProps {
+  status: StatusCode
+  label?: string
+  className?: string
+}
+
+export default function StatusBadge({ status, label, className = '' }: StatusBadgeProps) {
   const [defaultLabel, tone] = STATUS[status] ?? [status, 'badge-neutral']
-  return (
-    <span className={`badge ${tone} ${className}`}>{label ?? defaultLabel}</span>
-  )
+  return <span className={`badge ${tone} ${className}`}>{label ?? defaultLabel}</span>
 }

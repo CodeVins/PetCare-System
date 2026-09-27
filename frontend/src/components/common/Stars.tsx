@@ -1,7 +1,13 @@
 import { Star } from '@phosphor-icons/react'
 
+interface StarsProps {
+  value: number
+  size?: number
+  className?: string
+}
+
 // 5점 만점 별점 표시(읽기전용). 리뷰 목록·리뷰 신고 관리에서 공유.
-export default function Stars({ value, size = 16, className = '' }) {
+export default function Stars({ value, size = 16, className = '' }: StarsProps) {
   return (
     <span
       role="img"

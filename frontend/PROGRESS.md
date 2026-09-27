@@ -223,10 +223,92 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       으로 삭제(confirm 후). 삭제 실패(409) 메시지가 목록을 가리지 않도록 에러가
       있어도 목록은 계속 보여줌. 백엔드 GET slots가 지난 슬롯을 빼고 시간순으로
       주게 바뀌어서 프론트 정렬 코드는 필요 없음
+- [x] 2026-09-27 "다음 할 일" ①②③④⑦ 처리 (빌드·lint 통과, 브라우저 확인은 ⑤⑥과 함께 남음)
+    - ① `useNotifications`: `onerror`에서 직접 close → 3초 뒤 `getUnreadCount()`(axios
+      인터셉터가 만료 토큰 reissue, 놓친 알림 수도 재동기화) → 최신 토큰으로 새
+      EventSource. reissue 실패면 인터셉터가 /login으로 보냄(계정 정지 포함)
+    - ② `hooks/usePagedList(fetchPage, key, errorMessage)` — 0페이지 로드 + "더 보기"
+      append(id 중복 제거), key 바뀌면 처음부터. 내 예약/알림/대시보드·관리자 예약에 적용.
+      한계: offset 페이지라 확정·거절로 항목이 빠지면 다음 페이지에서 그만큼 건너뛸 수
+      있음. 내 예약 필터 칩 개수는 불러온 만큼 기준. size:100 목록(채팅 메시지 등)은 그대로
+    - ③ 알림 화면 PageHeader에 "모두 읽음" → `markAllNotificationsAsRead` 후 목록 전부 read +
+      `refreshUnreadCount()`. 부제 "읽지 않은 알림 N개"는 전역 뱃지 수로 바꿈(페이지 단위라)
+    - ④ 대시보드 "리뷰 신고" 탭 = `dashboard/ReviewReportSection`(admin 카드 구성을 card/
+      badge/btn-* 톤으로). 서버가 스코핑하는 탭이라 예약 관리처럼 병원 선택 없이 표시.
+      숨김 토글 시 같은 reviewId 신고 전부 같이 갱신
+    - ⑦ AppRouter 전 페이지 `React.lazy`, Layout/AdminLayout의 Outlet을 `Suspense`로 감싸서
+      헤더·사이드바 유지. 메인 번들 718KB → 417KB, vite 경고 사라짐
+- [x] 2026-09-27 비회원 모드 + 랜딩 + TypeScript 전환 + React 19 기능 (typecheck·빌드·lint
+      통과, 백엔드 AuthFlowTest 통과. **브라우저 눈 확인은 안 함** — 랜딩 레이아웃/모바일 확인 필요)
+    - 요구: 첫 진입이 /login으로 튕기지 않게, 비회원도 홈·병원 목록을 보며 서비스 목적과
+      기능을 한 번에 알 수 있게, 예약·마이페이지 등은 "회원가입/로그인 후 이용해 주세요" 안내
+    - 백엔드: `SecurityConfig.PUBLIC_GET_PATHS`로 병원 목록/상세/리뷰/슬롯 GET만 공개(경로
+      명시, `/**` 안 씀). `ReviewController.getReviews`가 비회원(principal null) 처리
+    - 라우터: Layout을 바깥으로 빼고 `/`, `/hospitals`, `/hospitals/:id`는 공개, 나머지는
+      PrivateRoute → 비회원이면 `LoginRequired` 화면(Layout 안, 로그인/회원가입 버튼 +
+      `state.from`). 관리자 패널은 Layout 밖이라 AdminRoute가 비회원을 /login으로 직접 보냄
+    - axiosInstance: 토큰이 없는 비회원의 401은 /login 리다이렉트 없이 reject만(화면이 안내)
+    - 로그인 후 `state.from`으로 원래 화면 복귀(ADMIN은 from 없을 때만 /admin). 가입→로그인까지
+      from 이어서 전달. AuthShell에 "둘러보기로 돌아가기" 링크. 로그아웃은 /login 대신 홈으로
+    - Header: 비회원은 채팅/알림/로그아웃 대신 로그인·회원가입 버튼, 탭은 USER_NAV 그대로
+      (회원 탭을 누르면 LoginRequired). SSE는 원래도 isAuthenticated일 때만 연결
+    - 홈 = `HomePage`가 분기: 비회원 `home/GuestLanding`(teal 히어로 + 실제 화면 축약 미리보기
+      카드(motion 부유) + 공개 API 실시간 숫자 + 기능 6개 카드(누구나/회원 전용 뱃지) + 평점
+      상위 병원 3곳 + 3단계 시작 + 병원 운영자 안내 + 마지막 CTA), 회원 `home/MemberHome`(기존 홈)
+    - 병원 상세: 병원·슬롯(공개)과 내 반려동물(회원)을 분리 조회 — 이전엔 Promise.all 하나라
+      비회원이면 통째로 실패. 비회원은 예약 시간을 표시용 칩으로 보고 "진료 예약" 안내,
+      하트/문의 버튼은 누르면 해당 기능 LoginRequired. 리뷰는 읽기만, 작성 폼 자리에 안내
+    - TS: tsconfig strict + noUnused*, `src/types/api.ts`(백엔드 record/enum 그대로 옮김),
+      api 함수 전부 `ApiPromise<T>` 반환 타입, catch는 `errorMessage(err, fallback)` 헬퍼로 통일
+      (24개 파일 codemod). `npm run build` = `tsc --noEmit && vite build`
+    - TS 전환 중 발견해 고친 것: 병원 상세 "전화번호" 행이 DTO에 없는 `hospital.phone`을 읽어
+      항상 숨겨지던 죽은 코드(삭제), RevealItem의 `motion[as]` 동적 조회 → div/li 분기
+    - React 19: `use(Context)` + `<Context value>`(useAuth/useNotifications, Provider 밖 사용 시
+      에러), 인증 폼 4개 `useActionState` + `<form action>` + `SubmitButton`(useFormStatus),
+      즐겨찾기 `useOptimistic`(`hooks/useFavoriteIds`, 실패 시 자동 복귀 — 목록·상세 공용),
+      예약 버튼 `useTransition`, 랜딩 숫자/추천 병원은 `use(promise)` + Suspense, 페이지 `<title>`
+    - 한계: 랜딩 공개 데이터 Promise는 세션 동안 캐시(새로고침 전까지 갱신 X). 인증 폼은
+      비제어 입력이라 실패 시 비밀번호 칸은 비워짐(이메일은 state로 유지). 나머지 화면은
+      기존 로직에 타입만 붙였고(useActionState 등은 인증 폼·즐겨찾기·예약에만), 다른 폼은 그대로
+- [x] 2026-09-27 홈 통일 + 사람이 만든 듯한 구성 + 공지·FAQ·약관·방침 (typecheck·빌드 통과,
+      **브라우저 눈 확인 안 함**)
+    - 폰트 섞임: Jua 글리프 누락은 아님(unicode-range로 확인). 원인 두 가지 — ① 랜딩 h2에 Jua를 써서
+      Noto 굵은 머리말·인라인 뱃지와 한 줄에 섞임(DESIGN_SPEC은 h2를 Noto 700으로 규정) ② 한글
+      웹폰트가 글자 범위별 조각으로 로드되는데 display=swap이라 늦게 온 조각 글자만 기본 폰트로
+      그려짐. → 섹션 제목은 전부 `h-section`, Jua는 index.html에서 display=block 별도 링크
+    - 홈: 회원/비회원 분기(GuestLanding/MemberHome) 삭제하고 HomePage 하나로. 구성은 검색 배너
+      (React 19 form action → /hospitals?keyword=, #24시간 등 바로 찾기) → 바로가기 6칸 → 이용 안내
+      (비회원/보호자/병원 관리자가 각각 할 수 있는 일) → 평점 높은 병원 5곳(use+Suspense) →
+      공지사항/FAQ 미리보기. 로그인 여부로 바뀌는 건 이용 안내의 링크 하나(회원가입 ↔ 내 반려동물)
+    - "AI스러운" 요소 제거: 그라데이션 블러 원·부유하는 미리보기 카드·아이브로 알약·3단계 번호·
+      마지막 CTA 띠·통계 숫자 줄·스크롤 페이드인. 문구도 광고체 대신 서비스 안내체로
+    - /pets: MemberHome의 인사말(→ PageHeader 부제), 다가오는 접종, 다가오는 예약(3건+전체보기),
+      병원 찾기 바로가기(예약 없을 때)를 옮김. 반려동물 카드의 페이드인 애니메이션도 뺌
+    - 공지사항(/notices, /notices/:id 이전·다음글), FAQ(/faq, 분류 칩 + details 아코디언),
+      이용약관(/terms), 개인정보처리방침(/privacy) — 전부 공개 라우트. 데이터는 `src/content/`
+      정적 파일. 약관·방침·FAQ 문구는 실제 백엔드 규칙 기준으로 작성(리뷰는 확정 예약 이력 필요,
+      접종 알림 D-3부터 매일 9시, 예약 이력 있는 반려동물 삭제 불가, 위치정보 미저장 등).
+      데모 서비스이며 실제 병원과 무관하다는 고지를 공지·약관·방침·푸터에 넣음
+    - 푸터(Layout): 공지사항 | FAQ | 이용약관 | **개인정보처리방침**, 문의 help@petcare.example
+      (예약 도메인). 모바일 탭바 여백을 main → Footer로 옮김
+    - HospitalListPage가 URL 쿼리(keyword/is24Hours/hasParking/minRating)로 초기 필터를 채움
+- [x] 2026-09-27 건강기록 화면 개편 (typecheck·빌드·lint 통과, 브라우저 확인 안 함)
+    - 작성/수정 폼을 `HealthRecordDialog`로 분리 — 네이티브 `<dialog>`(모바일 하단 시트,
+      데스크톱 가운데 창, Esc·포커스 가두기는 브라우저 기본). 열 때마다 key로 새로 마운트해서
+      초기값만 props에서 채움(effect에서 폼 리셋 안 함)
+    - 폼: 종류를 아이콘 라디오 8칸으로, 날짜 기본값 오늘(미래 불가), 체중 칸은 "체중"일 때만
+      (필수), 메모는 체중이면 선택 — 비우면 "체중 NNkg"로 채워 보냄(서버 content 필수).
+      다음 접종일은 "예방접종"일 때만
+    - 목록: 종류 필터 칩(기록 있는 종류만, 개수 표시) + 월별 묶음 + 왼쪽 날짜 칸(같은 날 연속이면
+      첫 줄만) + 종류별 색 아이콘. 체중 기록은 수치를 크게, 지난 측정 대비 ±kg 표시.
+      체중 그래프는 전체/체중 필터에서만. 필터 중인 종류를 다 지우면 전체로 복귀
+    - 종류별 라벨·아이콘·색·예시 문구는 `pet/healthRecordTypes.ts` 한 곳
+    - 한계: 체중 외 종류에 weight가 들어 있던 예전 기록은 수정 저장 시 weight가 비워짐
+      (그래프는 원래 WEIGHT 종류만 썼으므로 표시상 차이 없음)
 
 ## 다음 할 일 (2026-09-27 백엔드 세션에서 정리, 추천 순서: ① → ③ → ② → ④ → ⑦ → ⑧, ⑤⑥은 ① 하면서 브라우저 띄울 때 같이)
 
-- [ ] **① 실시간 알림이 30분~1시간 뒤 끊김 (버그, 최우선)** — `hooks/useNotifications.jsx`.
+- [x] **① 실시간 알림이 30분~1시간 뒤 끊김 (버그, 최우선)** — `hooks/useNotifications.jsx`.
       백엔드 SSE emitter 타임아웃이 30분이라 연결이 끊기면 브라우저 `EventSource`가 처음 URL
       (`?token=<그때의 accessToken>`) 그대로 자동 재연결함. accessToken은 1시간 만료라 그 뒤
       재연결은 401 → EventSource는 401을 받으면 재시도를 멈춤 → 오래 켜둔 탭은 새로고침 전까지
@@ -234,14 +316,14 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       EventSource 생성(만료됐으면 axiosInstance의 reissue 흐름을 먼저 태우기 — 예: 가벼운 인증
       API 하나 호출해서 인터셉터가 재발급하게 한 뒤 재연결). 계정 정지 시(401)도 여기서 끊김.
       참고: 백엔드는 25초마다 `:ping` heartbeat를 보냄(EventSource는 주석 무시, 프론트 처리 불필요)
-- [ ] **② 목록이 첫 페이지만 보임** — 페이지 UI가 없어서 21번째부터 안 보임:
+- [x] **② 목록이 첫 페이지만 보임** — 페이지 UI가 없어서 21번째부터 안 보임:
       내 예약(`getMyReservations`, 기본 20), 알림 목록(`getNotifications`, 기본 20), 대시보드·관리자
       예약(`getAdminReservations`, 기본 20). 나머지는 `size: 100`으로 잘림(채팅 메시지 100개 제한
       포함). 응답의 `totalPages`로 "더 보기" 버튼 — 공용 훅 하나 만들어 재사용
-- [ ] **③ 알림 "모두 읽음" 버튼** — 백엔드 `PATCH /api/notifications/read-all`(응답 data =
+- [x] **③ 알림 "모두 읽음" 버튼** — 백엔드 `PATCH /api/notifications/read-all`(응답 data =
       처리 건수) 준비 완료, 프론트 미연결. notificationApi에 함수 추가 → 알림 목록 화면 버튼 →
       목록 read 표시 + 뱃지 0으로
-- [ ] **④ 병원 대시보드 "리뷰 신고" 탭** — 백엔드는 HOSPITAL_OWNER에게 본인 병원 신고만
+- [x] **④ 병원 대시보드 "리뷰 신고" 탭** — 백엔드는 HOSPITAL_OWNER에게 본인 병원 신고만
       스코핑해서 `GET /api/admin/reviews/reports`, `PATCH .../{reviewId}/hide|unhide` 허용 중.
       대시보드엔 "리뷰 답글" 탭뿐. 관리자 `/admin/reviews` 카드 UI 참고(대시보드는 소비자 앱 톤)
 - [ ] **⑤ 403 안내 문구 확인** — 백엔드가 이제 403에 구체 메시지를 내려줌("정지된 계정입니다.
@@ -252,7 +334,7 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       대시보드 슬롯 반복 등록 폼 + 슬롯 X 삭제, 리뷰 `mine` 기반 수정·삭제 버튼(다른 기기에서도),
       리뷰 수정 후 병원 답글 유지, 예약·대기 목록/홈/대시보드/관리자 예약의 병원명·시간 표시.
       슬롯 목록은 이제 백엔드가 지난 슬롯 빼고 시간순으로 줌
-- [ ] **⑦ 라우트 코드 스플리팅** — 번들 718KB(vite 경고). 특히 `/admin/*`은 일반 사용자에게
+- [x] **⑦ 라우트 코드 스플리팅** — 번들 718KB(vite 경고). 특히 `/admin/*`은 일반 사용자에게
       불필요 → `React.lazy` + `Suspense`로 라우트 단위 분리
 - [ ] **⑧ 토스트 알림** — 성공/실패 안내가 폼 안 인라인 텍스트뿐(위 2026-09 항목에서도 후보로 언급됨)
 

@@ -1,20 +1,20 @@
 import { Buildings, Crosshair, MagnifyingGlass, SlidersHorizontal } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import {
-  addFavorite,
-  getFavorites,
-  getHospitals,
-  removeFavorite,
-} from '../../api/hospitalApi'
+import { useSearchParams } from 'react-router-dom'
+import { errorMessage } from '../../api/axiosInstance'
+import { getHospitals } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
 import SelectField from '../../components/common/SelectField'
+import { useAuth } from '../../hooks/useAuth'
+import { useFavoriteIds } from '../../hooks/useFavoriteIds'
+import type { Hospital, HospitalSort } from '../../types/api'
 import HospitalCard from './HospitalCard'
 import HospitalTabs from './HospitalTabs'
 
-const SORT_OPTIONS = [
+const SORT_OPTIONS: { value: HospitalSort; label: string }[] = [
   { value: 'NAME_ASC', label: '이름순' },
   { value: 'RATING_DESC', label: '평점순' },
   { value: 'REVIEW_COUNT_DESC', label: '리뷰 많은순' },
@@ -32,55 +32,31 @@ const RADIUS_OPTIONS = [1, 3, 5, 10].map((km) => ({
   label: `${km}km 이내`,
 }))
 
+// 비회원도 볼 수 있는 화면 (백엔드 GET /api/hospitals 공개)
 export default function HospitalListPage() {
-  const [keyword, setKeyword] = useState('')
-  const [minRating, setMinRating] = useState('')
-  const [sort, setSort] = useState('NAME_ASC')
-  const [is24Hours, setIs24Hours] = useState(false)
-  const [hasParking, setHasParking] = useState(false)
+  const { isAuthenticated } = useAuth()
+  // 변경(2026-09-27): 홈 검색창·바로 찾기 링크가 넘긴 쿼리(?keyword=, ?is24Hours=true 등)로 초기 필터를 채움
+  // (이전: 항상 빈 필터로 시작)
+  const [searchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') ?? '')
+  const [minRating, setMinRating] = useState(searchParams.get('minRating') ?? '')
+  const [sort, setSort] = useState<HospitalSort>('NAME_ASC')
+  const [is24Hours, setIs24Hours] = useState(searchParams.get('is24Hours') === 'true')
+  const [hasParking, setHasParking] = useState(searchParams.get('hasParking') === 'true')
   const [locationEnabled, setLocationEnabled] = useState(false)
   const [radiusKm, setRadiusKm] = useState(5)
-  const [coords, setCoords] = useState(null)
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [geoError, setGeoError] = useState('')
   // 모바일에서만 접었다 펴는 필터 영역 (데스크톱은 항상 보이는 사이드바)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const [hospitals, setHospitals] = useState([])
+  const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [favoriteIds, setFavoriteIds] = useState(new Set())
-
-  useEffect(() => {
-    getFavorites()
-      .then(({ data }) => setFavoriteIds(new Set(data.data.content.map((h) => h.id))))
-      .catch(() => {})
-  }, [])
-
-  const toggleFavorite = async (hospitalId) => {
-    const isFav = favoriteIds.has(hospitalId)
-    // 먼저 UI를 바꾸고, 실패하면 되돌린다 (optimistic update)
-    setFavoriteIds((prev) => {
-      const next = new Set(prev)
-      if (isFav) next.delete(hospitalId)
-      else next.add(hospitalId)
-      return next
-    })
-    try {
-      if (isFav) {
-        await removeFavorite(hospitalId)
-      } else {
-        await addFavorite(hospitalId)
-      }
-    } catch {
-      setFavoriteIds((prev) => {
-        const next = new Set(prev)
-        if (isFav) next.add(hospitalId)
-        else next.delete(hospitalId)
-        return next
-      })
-    }
-  }
+  // 변경(2026-09-27): 즐겨찾기 조회/토글을 useFavoriteIds(useOptimistic)로 분리, 비회원이면 하트 숨김
+  // (이전: 이 화면에서 Set을 직접 들고 실패 시 수동 롤백, 비회원 개념 없음)
+  const { favoriteIds, toggleFavorite } = useFavoriteIds()
 
   useEffect(() => {
     setLoading(true)
@@ -89,7 +65,7 @@ export default function HospitalListPage() {
     const timeout = setTimeout(() => {
       getHospitals({
         keyword: keyword || undefined,
-        minRating: minRating || undefined,
+        minRating: minRating ? Number(minRating) : undefined,
         sort: locationEnabled ? undefined : sort,
         lat: locationEnabled ? coords?.lat : undefined,
         lng: locationEnabled ? coords?.lng : undefined,
@@ -98,9 +74,7 @@ export default function HospitalListPage() {
         hasParking: hasParking || undefined,
       })
         .then(({ data }) => setHospitals(data.data))
-        .catch((err) =>
-          setError(err.response?.data?.message || '병원 목록을 불러오지 못했습니다.'),
-        )
+        .catch((err) => setError(errorMessage(err, '병원 목록을 불러오지 못했습니다.')))
         .finally(() => setLoading(false))
     }, 300)
     return () => clearTimeout(timeout)
@@ -175,7 +149,7 @@ export default function HospitalListPage() {
         options={SORT_OPTIONS}
         disabled={locationEnabled}
         hint={locationEnabled ? '내 주변을 켜면 거리순으로 정렬됩니다.' : undefined}
-        onChange={(event) => setSort(event.target.value)}
+        onChange={(event) => setSort(event.target.value as HospitalSort)}
       />
 
       {locationEnabled && (
@@ -193,7 +167,11 @@ export default function HospitalListPage() {
 
   return (
     <div>
-      <PageHeader title="병원" />
+      <title>병원 찾기 | 펫케어</title>
+      <PageHeader
+        title="병원"
+        subtitle={isAuthenticated ? undefined : '로그인하면 바로 예약하고 즐겨찾기할 수 있어요'}
+      />
       <HospitalTabs />
 
       <div className="grid gap-5 md:grid-cols-[280px_1fr] md:items-start md:gap-6">
@@ -264,7 +242,7 @@ export default function HospitalListPage() {
                     hospital={hospital}
                     index={index}
                     isFavorite={favoriteIds.has(hospital.id)}
-                    onToggleFavorite={toggleFavorite}
+                    onToggleFavorite={isAuthenticated ? toggleFavorite : undefined}
                   />
                 </RevealItem>
               ))}

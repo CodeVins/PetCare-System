@@ -1,14 +1,23 @@
-import axiosInstance from './axiosInstance'
+import type { PageResponse, Reservation, ReservationType } from '../types/api'
+import axiosInstance, { type ApiPromise } from './axiosInstance'
 
-export function createReservation({ petId, slotId, type }) {
+export function createReservation({
+  petId,
+  slotId,
+  type,
+}: {
+  petId: number
+  slotId: number
+  type: ReservationType
+}): ApiPromise<Reservation> {
   return axiosInstance.post('/api/reservations', { petId, slotId, type })
 }
 
-export function getMyReservations() {
-  return axiosInstance.get('/api/reservations')
+export function getMyReservations(page = 0): ApiPromise<PageResponse<Reservation>> {
+  return axiosInstance.get('/api/reservations', { params: { page } })
 }
 
-export function cancelReservation(reservationId) {
+export function cancelReservation(reservationId: number): ApiPromise<null> {
   return axiosInstance.patch(`/api/reservations/${reservationId}/cancel`)
 }
 

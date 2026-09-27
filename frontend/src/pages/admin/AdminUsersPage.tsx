@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -5,6 +6,7 @@ import { activateUser, getAllUsers, suspendUser, updateUserRole } from '../../ap
 import Alert from '../../components/common/Alert'
 import { useAuth } from '../../hooks/useAuth'
 import AdminPageHeader from './AdminPageHeader'
+import type { User, Role } from '../../types/api'
 
 const ROLE_OPTIONS = ['USER', 'HOSPITAL_OWNER', 'ADMIN']
 const ROLE_FILTERS = [
@@ -14,10 +16,10 @@ const ROLE_FILTERS = [
 
 export default function AdminUsersPage() {
   const { userId: myUserId } = useAuth()
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [updatingUserId, setUpdatingUserId] = useState(null)
+  const [updatingUserId, setUpdatingUserId] = useState<number | null>(null)
 
   const [keyword, setKeyword] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
@@ -27,24 +29,24 @@ export default function AdminUsersPage() {
     getAllUsers()
       .then(({ data }) => setUsers(data.data.content))
       .catch((err) =>
-        setError(err.response?.data?.message || '사용자 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '사용자 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
-  const handleRoleChange = async (userId, role) => {
+  const handleRoleChange = async (userId: number, role: Role) => {
     setUpdatingUserId(userId)
     try {
       const { data } = await updateUserRole(userId, role)
       setUsers((prev) => prev.map((user) => (user.id === userId ? data.data : user)))
     } catch (err) {
-      setError(err.response?.data?.message || '역할 변경에 실패했습니다.')
+      setError(errorMessage(err, '역할 변경에 실패했습니다.'))
     } finally {
       setUpdatingUserId(null)
     }
   }
 
-  const handleToggleSuspend = async (user) => {
+  const handleToggleSuspend = async (user: User) => {
     setUpdatingUserId(user.id)
     try {
       const { data } = user.suspended
@@ -52,7 +54,7 @@ export default function AdminUsersPage() {
         : await suspendUser(user.id)
       setUsers((prev) => prev.map((u) => (u.id === user.id ? data.data : u)))
     } catch (err) {
-      setError(err.response?.data?.message || '처리에 실패했습니다.')
+      setError(errorMessage(err, '처리에 실패했습니다.'))
     } finally {
       setUpdatingUserId(null)
     }
@@ -176,7 +178,7 @@ export default function AdminUsersPage() {
                         <select
                           value={user.role}
                           disabled={isSelf || rowUpdating}
-                          onChange={(event) => handleRoleChange(user.id, event.target.value)}
+                          onChange={(event) => handleRoleChange(user.id, event.target.value as Role)}
                           className="admin-input py-1 disabled:opacity-50"
                         >
                           {ROLE_OPTIONS.map((role) => (

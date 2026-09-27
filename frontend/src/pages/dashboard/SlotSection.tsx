@@ -1,5 +1,6 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { CalendarBlank, X } from '@phosphor-icons/react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { createSlot, createSlotsBulk, deleteSlot, getSlots } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
@@ -8,8 +9,9 @@ import EmptyState from '../../components/common/EmptyState'
 import SelectField from '../../components/common/SelectField'
 import TextField from '../../components/common/TextField'
 import { formatDateLabel, formatTimeRange } from '../../lib/format'
+import type { DayOfWeek, Slot, SlotBulkPayload } from '../../types/api'
 
-const DAYS = [
+const DAYS: { value: DayOfWeek; label: string }[] = [
   { value: 'MONDAY', label: '월' },
   { value: 'TUESDAY', label: '화' },
   { value: 'WEDNESDAY', label: '수' },
@@ -21,7 +23,7 @@ const DAYS = [
 
 const INTERVAL_OPTIONS = [15, 20, 30, 60].map((m) => ({ value: m, label: `${m}분` }))
 
-const INITIAL_BULK = {
+const INITIAL_BULK: SlotBulkPayload = {
   startDate: '',
   endDate: '',
   daysOfWeek: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
@@ -30,18 +32,19 @@ const INITIAL_BULK = {
   intervalMinutes: 30,
 }
 
-function groupByDate(slots) {
-  const groups = new Map()
+function groupByDate(slots: Slot[]) {
+  const groups = new Map<string, Slot[]>()
   for (const slot of slots) {
     const dateKey = slot.startTime.slice(0, 10)
-    if (!groups.has(dateKey)) groups.set(dateKey, [])
-    groups.get(dateKey).push(slot)
+    const group = groups.get(dateKey) ?? []
+    group.push(slot)
+    groups.set(dateKey, group)
   }
   return Array.from(groups.entries())
 }
 
-export default function SlotSection({ hospitalId }) {
-  const [slots, setSlots] = useState([])
+export default function SlotSection({ hospitalId }: { hospitalId: number }) {
+  const [slots, setSlots] = useState<Slot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [mode, setMode] = useState('single')
@@ -50,14 +53,14 @@ export default function SlotSection({ hospitalId }) {
   const [creating, setCreating] = useState(false)
   const [formError, setFormError] = useState('')
   const [formResult, setFormResult] = useState('')
-  const [deletingId, setDeletingId] = useState(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const loadSlots = useCallback(() => {
     setLoading(true)
     setError('')
     getSlots(hospitalId)
       .then(({ data }) => setSlots(data.data.content))
-      .catch((err) => setError(err.response?.data?.message || '슬롯을 불러오지 못했습니다.'))
+      .catch((err) => setError(errorMessage(err, '슬롯을 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [hospitalId])
 
@@ -65,7 +68,7 @@ export default function SlotSection({ hospitalId }) {
     loadSlots()
   }, [loadSlots])
 
-  const toggleDay = (day) =>
+  const toggleDay = (day: DayOfWeek) =>
     setBulk((b) => ({
       ...b,
       daysOfWeek: b.daysOfWeek.includes(day)
@@ -86,7 +89,7 @@ export default function SlotSection({ hospitalId }) {
     return ''
   }
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormResult('')
     const message = validate()
@@ -109,13 +112,13 @@ export default function SlotSection({ hospitalId }) {
       }
       loadSlots()
     } catch (err) {
-      setFormError(err.response?.data?.message || '슬롯 등록에 실패했습니다.')
+      setFormError(errorMessage(err, '슬롯 등록에 실패했습니다.'))
     } finally {
       setCreating(false)
     }
   }
 
-  const handleDelete = async (slot) => {
+  const handleDelete = async (slot: Slot) => {
     const label = `${formatDateLabel(slot.startTime.slice(0, 10))} ${formatTimeRange(slot.startTime, slot.endTime)}`
     if (!window.confirm(`${label} 슬롯을 삭제할까요?`)) return
     setDeletingId(slot.id)
@@ -124,7 +127,7 @@ export default function SlotSection({ hospitalId }) {
       await deleteSlot(hospitalId, slot.id)
       setSlots((prev) => prev.filter((s) => s.id !== slot.id))
     } catch (err) {
-      setError(err.response?.data?.message || '슬롯 삭제에 실패했습니다.')
+      setError(errorMessage(err, '슬롯 삭제에 실패했습니다.'))
     } finally {
       setDeletingId(null)
     }

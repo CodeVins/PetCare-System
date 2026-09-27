@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 // 병원 목록 ↔ 즐겨찾기 세그먼트 (시안의 전체 / 즐겨찾기 탭)
+// 비회원이 즐겨찾기를 누르면 PrivateRoute가 "로그인 후 이용" 안내를 띄운다
 const TABS = [
   { to: '/hospitals', label: '전체' },
   { to: '/favorites', label: '즐겨찾기' },

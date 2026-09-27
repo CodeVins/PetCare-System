@@ -1,22 +1,9 @@
-import {
-  Buildings,
-  CalendarCheck,
-  ChatCircleDots,
-  Heart,
-  MapPin,
-  Star,
-} from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import { Buildings, CalendarCheck, ChatCircleDots, Heart, MapPin, Star } from '@phosphor-icons/react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { BASE_URL } from '../../api/axiosInstance'
+import { BASE_URL, errorMessage } from '../../api/axiosInstance'
 import { getOrCreateChatRoom } from '../../api/chatApi'
-import {
-  addFavorite,
-  getFavorites,
-  getHospital,
-  getSlots,
-  removeFavorite,
-} from '../../api/hospitalApi'
+import { getHospital, getSlots } from '../../api/hospitalApi'
 import { getMyPets } from '../../api/petApi'
 import { createReservation } from '../../api/reservationApi'
 import { joinWaitlist } from '../../api/waitlistApi'
@@ -24,118 +11,124 @@ import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import InfoRow from '../../components/common/InfoRow'
+import LoginRequired from '../../components/common/LoginRequired'
 import PageHeader from '../../components/common/PageHeader'
 import SelectField from '../../components/common/SelectField'
 import Tabs from '../../components/common/Tabs'
 import { useAuth } from '../../hooks/useAuth'
+import { useFavoriteIds } from '../../hooks/useFavoriteIds'
 import { formatDateLabel, formatTimeRange, RESERVATION_TYPE_LABEL } from '../../lib/format'
+import { OWNER_ROLES } from '../../lib/roles'
+import type { Hospital, Pet, ReservationType, Slot } from '../../types/api'
 import ReviewSection from './ReviewSection'
 
-const MANAGER_ROLES = ['HOSPITAL_OWNER', 'ADMIN']
+const RESERVATION_TYPE_OPTIONS = (
+  Object.entries(RESERVATION_TYPE_LABEL) as [ReservationType, string][]
+).map(([value, label]) => ({ value, label }))
 
-const RESERVATION_TYPE_OPTIONS = Object.entries(RESERVATION_TYPE_LABEL).map(
-  ([value, label]) => ({ value, label }),
-)
+type DetailTab = 'info' | 'booking' | 'reviews'
 
+// 비회원도 들어올 수 있는 화면 — 정보·예약 가능 시간·리뷰는 보여주고, 즐겨찾기·문의·예약·
+// 대기 신청처럼 계정이 필요한 동작만 "로그인 후 이용" 안내로 막는다.
 export default function HospitalDetailPage() {
-  const { hospitalId } = useParams()
+  const { hospitalId = '' } = useParams()
   const navigate = useNavigate()
-  const { role } = useAuth()
+  const { isAuthenticated, role } = useAuth()
 
-  const [hospital, setHospital] = useState(null)
-  const [slots, setSlots] = useState([])
-  const [pets, setPets] = useState([])
+  const [hospital, setHospital] = useState<Hospital | null>(null)
+  const [slots, setSlots] = useState<Slot[]>([])
+  const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState('info')
+  const [tab, setTab] = useState<DetailTab>('info')
+  // 비회원이 회원 기능 버튼(즐겨찾기/문의)을 눌렀을 때 안내를 띄울 기능 이름
+  const [gatedFeature, setGatedFeature] = useState('')
 
-  const [selectedSlotId, setSelectedSlotId] = useState(null)
+  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null)
   const [selectedPetId, setSelectedPetId] = useState('')
-  const [reservationType, setReservationType] = useState('')
-  const [reserving, setReserving] = useState(false)
+  const [reservationType, setReservationType] = useState<ReservationType | ''>('')
+  // 변경(2026-09-27): 예약 요청 진행 상태를 React 19 async transition으로 (이전: reserving useState)
+  const [reserving, startReserve] = useTransition()
   const [reserveError, setReserveError] = useState('')
 
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [favoriteSaving, setFavoriteSaving] = useState(false)
+  const { favoriteIds, toggleFavorite } = useFavoriteIds()
+  const isFavorite = favoriteIds.has(Number(hospitalId))
   const [chatError, setChatError] = useState('')
 
-  const [waitlistJoiningId, setWaitlistJoiningId] = useState(null)
+  const [waitlistJoiningId, setWaitlistJoiningId] = useState<number | null>(null)
   const [waitlistMessage, setWaitlistMessage] = useState('')
 
   useEffect(() => {
-    Promise.all([getHospital(hospitalId), getSlots(hospitalId), getMyPets(), getFavorites()])
-      .then(([hospitalRes, slotsRes, petsRes, favoritesRes]) => {
+    // 변경(2026-09-27): 병원·슬롯(공개)과 내 반려동물(회원 전용)을 분리 — 비회원은 공개 데이터만 조회
+    // (이전: getHospital/getSlots/getMyPets/getFavorites를 Promise.all로 한 번에 — 하나라도 401이면 화면 전체 실패)
+    Promise.all([getHospital(hospitalId), getSlots(hospitalId)])
+      .then(([hospitalRes, slotsRes]) => {
         setHospital(hospitalRes.data.data)
         setSlots(slotsRes.data.data.content)
-        const petList = petsRes.data.data.content
-        setPets(petList)
-        if (petList.length > 0) setSelectedPetId(String(petList[0].id))
-        setIsFavorite(
-          favoritesRes.data.data.content.some((h) => h.id === Number(hospitalId)),
-        )
       })
-      .catch((err) =>
-        setError(err.response?.data?.message || '병원 정보를 불러오지 못했습니다.'),
-      )
+      .catch((err) => setError(errorMessage(err, '병원 정보를 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [hospitalId])
 
-  const toggleFavorite = async () => {
-    const next = !isFavorite
-    setIsFavorite(next)
-    setFavoriteSaving(true)
-    try {
-      if (next) await addFavorite(hospitalId)
-      else await removeFavorite(hospitalId)
-    } catch {
-      setIsFavorite(!next)
-    } finally {
-      setFavoriteSaving(false)
-    }
+  useEffect(() => {
+    if (!isAuthenticated) return
+    getMyPets()
+      .then(({ data }) => {
+        const petList = data.data.content
+        setPets(petList)
+        if (petList.length > 0) setSelectedPetId(String(petList[0].id))
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
+
+  const handleFavoriteClick = () => {
+    if (!isAuthenticated) return setGatedFeature('즐겨찾기')
+    toggleFavorite(Number(hospitalId))
   }
 
   const handleChatClick = async () => {
+    if (!isAuthenticated) return setGatedFeature('병원 문의')
     setChatError('')
     try {
       const { data } = await getOrCreateChatRoom(Number(hospitalId))
       navigate(`/chats/${data.data.id}`)
     } catch (err) {
-      setChatError(err.response?.data?.message || '채팅을 시작하지 못했습니다.')
+      setChatError(errorMessage(err, '채팅을 시작하지 못했습니다.'))
     }
   }
 
   const slotsByDate = useMemo(() => {
-    const groups = new Map()
+    const groups = new Map<string, Slot[]>()
     for (const slot of slots) {
       const dateKey = slot.startTime.slice(0, 10)
-      if (!groups.has(dateKey)) groups.set(dateKey, [])
-      groups.get(dateKey).push(slot)
+      const group = groups.get(dateKey) ?? []
+      group.push(slot)
+      groups.set(dateKey, group)
     }
     return Array.from(groups.entries())
   }, [slots])
 
-  const handleReserve = async () => {
+  const handleReserve = () => {
     setReserveError('')
     if (!selectedPetId || !selectedSlotId || !reservationType) {
       setReserveError('반려동물, 진료 유형, 예약 시간을 모두 선택해 주세요.')
       return
     }
-    setReserving(true)
-    try {
-      await createReservation({
-        petId: Number(selectedPetId),
-        slotId: selectedSlotId,
-        type: reservationType,
-      })
-      navigate('/reservations', { replace: true })
-    } catch (err) {
-      setReserveError(err.response?.data?.message || '예약에 실패했습니다.')
-    } finally {
-      setReserving(false)
-    }
+    startReserve(async () => {
+      try {
+        await createReservation({
+          petId: Number(selectedPetId),
+          slotId: selectedSlotId,
+          type: reservationType,
+        })
+        navigate('/reservations', { replace: true })
+      } catch (err) {
+        setReserveError(errorMessage(err, '예약에 실패했습니다.'))
+      }
+    })
   }
 
-  const handleJoinWaitlist = async (slotId) => {
+  const handleJoinWaitlist = async (slotId: number) => {
     setWaitlistMessage('')
     if (!selectedPetId) {
       setWaitlistMessage('반려동물을 선택해 주세요.')
@@ -146,7 +139,7 @@ export default function HospitalDetailPage() {
       await joinWaitlist({ petId: Number(selectedPetId), slotId })
       setWaitlistMessage('대기 신청이 완료되었습니다. 자리가 나면 알림으로 알려드려요.')
     } catch (err) {
-      setWaitlistMessage(err.response?.data?.message || '대기 신청에 실패했습니다.')
+      setWaitlistMessage(errorMessage(err, '대기 신청에 실패했습니다.'))
     } finally {
       setWaitlistJoiningId(null)
     }
@@ -161,28 +154,79 @@ export default function HospitalDetailPage() {
     )
   }
 
-  if (error) return <Alert tone="error">{error}</Alert>
+  if (error || !hospital) return <Alert tone="error">{error}</Alert>
 
   const hasAvailableSlot = slots.some((slot) => slot.status === 'AVAILABLE')
 
-  const tabs = [
+  const tabs: { value: DetailTab; label: string }[] = [
     { value: 'info', label: '정보' },
     { value: 'booking', label: '예약' },
     { value: 'reviews', label: `리뷰 ${hospital.reviewCount ?? 0}` },
   ]
 
+  // 날짜별 예약 시간 칩. 비회원에게는 누를 수 없는 표시용으로만 보여준다.
+  const slotList =
+    slotsByDate.length === 0 ? (
+      <div className="card">
+        <EmptyState icon={CalendarCheck}>등록된 예약 시간이 없습니다.</EmptyState>
+      </div>
+    ) : (
+      <div className="flex flex-col gap-4">
+        {slotsByDate.map(([dateKey, dateSlots]) => (
+          <div key={dateKey}>
+            <p className="mb-2 text-[13px] font-bold text-stone-600">{formatDateLabel(dateKey)}</p>
+            <div className="flex flex-wrap gap-2">
+              {dateSlots.map((slot) => {
+                const label = formatTimeRange(slot.startTime, slot.endTime)
+                if (!isAuthenticated) {
+                  return (
+                    <span
+                      key={slot.id}
+                      className={`chip cursor-default ${
+                        slot.status === 'AVAILABLE' ? '' : 'bg-stone-50 text-stone-400 line-through'
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  )
+                }
+                return slot.status === 'AVAILABLE' ? (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    aria-pressed={selectedSlotId === slot.id}
+                    onClick={() => setSelectedSlotId(slot.id)}
+                    className={`chip ${selectedSlotId === slot.id ? 'chip-on' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => handleJoinWaitlist(slot.id)}
+                    disabled={waitlistJoiningId === slot.id}
+                    className="chip border-dashed bg-stone-50 text-stone-500 hover:text-brand-600 disabled:opacity-50"
+                  >
+                    {label} · 대기
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+
   return (
     <div>
+      <title>{`${hospital.name} | 펫케어`}</title>
       <PageHeader back title="병원 상세" />
 
       {/* 히어로 — 이미지가 없으면 시안처럼 teal 배경에 아이콘 */}
       <div className="mb-4 flex h-44 items-center justify-center overflow-hidden rounded-2xl bg-brand-100 text-brand-600">
         {hospital.imageUrl ? (
-          <img
-            src={`${BASE_URL}${hospital.imageUrl}`}
-            alt=""
-            className="size-full object-cover"
-          />
+          <img src={`${BASE_URL}${hospital.imageUrl}`} alt="" className="size-full object-cover" />
         ) : (
           <Buildings size={56} />
         )}
@@ -195,8 +239,7 @@ export default function HospitalDetailPage() {
               <h2 className="font-display text-[26px] leading-snug">{hospital.name}</h2>
               <button
                 type="button"
-                onClick={toggleFavorite}
-                disabled={favoriteSaving}
+                onClick={handleFavoriteClick}
                 aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                 aria-pressed={isFavorite}
                 className={`-mr-2 -mt-1 flex size-11 shrink-0 items-center justify-center rounded-full transition-colors ${
@@ -231,9 +274,7 @@ export default function HospitalDetailPage() {
                 <span className="badge badge-neutral h-6 px-2.5 text-xs">주차 가능</span>
               )}
               {hospital.is24Hours && (
-                <span className="badge h-6 bg-brand-50 px-2.5 text-xs text-brand-700">
-                  24시간
-                </span>
+                <span className="badge h-6 bg-brand-50 px-2.5 text-xs text-brand-700">24시간</span>
               )}
               {hospital.openingHours && (
                 <span className="badge h-6 bg-brand-50 px-2.5 text-xs text-brand-700">
@@ -242,24 +283,15 @@ export default function HospitalDetailPage() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleChatClick}
-              className="btn btn-secondary mt-1 w-full"
-            >
+            <button type="button" onClick={handleChatClick} className="btn btn-secondary mt-1 w-full">
               <ChatCircleDots size={20} />
               병원에 문의하기
             </button>
             <Alert tone="error">{chatError}</Alert>
+            {gatedFeature && <LoginRequired feature={gatedFeature} compact />}
           </section>
 
-          <Tabs
-            tabs={tabs}
-            value={tab}
-            onChange={setTab}
-            label="병원 정보"
-            layoutId="hospital-tab"
-          />
+          <Tabs tabs={tabs} value={tab} onChange={setTab} label="병원 정보" layoutId="hospital-tab" />
 
           {tab === 'info' && (
             <dl className="card m-0 px-4 py-1">
@@ -272,11 +304,22 @@ export default function HospitalDetailPage() {
               </InfoRow>
               <InfoRow term="주차">{hospital.hasParking ? '가능' : '불가'}</InfoRow>
               <InfoRow term="24시간 운영">{hospital.is24Hours ? '예' : '아니요'}</InfoRow>
-              <InfoRow term="전화번호">{hospital.phone}</InfoRow>
+              {/* 변경(2026-09-27): 전화번호 행 삭제 — HospitalResponse에 phone 필드가 없어 항상 숨겨지던
+                  죽은 코드 (TS 전환하면서 타입 에러로 발견. 이전: <InfoRow term="전화번호">{hospital.phone}</InfoRow>) */}
             </dl>
           )}
 
-          {tab === 'booking' && (
+          {tab === 'booking' && !isAuthenticated && (
+            <div className="flex flex-col gap-5">
+              <div>
+                <p className="mb-2 text-sm font-medium text-stone-700">예약 가능한 시간</p>
+                {slotList}
+              </div>
+              <LoginRequired feature="진료 예약" compact />
+            </div>
+          )}
+
+          {tab === 'booking' && isAuthenticated && (
             <div className="flex flex-col gap-5">
               {pets.length === 0 ? (
                 <div className="card">
@@ -304,59 +347,16 @@ export default function HospitalDetailPage() {
                     label="진료 유형"
                     value={reservationType}
                     options={[{ value: '', label: '선택해 주세요' }, ...RESERVATION_TYPE_OPTIONS]}
-                    onChange={(event) => setReservationType(event.target.value)}
+                    onChange={(event) =>
+                      setReservationType(event.target.value as ReservationType | '')
+                    }
                   />
 
                   <div>
                     <p className="mb-2 text-sm font-medium text-stone-700">
                       날짜와 시간을 선택해 주세요
                     </p>
-
-                    {slotsByDate.length === 0 ? (
-                      <div className="card">
-                        <EmptyState icon={CalendarCheck}>
-                          등록된 예약 시간이 없습니다.
-                        </EmptyState>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-4">
-                        {slotsByDate.map(([dateKey, dateSlots]) => (
-                          <div key={dateKey}>
-                            <p className="mb-2 text-[13px] font-bold text-stone-600">
-                              {formatDateLabel(dateKey)}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {dateSlots.map((slot) =>
-                                slot.status === 'AVAILABLE' ? (
-                                  <button
-                                    key={slot.id}
-                                    type="button"
-                                    aria-pressed={selectedSlotId === slot.id}
-                                    onClick={() => setSelectedSlotId(slot.id)}
-                                    className={`chip ${
-                                      selectedSlotId === slot.id ? 'chip-on' : ''
-                                    }`}
-                                  >
-                                    {formatTimeRange(slot.startTime, slot.endTime)}
-                                  </button>
-                                ) : (
-                                  <button
-                                    key={slot.id}
-                                    type="button"
-                                    onClick={() => handleJoinWaitlist(slot.id)}
-                                    disabled={waitlistJoiningId === slot.id}
-                                    className="chip border-dashed bg-stone-50 text-stone-500 hover:text-brand-600 disabled:opacity-50"
-                                  >
-                                    {formatTimeRange(slot.startTime, slot.endTime)} · 대기
-                                  </button>
-                                ),
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
+                    {slotList}
                     {waitlistMessage && (
                       <p className="mt-2 text-sm text-stone-600">{waitlistMessage}</p>
                     )}
@@ -381,7 +381,7 @@ export default function HospitalDetailPage() {
           {tab === 'reviews' && (
             <ReviewSection
               hospitalId={hospitalId}
-              isManager={MANAGER_ROLES.includes(role)}
+              isManager={role !== null && OWNER_ROLES.includes(role)}
               averageRating={hospital.averageRating}
               reviewCount={hospital.reviewCount}
             />
@@ -392,9 +392,11 @@ export default function HospitalDetailPage() {
         <aside className="card hidden flex-col gap-3 p-5 lg:flex">
           <h2 className="h-section">진료 예약</h2>
           <p className="text-sm text-stone-600">
-            {hasAvailableSlot
-              ? '예약 탭에서 반려동물과 시간을 고르면 바로 예약돼요.'
-              : '지금은 예약 가능한 시간이 없어요. 마감된 시간에 대기 신청할 수 있습니다.'}
+            {!isAuthenticated
+              ? '예약 가능한 시간을 확인하고, 로그인 후 바로 예약할 수 있어요.'
+              : hasAvailableSlot
+                ? '예약 탭에서 반려동물과 시간을 고르면 바로 예약돼요.'
+                : '지금은 예약 가능한 시간이 없어요. 마감된 시간에 대기 신청할 수 있습니다.'}
           </p>
           <button
             type="button"

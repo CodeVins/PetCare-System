@@ -1,5 +1,6 @@
 import { ChatCircleDots, Star, WarningCircle } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { errorMessage } from '../../api/axiosInstance'
 import {
   createReply,
   createReview,
@@ -13,10 +14,13 @@ import {
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
+import LoginRequired from '../../components/common/LoginRequired'
 import Stars from '../../components/common/Stars'
+import { useAuth } from '../../hooks/useAuth'
+import type { Review } from '../../types/api'
 
 // 별 자체를 누르는 평점 입력 (radiogroup 시맨틱 유지)
-function StarPicker({ value, onChange }) {
+function StarPicker({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return (
     <div role="radiogroup" aria-label="평점" className="-ml-1.5 flex">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -38,14 +42,23 @@ function StarPicker({ value, onChange }) {
   )
 }
 
+interface ReviewSectionProps {
+  hospitalId: number | string
+  isManager: boolean
+  canWrite?: boolean
+  averageRating?: number | null
+  reviewCount?: number
+}
+
 export default function ReviewSection({
   hospitalId,
   isManager,
   canWrite = true,
   averageRating,
   reviewCount,
-}) {
-  const [reviews, setReviews] = useState([])
+}: ReviewSectionProps) {
+  const { isAuthenticated } = useAuth()
+  const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -55,19 +68,19 @@ export default function ReviewSection({
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
-  const [reportingId, setReportingId] = useState(null)
+  const [reportingId, setReportingId] = useState<number | null>(null)
   const [reportReason, setReportReason] = useState('')
   const [reporting, setReporting] = useState(false)
   const [reportMessage, setReportMessage] = useState('')
 
-  const [replyingId, setReplyingId] = useState(null)
+  const [replyingId, setReplyingId] = useState<number | null>(null)
   const [replyContent, setReplyContent] = useState('')
   const [replySaving, setReplySaving] = useState(false)
 
   useEffect(() => {
     getReviews(hospitalId)
       .then(({ data }) => setReviews(data.data.content))
-      .catch((err) => setError(err.response?.data?.message || '리뷰를 불러오지 못했습니다.'))
+      .catch((err) => setError(errorMessage(err, '리뷰를 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [hospitalId])
 
@@ -91,7 +104,7 @@ export default function ReviewSection({
     setFormError('')
   }
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormError('')
     setSaving(true)
@@ -111,7 +124,7 @@ export default function ReviewSection({
       }
       cancelEdit()
     } catch (err) {
-      setFormError(err.response?.data?.message || '저장에 실패했습니다.')
+      setFormError(errorMessage(err, '저장에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
@@ -125,11 +138,11 @@ export default function ReviewSection({
       setReviews((prev) => prev.filter((review) => review.id !== myReviewId))
       cancelEdit()
     } catch (err) {
-      setError(err.response?.data?.message || '삭제에 실패했습니다.')
+      setError(errorMessage(err, '삭제에 실패했습니다.'))
     }
   }
 
-  const handleReport = async (reviewId) => {
+  const handleReport = async (reviewId: number) => {
     if (!reportReason.trim()) return
     setReporting(true)
     setReportMessage('')
@@ -139,38 +152,36 @@ export default function ReviewSection({
       setReportReason('')
       setTimeout(() => setReportingId(null), 800)
     } catch (err) {
-      setReportMessage(err.response?.data?.message || '신고에 실패했습니다.')
+      setReportMessage(errorMessage(err, '신고에 실패했습니다.'))
     } finally {
       setReporting(false)
     }
   }
 
-  const startReplyEdit = (review) => {
+  const startReplyEdit = (review: Pick<Review, 'id' | 'reply'>) => {
     setReplyingId(review.id)
     setReplyContent(review.reply?.content || '')
   }
 
-  const handleReplySubmit = async (reviewId, hasExistingReply) => {
+  const handleReplySubmit = async (reviewId: number, hasExistingReply: boolean) => {
     if (!replyContent.trim()) return
     setReplySaving(true)
     try {
       const action = hasExistingReply ? updateReply : createReply
       const { data } = await action(hospitalId, reviewId, replyContent.trim())
       setReviews((prev) =>
-        prev.map((review) =>
-          review.id === reviewId ? { ...review, reply: data.data } : review,
-        ),
+        prev.map((review) => (review.id === reviewId ? { ...review, reply: data.data } : review)),
       )
       setReplyingId(null)
       setReplyContent('')
     } catch (err) {
-      setError(err.response?.data?.message || '답글 저장에 실패했습니다.')
+      setError(errorMessage(err, '답글 저장에 실패했습니다.'))
     } finally {
       setReplySaving(false)
     }
   }
 
-  const handleReplyDelete = async (reviewId) => {
+  const handleReplyDelete = async (reviewId: number) => {
     if (!window.confirm('답글을 삭제할까요?')) return
     try {
       await deleteReply(hospitalId, reviewId)
@@ -178,7 +189,7 @@ export default function ReviewSection({
         prev.map((review) => (review.id === reviewId ? { ...review, reply: null } : review)),
       )
     } catch (err) {
-      setError(err.response?.data?.message || '삭제에 실패했습니다.')
+      setError(errorMessage(err, '삭제에 실패했습니다.'))
     }
   }
 
@@ -196,9 +207,7 @@ export default function ReviewSection({
     <div className="flex flex-col gap-3">
       {average != null && (
         <section className="card flex items-center gap-4 p-5">
-          <span className="font-display text-[44px] leading-none">
-            {average.toFixed(1)}
-          </span>
+          <span className="font-display text-[44px] leading-none">{average.toFixed(1)}</span>
           <div className="flex flex-col gap-0.5">
             <Stars value={Math.round(average)} size={18} />
             <span className="text-[13px] text-stone-600">리뷰 {count}개</span>
@@ -206,7 +215,10 @@ export default function ReviewSection({
         </section>
       )}
 
-      {canWrite && (!myReview || editing) && (
+      {/* 변경(2026-09-27): 비회원은 작성 폼 대신 로그인 안내 (이전: 로그인 전제라 분기 없음) */}
+      {canWrite && !isAuthenticated && <LoginRequired feature="리뷰 작성" compact />}
+
+      {canWrite && isAuthenticated && (!myReview || editing) && (
         <form
           onSubmit={handleSubmit}
           className="card flex flex-col gap-3 p-5"
@@ -296,47 +308,50 @@ export default function ReviewSection({
                   </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-3">
-                  {isMine ? (
-                    <>
+                {/* 비회원은 신고/수정 같은 동작 줄 자체를 숨긴다 */}
+                {isAuthenticated && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    {isMine ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={startEdit}
+                          className={`${linkBtn} text-brand-600`}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDelete}
+                          className={`${linkBtn} text-red-700`}
+                        >
+                          삭제
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
-                        onClick={startEdit}
+                        onClick={() => {
+                          setReportingId(review.id)
+                          setReportMessage('')
+                        }}
+                        className={`${linkBtn} flex items-center gap-1 text-stone-600 hover:text-red-700`}
+                      >
+                        <WarningCircle size={14} />
+                        신고
+                      </button>
+                    )}
+                    {isManager && !review.reply && replyingId !== review.id && (
+                      <button
+                        type="button"
+                        onClick={() => startReplyEdit({ id: review.id, reply: null })}
                         className={`${linkBtn} text-brand-600`}
                       >
-                        수정
+                        답글 달기
                       </button>
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        className={`${linkBtn} text-red-700`}
-                      >
-                        삭제
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReportingId(review.id)
-                        setReportMessage('')
-                      }}
-                      className={`${linkBtn} flex items-center gap-1 text-stone-600 hover:text-red-700`}
-                    >
-                      <WarningCircle size={14} />
-                      신고
-                    </button>
-                  )}
-                  {isManager && !review.reply && replyingId !== review.id && (
-                    <button
-                      type="button"
-                      onClick={() => startReplyEdit({ id: review.id, reply: null })}
-                      className={`${linkBtn} text-brand-600`}
-                    >
-                      답글 달기
-                    </button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
 
                 {reportingId === review.id && (
                   <div className="flex flex-col gap-2">
@@ -358,9 +373,7 @@ export default function ReviewSection({
                         제출
                       </button>
                     </div>
-                    {reportMessage && (
-                      <p className="text-[13px] text-stone-600">{reportMessage}</p>
-                    )}
+                    {reportMessage && <p className="text-[13px] text-stone-600">{reportMessage}</p>}
                   </div>
                 )}
 

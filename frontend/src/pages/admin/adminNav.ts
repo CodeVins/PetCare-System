@@ -5,10 +5,11 @@ import {
   Flag,
   Gauge,
   Users,
+  type Icon,
 } from '@phosphor-icons/react'
 
 // AdminLayout의 사이드바(데스크톱)와 상단 탭(모바일)이 공유하는 메뉴 정의.
-export const ADMIN_NAV = [
+export const ADMIN_NAV: { to: string; label: string; icon: Icon; end?: boolean }[] = [
   { to: '/admin', label: '대시보드', icon: Gauge, end: true },
   { to: '/admin/stats', label: '통계', icon: ChartBar },
   { to: '/admin/users', label: '사용자', icon: Users },

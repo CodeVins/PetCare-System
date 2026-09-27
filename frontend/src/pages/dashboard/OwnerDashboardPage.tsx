@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { Buildings } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { getHospitals } from '../../api/hospitalApi'
@@ -9,17 +10,23 @@ import Tabs from '../../components/common/Tabs'
 import ReviewSection from '../hospital/ReviewSection'
 import HospitalInfoSection from './HospitalInfoSection'
 import ReservationQueueSection from './ReservationQueueSection'
+import ReviewReportSection from './ReviewReportSection'
 import SlotSection from './SlotSection'
+import type { Hospital } from '../../types/api'
 
 const TABS = [
   { value: 'reservations', label: '예약 관리' },
   { value: 'hospital', label: '병원 정보' },
   { value: 'slots', label: '예약 슬롯' },
   { value: 'reviews', label: '리뷰 답글' },
+  { value: 'reports', label: '리뷰 신고' },
 ]
 
+// 병원 선택 없이 서버가 권한 범위로 스코핑해서 주는 탭
+const HOSPITAL_FREE_TABS = ['reservations', 'reports']
+
 export default function OwnerDashboardPage() {
-  const [hospitals, setHospitals] = useState([])
+  const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -32,18 +39,19 @@ export default function OwnerDashboardPage() {
         if (data.data.length > 0) setSelectedId(String(data.data[0].id))
       })
       .catch((err) =>
-        setError(err.response?.data?.message || '병원 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '병원 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
   const selectedHospital = hospitals.find((h) => String(h.id) === selectedId) || null
 
-  const handleHospitalUpdated = (updated) => {
+  const handleHospitalUpdated = (updated: Hospital) => {
     setHospitals((prev) => prev.map((h) => (h.id === updated.id ? updated : h)))
   }
 
-  const needsHospital = tab !== 'reservations'
+  // 변경(2026-09-27): 리뷰 신고 탭도 병원 선택 불필요 (이전: 예약 관리 탭만 예외)
+  const needsHospital = !HOSPITAL_FREE_TABS.includes(tab)
 
   return (
     <div>
@@ -80,6 +88,12 @@ export default function OwnerDashboardPage() {
       />
 
       {tab === 'reservations' && <ReservationQueueSection />}
+
+      {tab === 'reports' && (
+        <ReviewReportSection
+          hospitalNameById={Object.fromEntries(hospitals.map((h) => [h.id, h.name]))}
+        />
+      )}
 
       {needsHospital && !selectedHospital && !loading && (
         <div className="card">

@@ -1,7 +1,7 @@
 import { PawPrint } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BASE_URL } from '../../api/axiosInstance'
+import { BASE_URL, errorMessage } from '../../api/axiosInstance'
 import { getHealthCheckQuestions, submitHealthCheck } from '../../api/healthCheckApi'
 import { getMyPets } from '../../api/petApi'
 import Alert from '../../components/common/Alert'
@@ -9,6 +9,7 @@ import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { petSubtitle } from '../../lib/format'
+import type { HealthCheckQuestion, HealthCheckResult, Pet } from '../../types/api'
 
 const RISK = {
   LOW: ['낮음', 'bg-green-100 text-green-800'],
@@ -19,19 +20,19 @@ const RISK = {
 const ACCENTS = ['', 'icon-badge-amber', 'icon-badge-sky']
 
 export default function HealthCheckPage() {
-  const [questions, setQuestions] = useState([])
-  const [pets, setPets] = useState([])
+  const [questions, setQuestions] = useState<HealthCheckQuestion[]>([])
+  const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [petId, setPetId] = useState('')
-  const [answers, setAnswers] = useState({})
+  const [answers, setAnswers] = useState<Record<string, string>>({})
   const [saveRecord, setSaveRecord] = useState(true)
   // -1 = 시작 화면(반려동물 선택), 0..n-1 = 문항, 결과는 result로 판단
   const [step, setStep] = useState(-1)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState<HealthCheckResult | null>(null)
 
   useEffect(() => {
     Promise.all([getHealthCheckQuestions(), getMyPets()])
@@ -42,7 +43,7 @@ export default function HealthCheckPage() {
         if (list.length > 0) setPetId(String(list[0].id))
       })
       .catch((err) =>
-        setError(err.response?.data?.message || '문진 정보를 불러오지 못했습니다.'),
+        setError(errorMessage(err, '문진 정보를 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
@@ -63,7 +64,7 @@ export default function HealthCheckPage() {
       })
       setResult(data.data)
     } catch (err) {
-      setSubmitError(err.response?.data?.message || '제출에 실패했습니다.')
+      setSubmitError(errorMessage(err, '제출에 실패했습니다.'))
     } finally {
       setSubmitting(false)
     }

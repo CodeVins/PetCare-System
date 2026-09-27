@@ -1,5 +1,12 @@
+interface ToggleProps {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  labelledBy?: string
+}
+
 // 52x32 스위치. checkbox 대신 role="switch" 버튼으로 두어 시안 모양을 그대로 쓴다.
-export default function Toggle({ checked, onChange, disabled, labelledBy }) {
+export default function Toggle({ checked, onChange, disabled, labelledBy }: ToggleProps) {
   return (
     <button
       type="button"

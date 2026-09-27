@@ -1,6 +1,7 @@
 import { Buildings, Heart, Star } from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
 import { BASE_URL } from '../../api/axiosInstance'
+import type { Hospital } from '../../types/api'
 
 // 보조 액센트 순환 (teal → amber → sky)
 const THUMB_ACCENTS = [
@@ -9,7 +10,20 @@ const THUMB_ACCENTS = [
   'bg-sky-100 text-sky-700',
 ]
 
-export default function HospitalCard({ hospital, isFavorite, onToggleFavorite, index = 0 }) {
+interface HospitalCardProps {
+  hospital: Hospital
+  isFavorite?: boolean
+  // 없으면 하트 버튼을 그리지 않는다 (비회원 등)
+  onToggleFavorite?: (hospitalId: number) => void
+  index?: number
+}
+
+export default function HospitalCard({
+  hospital,
+  isFavorite = false,
+  onToggleFavorite,
+  index = 0,
+}: HospitalCardProps) {
   return (
     <article className="card-interactive relative flex gap-3 p-3">
       {/* 카드 전체를 덮는 링크 — 안쪽 즐겨찾기 버튼만 위로 띄운다 */}
@@ -25,11 +39,7 @@ export default function HospitalCard({ hospital, isFavorite, onToggleFavorite, i
         }`}
       >
         {hospital.imageUrl ? (
-          <img
-            src={`${BASE_URL}${hospital.imageUrl}`}
-            alt=""
-            className="size-full object-cover"
-          />
+          <img src={`${BASE_URL}${hospital.imageUrl}`} alt="" className="size-full object-cover" />
         ) : (
           <Buildings size={36} />
         )}
@@ -69,9 +79,7 @@ export default function HospitalCard({ hospital, isFavorite, onToggleFavorite, i
             <span className="badge badge-neutral h-6 px-2 text-xs">주차 가능</span>
           )}
           {hospital.openingHours && (
-            <span className="text-xs leading-6 text-stone-600">
-              {hospital.openingHours}
-            </span>
+            <span className="text-xs leading-6 text-stone-600">{hospital.openingHours}</span>
           )}
         </div>
       </div>

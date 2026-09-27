@@ -1,5 +1,6 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { UserCircle } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   getGuardians,
@@ -11,9 +12,16 @@ import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import TextField from '../../components/common/TextField'
+import type { PetGuardian } from '../../types/api'
 
-export default function GuardianSection({ petId, isOwner }) {
-  const [guardians, setGuardians] = useState([])
+export default function GuardianSection({
+  petId,
+  isOwner,
+}: {
+  petId: number | string
+  isOwner: boolean
+}) {
+  const [guardians, setGuardians] = useState<PetGuardian[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -21,7 +29,7 @@ export default function GuardianSection({ petId, isOwner }) {
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState('')
 
-  const [actingUserId, setActingUserId] = useState(null)
+  const [actingUserId, setActingUserId] = useState<number | null>(null)
   const [leaving, setLeaving] = useState(false)
 
   const navigate = useNavigate()
@@ -30,12 +38,12 @@ export default function GuardianSection({ petId, isOwner }) {
     getGuardians(petId)
       .then(({ data }) => setGuardians(data.data))
       .catch((err) =>
-        setError(err.response?.data?.message || '보호자 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '보호자 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [petId])
 
-  const handleInvite = async (event) => {
+  const handleInvite = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setInviteError('')
     setInviting(true)
@@ -44,20 +52,20 @@ export default function GuardianSection({ petId, isOwner }) {
       setGuardians((prev) => [...prev, data.data])
       setEmail('')
     } catch (err) {
-      setInviteError(err.response?.data?.message || '초대에 실패했습니다.')
+      setInviteError(errorMessage(err, '초대에 실패했습니다.'))
     } finally {
       setInviting(false)
     }
   }
 
-  const handleRemove = async (userId) => {
+  const handleRemove = async (userId: number) => {
     if (!window.confirm('이 보호자를 내보낼까요?')) return
     setActingUserId(userId)
     try {
       await removeGuardian(petId, userId)
       setGuardians((prev) => prev.filter((guardian) => guardian.userId !== userId))
     } catch (err) {
-      setError(err.response?.data?.message || '처리에 실패했습니다.')
+      setError(errorMessage(err, '처리에 실패했습니다.'))
     } finally {
       setActingUserId(null)
     }
@@ -70,7 +78,7 @@ export default function GuardianSection({ petId, isOwner }) {
       await leaveGuardian(petId)
       navigate('/pets', { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || '처리에 실패했습니다.')
+      setError(errorMessage(err, '처리에 실패했습니다.'))
       setLeaving(false)
     }
   }

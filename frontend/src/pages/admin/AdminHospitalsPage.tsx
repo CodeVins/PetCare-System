@@ -1,14 +1,16 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { ArrowSquareOut, MagnifyingGlass, Star } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { getAllUsers, updateHospitalOwner } from '../../api/adminApi'
 import { createHospital, getHospitals } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
 import AdminPageHeader from './AdminPageHeader'
+import type { Hospital, User } from '../../types/api'
 
 export default function AdminHospitalsPage() {
-  const [hospitals, setHospitals] = useState([])
-  const [users, setUsers] = useState([])
+  const [hospitals, setHospitals] = useState<Hospital[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -30,12 +32,12 @@ export default function AdminHospitalsPage() {
         setUsers(usersRes.data.data.content)
       })
       .catch((err) =>
-        setError(err.response?.data?.message || '병원 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '병원 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
-  const handleCreateHospital = async (event) => {
+  const handleCreateHospital = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setCreateError('')
     setCreating(true)
@@ -48,13 +50,13 @@ export default function AdminHospitalsPage() {
       setNewName('')
       setNewAddress('')
     } catch (err) {
-      setCreateError(err.response?.data?.message || '병원 등록에 실패했습니다.')
+      setCreateError(errorMessage(err, '병원 등록에 실패했습니다.'))
     } finally {
       setCreating(false)
     }
   }
 
-  const handleOwnerAssign = async (event) => {
+  const handleOwnerAssign = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setOwnerMessage('')
     if (!ownerHospitalId || !ownerUserId) {
@@ -63,10 +65,10 @@ export default function AdminHospitalsPage() {
     }
     setOwnerSaving(true)
     try {
-      await updateHospitalOwner(ownerHospitalId, Number(ownerUserId))
+      await updateHospitalOwner(Number(ownerHospitalId), Number(ownerUserId))
       setOwnerMessage('병원 소유자를 지정했습니다. USER였다면 자동으로 HOSPITAL_OWNER로 승격됩니다.')
     } catch (err) {
-      setOwnerMessage(err.response?.data?.message || '지정에 실패했습니다.')
+      setOwnerMessage(errorMessage(err, '지정에 실패했습니다.'))
     } finally {
       setOwnerSaving(false)
     }

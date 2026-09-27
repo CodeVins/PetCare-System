@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { Buildings, ChatCircleDots } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -6,6 +7,7 @@ import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
+import type { ChatRoom } from '../../types/api'
 
 const ACCENTS = [
   'bg-brand-100 text-brand-600',
@@ -17,7 +19,7 @@ export default function ChatRoomListPage() {
   const { role } = useAuth()
   const isOwnerView = role === 'HOSPITAL_OWNER' || role === 'ADMIN'
 
-  const [rooms, setRooms] = useState([])
+  const [rooms, setRooms] = useState<ChatRoom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -25,7 +27,7 @@ export default function ChatRoomListPage() {
     getMyChatRooms()
       .then(({ data }) => setRooms(data.data.content))
       .catch((err) =>
-        setError(err.response?.data?.message || '채팅 목록을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '채팅 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])

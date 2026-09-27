@@ -1,37 +1,37 @@
 import { Heart } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { errorMessage } from '../../api/axiosInstance'
 import { getFavorites, removeFavorite } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
+import type { Hospital } from '../../types/api'
 import HospitalCard from './HospitalCard'
 import HospitalTabs from './HospitalTabs'
 
 export default function FavoriteHospitalListPage() {
-  const [hospitals, setHospitals] = useState([])
+  const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     getFavorites()
       .then(({ data }) => setHospitals(data.data.content))
-      .catch((err) =>
-        setError(err.response?.data?.message || '즐겨찾기 목록을 불러오지 못했습니다.'),
-      )
+      .catch((err) => setError(errorMessage(err, '즐겨찾기 목록을 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [])
 
-  const handleToggle = async (hospitalId) => {
+  const handleToggle = async (hospitalId: number) => {
     const removed = hospitals.find((hospital) => hospital.id === hospitalId)
     setHospitals((prev) => prev.filter((hospital) => hospital.id !== hospitalId))
     try {
       await removeFavorite(hospitalId)
     } catch (err) {
       // 실패하면 목록에 되돌려 놓는다
-      setHospitals((prev) => [...prev, removed])
-      setError(err.response?.data?.message || '삭제에 실패했습니다.')
+      if (removed) setHospitals((prev) => [...prev, removed])
+      setError(errorMessage(err, '삭제에 실패했습니다.'))
     }
   }
 

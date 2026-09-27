@@ -1,34 +1,36 @@
 import { EnvelopeSimple } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useActionState } from 'react'
 import { Link } from 'react-router-dom'
 import { requestPasswordReset } from '../../api/authApi'
+import { errorMessage } from '../../api/axiosInstance'
 import Alert from '../../components/common/Alert'
-import Button from '../../components/common/Button'
+import SubmitButton from '../../components/common/SubmitButton'
 import TextField from '../../components/common/TextField'
 import AuthShell from './AuthShell'
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+interface ForgotState {
+  email: string
+  error: string
+  submitted: boolean
+}
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      await requestPasswordReset(email)
-      setSubmitted(true)
-    } catch (err) {
-      setError(err.response?.data?.message || '요청에 실패했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }
+export default function ForgotPasswordPage() {
+  // 변경(2026-09-27): useActionState + <form action>으로 전환 (이전: useState 4개 + onSubmit)
+  const [state, formAction] = useActionState<ForgotState, FormData>(
+    async (_prev, formData) => {
+      const email = String(formData.get('email'))
+      try {
+        await requestPasswordReset(email)
+        return { email, error: '', submitted: true }
+      } catch (err) {
+        return { email, error: errorMessage(err, '요청에 실패했습니다.'), submitted: false }
+      }
+    },
+    { email: '', error: '', submitted: false },
+  )
 
   // 전송 완료 화면 (ForgotSent) — 큰 원형 아이콘 + 다음 행동 버튼
-  if (submitted) {
+  if (state.submitted) {
     return (
       <div className="flex min-h-dvh justify-center bg-stone-50 px-6 pb-8 pt-12 md:items-center md:pt-8">
         <div className="flex w-full max-w-[420px] flex-col items-center gap-5 text-center">
@@ -54,26 +56,21 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthShell
-      title="비밀번호 재설정"
-      description="가입하신 이메일로 재설정 링크를 보내드려요"
-    >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <AuthShell title="비밀번호 재설정" description="가입하신 이메일로 재설정 링크를 보내드려요">
+      <form action={formAction} className="flex flex-col gap-4">
         <TextField
           label="이메일"
+          name="email"
           type="email"
           autoComplete="email"
           placeholder="user@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          defaultValue={state.email}
           required
         />
 
-        <Alert tone="error">{error}</Alert>
+        <Alert tone="error">{state.error}</Alert>
 
-        <Button type="submit" loading={loading} className="mt-2 w-full">
-          재설정 링크 받기
-        </Button>
+        <SubmitButton className="mt-2 w-full">재설정 링크 받기</SubmitButton>
       </form>
 
       <Link

@@ -8,13 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
+    <!-- 변경(2026-09-27): Jua만 display=block으로 분리. 한글 웹폰트는 글자 범위별 조각으로 나뉘어 받는데,
+         swap이면 아직 안 받은 조각의 글자만 기본 폰트로 그려져 한 제목 안에서 폰트가 섞여 보였음
+         (이전: Jua와 Noto를 한 링크에서 display=swap) -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=block" rel="stylesheet" />
     <title>펫케어</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

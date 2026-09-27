@@ -1,8 +1,27 @@
 import { useId } from 'react'
 
+export interface Option<V extends string | number> {
+  value: V
+  label: string
+}
+
+interface ChoiceGroupProps<V extends string | number> {
+  label?: string
+  value: V
+  onChange: (value: V) => void
+  options: readonly Option<V>[]
+  className?: string
+}
+
 // 선택지가 2~4개면 select 대신 나란한 버튼으로 (시안의 종/크기 선택 방식).
 // 실제 radiogroup 시맨틱을 써서 키보드/스크린리더에서도 라디오로 읽힌다.
-export default function ChoiceGroup({ label, value, onChange, options, className = '' }) {
+export default function ChoiceGroup<V extends string | number>({
+  label,
+  value,
+  onChange,
+  options,
+  className = '',
+}: ChoiceGroupProps<V>) {
   const labelId = useId()
 
   return (

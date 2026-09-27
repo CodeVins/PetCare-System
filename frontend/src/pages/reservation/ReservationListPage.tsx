@@ -1,20 +1,24 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { CalendarCheck } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cancelReservation, getMyReservations } from '../../api/reservationApi'
 import Alert from '../../components/common/Alert'
+import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
 import StatusBadge from '../../components/common/StatusBadge'
+import { usePagedList } from '../../hooks/usePagedList'
 import { formatSlot, RESERVATION_TYPE_LABEL } from '../../lib/format'
 import ReservationTabs from './ReservationTabs'
+import type { ReservationStatus } from '../../types/api'
 
-const CANCELLABLE_STATUSES = ['PENDING', 'CONFIRMED']
+const CANCELLABLE_STATUSES: ReservationStatus[] = ['PENDING', 'CONFIRMED']
 
 // 사용자가 보기 편한 3분류 + 전체. 거절·취소·노쇼는 "지난 예약"으로 묶는다
 // (전부 더 이상 손댈 게 없는 상태라 따로 볼 이유가 적어서).
-const FILTERS = [
+const FILTERS: { value: string; label: string; match: (status: ReservationStatus) => boolean }[] = [
   { value: 'ALL', label: '전체', match: () => true },
   { value: 'PENDING', label: '대기중', match: (s) => s === 'PENDING' },
   { value: 'CONFIRMED', label: '확정', match: (s) => s === 'CONFIRMED' },
@@ -26,23 +30,22 @@ const FILTERS = [
 ]
 
 export default function ReservationListPage() {
-  const [reservations, setReservations] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [cancellingId, setCancellingId] = useState(null)
+  // 변경(2026-09-27): usePagedList로 "더 보기" 페이지네이션 (이전: getMyReservations() 첫 페이지 20개만 보임).
+  // 필터 칩 개수는 불러온 만큼 기준.
+  const {
+    items: reservations,
+    setItems: setReservations,
+    loading,
+    error,
+    setError,
+    hasMore,
+    loadMore,
+    loadingMore,
+  } = usePagedList(getMyReservations, null, '예약 목록을 불러오지 못했습니다.')
+  const [cancellingId, setCancellingId] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState('ALL')
 
-  useEffect(() => {
-    // 변경(2026-09-27): 응답에 병원명/시간이 실려 와서 조인 없이 바로 사용 (이전: getMyReservationsDetailed()로 슬롯 조인)
-    getMyReservations()
-      .then((res) => setReservations(res.data.data.content))
-      .catch((err) =>
-        setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.'),
-      )
-      .finally(() => setLoading(false))
-  }, [])
-
-  const handleCancel = async (reservationId) => {
+  const handleCancel = async (reservationId: number) => {
     if (!window.confirm('예약을 취소할까요?')) return
     setCancellingId(reservationId)
     try {
@@ -55,7 +58,7 @@ export default function ReservationListPage() {
         ),
       )
     } catch (err) {
-      setError(err.response?.data?.message || '예약 취소에 실패했습니다.')
+      setError(errorMessage(err, '예약 취소에 실패했습니다.'))
     } finally {
       setCancellingId(null)
     }
@@ -178,6 +181,18 @@ export default function ReservationListPage() {
             </RevealItem>
           ))}
         </Reveal>
+      )}
+
+      {!loading && !error && hasMore && (
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={loadMore}
+          loading={loadingMore}
+          className="mt-4 w-full"
+        >
+          더 보기
+        </Button>
       )}
     </div>
   )

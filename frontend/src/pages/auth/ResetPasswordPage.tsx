@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useActionState, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { confirmPasswordReset } from '../../api/authApi'
+import { errorMessage } from '../../api/axiosInstance'
 import Alert from '../../components/common/Alert'
-import Button from '../../components/common/Button'
+import SubmitButton from '../../components/common/SubmitButton'
 import TextField from '../../components/common/TextField'
 import AuthShell from './AuthShell'
 
@@ -10,36 +11,29 @@ export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
+  // 비밀번호 두 칸은 입력 중 불일치를 바로 보여줘야 해서 controlled로 둔다
   const [token, setToken] = useState(searchParams.get('token') || '')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   // 확인 입력이 시작된 뒤에만 불일치를 표시한다 (타이핑 도중 붉게 뜨지 않도록)
   const mismatch = newPasswordConfirm.length > 0 && newPassword !== newPasswordConfirm
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setError('')
-    if (newPassword !== newPasswordConfirm) {
-      setError('새 비밀번호가 일치하지 않습니다.')
-      return
-    }
-    setLoading(true)
+  // 변경(2026-09-27): 제출은 useActionState + <form action>으로 (이전: loading/error useState + onSubmit)
+  const [error, formAction] = useActionState<string>(async () => {
+    if (newPassword !== newPasswordConfirm) return '새 비밀번호가 일치하지 않습니다.'
     try {
       await confirmPasswordReset(token, newPassword)
       navigate('/login', { replace: true, state: { passwordResetSuccess: true } })
+      return ''
     } catch (err) {
-      setError(err.response?.data?.message || '재설정에 실패했습니다.')
-    } finally {
-      setLoading(false)
+      return errorMessage(err, '재설정에 실패했습니다.')
     }
-  }
+  }, '')
 
   return (
     <AuthShell title="새 비밀번호 설정" description="새로 사용할 비밀번호를 입력해 주세요">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form action={formAction} className="flex flex-col gap-4">
         <TextField
           label="재설정 토큰"
           value={token}
@@ -71,14 +65,9 @@ export default function ResetPasswordPage() {
 
         <Alert tone="error">{error}</Alert>
 
-        <Button
-          type="submit"
-          loading={loading}
-          disabled={mismatch}
-          className="mt-2 w-full"
-        >
+        <SubmitButton disabled={mismatch} className="mt-2 w-full">
           비밀번호 변경
-        </Button>
+        </SubmitButton>
       </form>
 
       <Link

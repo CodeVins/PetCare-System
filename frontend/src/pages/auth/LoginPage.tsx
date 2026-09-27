@@ -1,80 +1,83 @@
-import { useState } from 'react'
+import { useActionState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login as loginRequest } from '../../api/authApi'
+import { errorMessage } from '../../api/axiosInstance'
 import { getMe } from '../../api/userApi'
 import Alert from '../../components/common/Alert'
-import Button from '../../components/common/Button'
+import SubmitButton from '../../components/common/SubmitButton'
 import TextField from '../../components/common/TextField'
 import { useAuth } from '../../hooks/useAuth'
-import AuthShell from './AuthShell'
+import AuthShell, { type AuthLocationState } from './AuthShell'
+
+interface LoginState {
+  email: string
+  error: string
+}
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
   const { login: setAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const locationState = (location.state ?? {}) as AuthLocationState
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const { data } = await loginRequest({ email, password })
-      setAuthenticated(data.data.accessToken, data.data.refreshToken)
-      // 로그인 응답엔 role이 없어서 직접 조회 — ADMIN은 관리자 패널로,
-      // 그 외에는 기존처럼 홈으로 보낸다. 조회 실패해도 로그인 자체는
-      // 성공했으니 홈으로 보내고 useAuth가 알아서 role을 다시 채운다.
+  // 변경(2026-09-27): useState 4개 + onSubmit → React 19 useActionState + <form action>.
+  // 제출 중 상태는 SubmitButton이 useFormStatus로 읽는다 (이전: loading/error/email/password 수동 관리)
+  const [state, formAction] = useActionState<LoginState, FormData>(
+    async (_prev, formData) => {
+      const email = String(formData.get('email'))
+      const password = String(formData.get('password'))
       try {
-        const { data: me } = await getMe()
-        navigate(me.data.role === 'ADMIN' ? '/admin' : '/', { replace: true })
-      } catch {
-        navigate('/', { replace: true })
+        const { data } = await loginRequest({ email, password })
+        setAuthenticated(data.data.accessToken, data.data.refreshToken)
+        // 로그인 응답엔 role이 없어서 직접 조회 — ADMIN은 관리자 패널로, 그 외엔
+        // 로그인 전에 보던 화면(state.from, 없으면 홈)으로 돌려보낸다.
+        let destination = locationState.from ?? '/'
+        try {
+          const { data: me } = await getMe()
+          if (me.data.role === 'ADMIN' && !locationState.from) destination = '/admin'
+        } catch {
+          // 조회 실패해도 로그인은 성공 — useAuth가 role을 다시 채운다
+        }
+        navigate(destination, { replace: true })
+        return { email, error: '' }
+      } catch (err) {
+        return { email, error: errorMessage(err, '로그인에 실패했습니다.') }
       }
-    } catch (err) {
-      setError(err.response?.data?.message || '로그인에 실패했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }
+    },
+    { email: '', error: '' },
+  )
 
   return (
     <AuthShell title="펫케어" description="우리 아이 건강을 함께 챙겨요">
-      {location.state?.signupSuccess && (
+      {locationState.signupSuccess && (
         <Alert tone="ok">회원가입이 완료되었어요. 로그인해 주세요.</Alert>
       )}
-      {location.state?.passwordResetSuccess && (
+      {locationState.passwordResetSuccess && (
         <Alert tone="ok">비밀번호가 변경되었어요. 새 비밀번호로 로그인해 주세요.</Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form action={formAction} className="flex flex-col gap-4">
         <TextField
           label="이메일"
+          name="email"
           type="email"
           autoComplete="email"
           placeholder="user@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          defaultValue={state.email}
           required
         />
         <TextField
           label="비밀번호"
+          name="password"
           type="password"
           autoComplete="current-password"
           placeholder="비밀번호를 입력하세요"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
           required
         />
 
-        <Alert tone="error">{error}</Alert>
+        <Alert tone="error">{state.error}</Alert>
 
-        <Button type="submit" loading={loading} className="mt-2 w-full">
-          로그인
-        </Button>
+        <SubmitButton className="mt-2 w-full">로그인</SubmitButton>
       </form>
 
       <div className="flex items-center justify-between">
@@ -86,6 +89,7 @@ export default function LoginPage() {
         </Link>
         <Link
           to="/signup"
+          state={{ from: locationState.from }}
           className="flex min-h-11 items-center text-sm font-bold text-brand-600"
         >
           회원가입

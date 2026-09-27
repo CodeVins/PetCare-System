@@ -1,7 +1,7 @@
 import { PawPrint, PencilSimple, Trash } from '@phosphor-icons/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { BASE_URL } from '../../api/axiosInstance'
+import { BASE_URL, errorMessage } from '../../api/axiosInstance'
 import { getHealthRecords } from '../../api/healthRecordApi'
 import {
   createPet,
@@ -22,22 +22,23 @@ import { calculateAge, SEX_LABEL, SPECIES_LABEL } from '../../lib/format'
 import FeedingCalculatorSection from './FeedingCalculatorSection'
 import GuardianSection from './GuardianSection'
 import HealthRecordSection from './HealthRecordSection'
+import type { HealthRecord, PetRole, PetSex, PetSize, PetSpecies } from '../../types/api'
 
-const SPECIES_OPTIONS = [
+const SPECIES_OPTIONS: { value: PetSpecies; label: string }[] = [
   { value: 'DOG', label: '강아지' },
   { value: 'CAT', label: '고양이' },
 ]
 
-const SIZE_OPTIONS = [
+const SIZE_OPTIONS: { value: PetSize | ''; label: string }[] = [
   { value: 'SMALL', label: '소형' },
   { value: 'MEDIUM', label: '중형' },
   { value: 'LARGE', label: '대형' },
   { value: '', label: '선택 안 함' },
 ]
 
-const SIZE_LABEL = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' }
+const SIZE_LABEL: Record<PetSize, string> = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' }
 
-const SEX_OPTIONS = [
+const SEX_OPTIONS: { value: PetSex | ''; label: string }[] = [
   { value: 'MALE', label: '수컷' },
   { value: 'FEMALE', label: '암컷' },
   { value: '', label: '선택 안 함' },
@@ -45,21 +46,35 @@ const SEX_OPTIONS = [
 
 // Boolean 필드라 실제 값은 true/false/null 3가지뿐이지만, ChoiceGroup은 문자열
 // value로 비교하므로 폼 상태에서는 'true'/'false'/''(모름)로 다룬다.
-const NEUTERED_OPTIONS = [
+type NeuteredValue = 'true' | 'false' | ''
+
+const NEUTERED_OPTIONS: { value: NeuteredValue; label: string }[] = [
   { value: 'true', label: '완료' },
   { value: 'false', label: '안 함' },
   { value: '', label: '모름' },
 ]
-const NEUTERED_LABEL = { true: '완료', false: '안 함' }
+const NEUTERED_LABEL: Record<'true' | 'false', string> = { true: '완료', false: '안 함' }
 
-const TABS = [
+type PetTab = 'overview' | 'records' | 'feeding' | 'guardians'
+
+const TABS: { value: PetTab; label: string }[] = [
   { value: 'overview', label: '개요' },
   { value: 'records', label: '건강기록' },
   { value: 'feeding', label: '급여량' },
   { value: 'guardians', label: '보호자' },
 ]
 
-function formatBirthDate(birthDate) {
+interface PetFormSnapshot {
+  name: string
+  species: PetSpecies
+  breed: string
+  birthDate: string
+  size: PetSize | ''
+  sex: PetSex | ''
+  neutered: NeuteredValue
+}
+
+function formatBirthDate(birthDate: string) {
   return new Date(`${birthDate}T00:00:00`).toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -68,24 +83,24 @@ function formatBirthDate(birthDate) {
 }
 
 export default function PetFormPage() {
-  const { petId } = useParams()
+  const { petId = '' } = useParams()
   const isEdit = Boolean(petId)
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
-  const [species, setSpecies] = useState('DOG')
+  const [species, setSpecies] = useState<PetSpecies>('DOG')
   const [breed, setBreed] = useState('')
   const [birthDate, setBirthDate] = useState('')
-  const [size, setSize] = useState('')
-  const [sex, setSex] = useState('')
-  const [neutered, setNeutered] = useState('')
+  const [size, setSize] = useState<PetSize | ''>('')
+  const [sex, setSex] = useState<PetSex | ''>('')
+  const [neutered, setNeutered] = useState<NeuteredValue>('')
   const [imageUrl, setImageUrl] = useState('')
-  const [role, setRole] = useState('OWNER')
+  const [role, setRole] = useState<PetRole>('OWNER')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState<PetTab>('overview')
   // 등록 화면(isEdit=false)은 폼만 보여주고, 상세 화면은 정보 카드를 먼저 보여준
   // 뒤 연필 아이콘을 눌러야 폼이 나온다.
   const [editing, setEditing] = useState(!isEdit)
@@ -93,11 +108,11 @@ export default function PetFormPage() {
   const [imageSaving, setImageSaving] = useState(false)
   const [imageError, setImageError] = useState('')
 
-  const [latestWeight, setLatestWeight] = useState(null)
+  const [latestWeight, setLatestWeight] = useState<HealthRecord | null>(null)
   const [weightLoading, setWeightLoading] = useState(isEdit)
 
   // 취소 버튼으로 되돌아갈 "마지막으로 저장된 값" 스냅샷
-  const savedSnapshot = useRef(null)
+  const savedSnapshot = useRef<PetFormSnapshot | null>(null)
 
   useEffect(() => {
     if (!isEdit) return
@@ -110,7 +125,7 @@ export default function PetFormPage() {
         setBirthDate(pet.birthDate || '')
         setSize(pet.size || '')
         setSex(pet.sex || '')
-        setNeutered(pet.neutered == null ? '' : String(pet.neutered))
+        setNeutered(pet.neutered == null ? '' : pet.neutered ? 'true' : 'false')
         setImageUrl(pet.imageUrl || '')
         setRole(pet.role)
         savedSnapshot.current = {
@@ -120,11 +135,11 @@ export default function PetFormPage() {
           birthDate: pet.birthDate || '',
           size: pet.size || '',
           sex: pet.sex || '',
-          neutered: pet.neutered == null ? '' : String(pet.neutered),
+          neutered: pet.neutered == null ? '' : pet.neutered ? 'true' : 'false',
         }
       })
       .catch((err) =>
-        setError(err.response?.data?.message || '반려동물 정보를 불러오지 못했습니다.'),
+        setError(errorMessage(err, '반려동물 정보를 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [petId, isEdit])
@@ -145,7 +160,7 @@ export default function PetFormPage() {
       .finally(() => setWeightLoading(false))
   }, [petId, isEdit])
 
-  const handleImageChange = async (event) => {
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -155,7 +170,7 @@ export default function PetFormPage() {
       const { data } = await uploadPetImage(petId, file)
       setImageUrl(data.data.imageUrl || '')
     } catch (err) {
-      setImageError(err.response?.data?.message || '이미지 업로드에 실패했습니다.')
+      setImageError(errorMessage(err, '이미지 업로드에 실패했습니다.'))
     } finally {
       setImageSaving(false)
     }
@@ -169,13 +184,13 @@ export default function PetFormPage() {
       await deletePetImage(petId)
       setImageUrl('')
     } catch (err) {
-      setImageError(err.response?.data?.message || '삭제에 실패했습니다.')
+      setImageError(errorMessage(err, '삭제에 실패했습니다.'))
     } finally {
       setImageSaving(false)
     }
   }
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
     setSaved(false)
@@ -200,7 +215,7 @@ export default function PetFormPage() {
         navigate('/pets', { replace: true })
       }
     } catch (err) {
-      setError(err.response?.data?.message || '저장에 실패했습니다.')
+      setError(errorMessage(err, '저장에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
@@ -234,7 +249,7 @@ export default function PetFormPage() {
       await deletePet(petId)
       navigate('/pets', { replace: true })
     } catch (err) {
-      setError(err.response?.data?.message || '삭제에 실패했습니다.')
+      setError(errorMessage(err, '삭제에 실패했습니다.'))
       setSaving(false)
     }
   }
@@ -253,7 +268,7 @@ export default function PetFormPage() {
     SPECIES_LABEL[species] ?? species,
     breed,
     age !== null && `${age}살`,
-    SIZE_LABEL[size],
+    size && SIZE_LABEL[size],
   ]
     .filter(Boolean)
     .join(' · ')

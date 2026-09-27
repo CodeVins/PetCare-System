@@ -22,10 +22,15 @@
   CLAUDE.md 추가하는 식으로 확장 — 루트는 계속 얇게 유지하는 게 원칙.
 
 ## 기술 스택
-- React (Vite)
-- React Router (페이지 라우팅)
-- Axios (HTTP 클라이언트)
+- React 19 (Vite) + **TypeScript strict** (2026-09-27 전체 전환, `.ts/.tsx`만 씀).
+  `npm run build`가 `tsc --noEmit`부터 돌리므로 타입 에러 있으면 빌드 실패. 단독 확인은 `npm run typecheck`
+- 백엔드 DTO 타입은 `src/types/api.ts` 한 곳 — 백엔드 응답 필드가 바뀌면 여기부터 고칠 것
+- React Router (페이지 라우팅), Axios (HTTP 클라이언트)
 - 상태관리: 전역 인증 상태만 Context API로 처리 (규모상 Redux/Zustand는 과함)
+- React 19 기능을 적극 사용: `use(Context)`/`<Context value>`, 폼은 `useActionState` +
+  `<form action>` + `SubmitButton`(useFormStatus), 낙관적 토글은 `useOptimistic`
+  (`hooks/useFavoriteIds`), 비동기 버튼 상태는 `useTransition`, 공개 데이터는
+  `use(promise)` + Suspense(`pages/home/publicHospitals.ts`), 페이지 제목은 컴포넌트 안 `<title>`
 
 ## 백엔드 API 계약
 - Base URL: http://localhost:8080
@@ -41,10 +46,18 @@
 ## 인증 규칙
 - POST /api/auth/signup { email, password }
 - POST /api/auth/login { email, password } → { accessToken, refreshToken, expiresIn(ms) }
-- 이후 모든 요청에 Authorization: Bearer {accessToken} 필요 (auth/swagger 제외)
+- 이후 모든 요청에 Authorization: Bearer {accessToken} 필요 (auth/swagger 제외).
+  **예외: 비회원 공개 GET** — `/api/hospitals`, `/api/hospitals/{id}`, `.../reviews`,
+  `.../slots` (2026-09-27, 백엔드 `SecurityConfig.PUBLIC_GET_PATHS`)
+- **비회원 모드**: 홈·병원 목록/상세·공지사항·FAQ·이용약관·개인정보처리방침은 로그인 없이 공개
+  (홈은 회원/비회원 공용 한 화면 — 로그인 사용자용 접종·예약 요약은 /pets 반려동물 화면에 있음). 나머지 라우트는
+  `PrivateRoute`가 /login으로 튕기지 않고 `LoginRequired`("회원가입/로그인 후 이용해 주세요")를
+  Layout 안에 띄움. 화면 안 회원 기능(예약·즐겨찾기·문의·리뷰 작성)도 `<LoginRequired feature
+  compact />`로 막음. 로그인/가입 링크는 `state.from`을 넘겨 로그인 후 보던 화면으로 복귀
 - accessToken 만료(1시간) 또는 401 응답 시 axios 인터셉터가 POST /api/auth/reissue
   { refreshToken }로 자동 재발급 시도 (재발급마다 refreshToken도 회전됨, 응답 값으로 갱신).
-  reissue까지 실패하면 그때 토큰 삭제 + /login 리다이렉트
+  reissue까지 실패하면 그때 토큰 삭제 + /login 리다이렉트. 토큰이 아예 없는 비회원의 401은
+  리다이렉트 없이 reject만
 - POST /api/auth/logout (인증 필요) — 로그아웃 시 서버의 refreshToken 폐기용으로 호출
 - POST /api/auth/password-reset/request { email } (항상 200, 계정 존재 여부 노출 안 함),
   POST /api/auth/password-reset/confirm { token, newPassword } → /forgot-password,
@@ -65,18 +78,24 @@
 ## 폴더 구조
 src
 ├── pages       (화면 단위 컴포넌트, 도메인별 하위 폴더: auth/pet/hospital/reservation/
-│               mypage/notification/chat/dashboard/admin. HomePage는 최상위)
-├── components  (common: Button/TextField / layout: Header/Layout)
-├── api         (axiosInstance.js + 도메인별 api 함수: authApi, userApi, petApi,
-│               petGuardianApi, healthCheckApi, healthRecordApi, hospitalApi,
-│               reviewApi, reservationApi, reservationAdminApi, waitlistApi,
-│               notificationApi, chatApi, adminApi)
-├── hooks       (useAuth — 인증상태+role+userId, useNotifications — SSE 안읽음뱃지)
-└── router      (AppRouter.jsx, PrivateRoute, OwnerRoute, AdminRoute)
+│               mypage/notification/chat/dashboard/admin/support(공지·FAQ·약관·방침).
+│               HomePage는 최상위, 회원/비회원 공용 한 화면)
+├── content     (notices.ts 공지, faq.ts FAQ — 공지 API가 없어 정적 데이터. 공지 추가는 여기)
+├── components  (common: Button/TextField/LoginRequired/SubmitButton 등 / layout: Header/Layout/Footer)
+├── api         (axiosInstance.ts — ApiPromise<T> 타입·errorMessage() 헬퍼 포함 + 도메인별
+│               api 함수: authApi, userApi, petApi, petGuardianApi, healthCheckApi,
+│               healthRecordApi, hospitalApi, reviewApi, reservationApi,
+│               reservationAdminApi, waitlistApi, notificationApi, chatApi, adminApi)
+├── types       (api.ts — 백엔드 DTO/enum 타입)
+├── lib         (format.ts 포맷터, roles.ts OWNER_ROLES)
+├── hooks       (useAuth — 인증상태+role+userId, useNotifications — SSE 안읽음뱃지,
+│               usePagedList — 더 보기, useFavoriteIds — 즐겨찾기 useOptimistic)
+└── router      (AppRouter.tsx, PrivateRoute, OwnerRoute, AdminRoute)
 
 ## 컨벤션
-- API 응답의 success/message를 활용해 에러 토스트/얼럿 처리 통일
-- 401 수신 시 공통 인터셉터에서 토큰 삭제 + /login으로 리다이렉트
+- API 응답의 success/message를 활용해 에러 토스트/얼럿 처리 통일 — catch에서는
+  `errorMessage(err, '기본 문구')`(api/axiosInstance) 사용 (`err`가 unknown이라 직접 접근 금지)
+- 401 수신 시 공통 인터셉터에서 토큰 삭제 + /login으로 리다이렉트 (로그인 상태였을 때만)
 - 커밋 메시지: "타입: 설명" 형식, 한국어 (예: feat: 로그인 화면 구현)
 - **기존 코드를 수정하면 수정 지점에 이유 주석을 남길 것** (백엔드와 같은 규칙, 나중에 변경 이력/회고 글의
   근거로 쓰기 위함). 형식: `// 변경(YYYY-MM-DD): 무엇을 어떻게 바꿨는지 — 왜 (이전: 기존 동작/문제)`.
@@ -89,8 +108,12 @@ src
 
 ### 진행 상황
 현재: 세팅·인증·핵심 화면·심화 기능(반려동물 확장/리뷰/예약 확장/병원·계정 폴리시)
-전부 완료. **남은 작업은 PROGRESS.md의 "다음 할 일" 섹션**(2026-09-27 정리 — SSE 재연결
-버그, 목록 페이지네이션, 알림 모두 읽음, 대시보드 리뷰 신고 탭, 코드 스플리팅 등). 새 세션은 여기부터.
+전부 완료. **남은 작업은 PROGRESS.md의 "다음 할 일" 섹션** — 2026-09-27에 ①②③④⑦ 처리,
+같은 날 비회원 모드(병원 공개)+TypeScript 전환+React 19 기능 도입, 홈 통일(회원 요약은 /pets로)
++공지·FAQ·약관·방침+푸터, 건강기록 화면 개편(작성 다이얼로그 분리·종류 필터·월별 묶음). 남은 건 ⑤⑥ 및 홈/비회원 흐름 브라우저 눈 확인, ⑧ 토스트. 새 세션은 여기부터.
+- 제목 폰트 규칙: Jua는 **h1(PageHeader·홈 배너)과 로고만**. 섹션 제목(h2)은 `h-section`(Noto 700) —
+  DESIGN_SPEC 기준. Jua는 index.html에서 `display=block`으로 따로 로드(조각 로딩 중 폰트 섞임 방지)
+- 목록 "더 보기"는 `hooks/usePagedList` 재사용 (PageResponse 목록 새로 붙일 때).
 **날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
 - 디자인: **DESIGN_SPEC.md**가 단일 기준(색·폰트·형태·레이아웃). `petcare-ui-source/`
   는 화면별 HTML 시안 원본. 2026-09-22에 전 화면 이식 완료 — teal `#0F766E` accent,

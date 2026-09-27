@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import { useEffect, useId, useState } from 'react'
 import {
   getNotificationPreferences,
@@ -5,6 +6,7 @@ import {
 } from '../../api/notificationApi'
 import Alert from '../../components/common/Alert'
 import Toggle from '../../components/common/Toggle'
+import type { NotificationCategory, NotificationPreference } from '../../types/api'
 
 const CATEGORY = {
   RESERVATION: ['예약', '예약 확정, 거절, 취소, 리마인더'],
@@ -15,22 +17,22 @@ const CATEGORY = {
 }
 
 export default function NotificationPreferenceSection() {
-  const [preferences, setPreferences] = useState([])
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [updatingCategory, setUpdatingCategory] = useState(null)
+  const [updatingCategory, setUpdatingCategory] = useState<NotificationCategory | null>(null)
   const idPrefix = useId()
 
   useEffect(() => {
     getNotificationPreferences()
       .then(({ data }) => setPreferences(data.data))
       .catch((err) =>
-        setError(err.response?.data?.message || '알림 설정을 불러오지 못했습니다.'),
+        setError(errorMessage(err, '알림 설정을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
   }, [])
 
-  const handleToggle = async (category, enabled) => {
+  const handleToggle = async (category: NotificationCategory, enabled: boolean) => {
     setUpdatingCategory(category)
     setError('')
     // 토글은 바로 반영하고, 실패하면 되돌린다
@@ -45,7 +47,7 @@ export default function NotificationPreferenceSection() {
           pref.category === category ? { ...pref, enabled: !enabled } : pref,
         ),
       )
-      setError(err.response?.data?.message || '변경에 실패했습니다.')
+      setError(errorMessage(err, '변경에 실패했습니다.'))
     } finally {
       setUpdatingCategory(null)
     }

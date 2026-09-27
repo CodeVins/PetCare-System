@@ -1,3 +1,4 @@
+import { errorMessage } from '../../api/axiosInstance'
 import {
   Buildings,
   CalendarCheck,
@@ -8,6 +9,7 @@ import {
   Users,
   WarningCircle,
   XCircle,
+  type Icon,
 } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -21,6 +23,7 @@ import { getAdminReservations } from '../../api/reservationAdminApi'
 import Alert from '../../components/common/Alert'
 import AdminPageHeader from './AdminPageHeader'
 import StatTile from './StatTile'
+import type { HospitalStats, StatsSummary } from '../../types/api'
 
 const SUMMARY_TILES = [
   { key: 'totalUsers', label: '전체 사용자', icon: Users },
@@ -30,13 +33,13 @@ const SUMMARY_TILES = [
   { key: 'confirmedReservations', label: '확정 예약', icon: CheckCircle },
   { key: 'cancelledReservations', label: '취소 예약', icon: XCircle },
   { key: 'noShowReservations', label: '노쇼', icon: WarningCircle },
-]
+] satisfies { key: keyof StatsSummary; label: string; icon: Icon }[]
 
 export default function AdminOverviewPage() {
-  const [summary, setSummary] = useState(null)
-  const [hospitalStats, setHospitalStats] = useState([])
-  const [pendingCount, setPendingCount] = useState(null)
-  const [reportCount, setReportCount] = useState(null)
+  const [summary, setSummary] = useState<StatsSummary | null>(null)
+  const [hospitalStats, setHospitalStats] = useState<HospitalStats[]>([])
+  const [pendingCount, setPendingCount] = useState<number | null>(null)
+  const [reportCount, setReportCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -56,7 +59,7 @@ export default function AdminOverviewPage() {
         setPendingCount(pendingRes.data.data.totalElements)
         setReportCount(reportsRes.data.data.content.filter((r) => !r.reviewHidden).length)
       })
-      .catch((err) => setError(err.response?.data?.message || '통계를 불러오지 못했습니다.'))
+      .catch((err) => setError(errorMessage(err, '통계를 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -67,7 +70,7 @@ export default function AdminOverviewPage() {
       await runReminders()
       setReminderMessage('리마인더를 발송했습니다.')
     } catch (err) {
-      setReminderMessage(err.response?.data?.message || '실행에 실패했습니다.')
+      setReminderMessage(errorMessage(err, '실행에 실패했습니다.'))
     } finally {
       setReminderRunning(false)
     }
@@ -91,7 +94,7 @@ export default function AdminOverviewPage() {
     )
   }
 
-  if (error) {
+  if (error || !summary) {
     return (
       <div>
         <AdminPageHeader title="대시보드" />

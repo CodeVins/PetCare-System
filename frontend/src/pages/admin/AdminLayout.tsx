@@ -1,5 +1,5 @@
 import { House, PawPrint, SignOut } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { logout as logoutRequest } from '../../api/authApi'
 import { getMe } from '../../api/userApi'
@@ -30,7 +30,7 @@ export default function AdminLayout() {
     navigate('/login', { replace: true })
   }
 
-  const navLinkClass = ({ isActive }) =>
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
       isActive
         ? 'bg-stone-800 text-white'
@@ -126,7 +126,10 @@ export default function AdminLayout() {
 
       <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
         <div className="mx-auto max-w-[1200px]">
-          <Outlet />
+          {/* 변경(2026-09-27): 라우트 lazy 로딩 중 사이드바가 사라지지 않게 본문만 Suspense (이전: Outlet 그대로) */}
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>
