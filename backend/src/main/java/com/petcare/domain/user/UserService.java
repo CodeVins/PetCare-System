@@ -30,7 +30,7 @@ public class UserService {
 
 	public List<UpcomingVaccinationResponse> getUpcomingVaccinations(Long userId) {
 		return healthRecordRepository
-				.findAllByPet_User_IdAndNextDueDateGreaterThanEqualOrderByNextDueDateAsc(userId, LocalDate.now())
+				.findAllAccessibleDueFrom(userId, LocalDate.now())
 				.stream()
 				.map(UpcomingVaccinationResponse::from)
 				.toList();

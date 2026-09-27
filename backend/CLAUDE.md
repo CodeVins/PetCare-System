@@ -68,7 +68,8 @@ com.petcare
 - `ReminderScheduler`(domain/notification, `@Scheduled(cron="0 0 9 * * *")`): 접종 예정일이 오늘~D-3 사이인 기록, 지금~내일 끝 사이에 시작하는 CONFIRMED 예약에 알림 생성(남은 일수/오늘·내일 문구는 실제 계산). `@Transactional` 필수(지연 로딩 엔티티를 세션 밖에서 접근하면 `LazyInitializationException` 남)
 - 중복 방지: `Reservation.reminderSent`(boolean), `HealthRecord.remindedDueDate`(알림 보낸 예정일 — `nextDueDate`와 같으면 발송 완료, 예정일을 수정하면 값이 달라져 자동으로 다시 알림). 같은 날 여러 번 실행해도 한 번만 가고, 범위 매칭이라 09시에 서버가 꺼져 있었어도 다음 실행 때 따라잡음(이전엔 정확히 D-3/내일만 매칭해서 누락+중복 둘 다 있었음). 알림 설정을 끈 유저도 플래그는 세팅됨(다시 켜도 지난 리마인더는 안 옴)
 - `POST /api/admin/reminders/run` (ADMIN 전용): 크론 기다리지 않고 수동으로 즉시 실행 (테스트/데모용)
-- `GET /api/users/me/upcoming-vaccinations`: 마이페이지용 D-day 목록
+- `GET /api/users/me/upcoming-vaccinations`: 마이페이지용 D-day 목록 — 소유 펫 + 공동보호자로 등록된 펫 모두 포함(`HealthRecordRepository.findAllAccessibleDueFrom`, OR-EXISTS)
+- 접종 리마인더는 최초 등록자 + 공동보호자 전원에게 발송(일상 관리 권한 동등 원칙). 예약 리마인더는 예약한 사람(`Reservation.user`)에게만
 
 ## 실시간 알림 (SSE)
 - `GET /api/notifications/subscribe` — `SseEmitter` 기반, WebSocket 대신 SSE 선택(알림은 서버→클라이언트 단방향이라 이걸로 충분, 구현도 훨씬 간단)

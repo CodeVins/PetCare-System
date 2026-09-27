@@ -2,6 +2,8 @@ package com.petcare.domain.notification;
 
 import com.petcare.domain.pet.HealthRecord;
 import com.petcare.domain.pet.HealthRecordRepository;
+import com.petcare.domain.pet.PetGuardian;
+import com.petcare.domain.pet.PetGuardianRepository;
 import com.petcare.domain.reservation.Reservation;
 import com.petcare.domain.reservation.ReservationRepository;
 import java.time.LocalDate;
@@ -19,6 +21,7 @@ public class ReminderScheduler {
 
 	private final HealthRecordRepository healthRecordRepository;
 	private final ReservationRepository reservationRepository;
+	private final PetGuardianRepository petGuardianRepository;
 	private final NotificationService notificationService;
 
 	private static final int VACCINATION_REMIND_DAYS = 3;
@@ -35,7 +38,12 @@ public class ReminderScheduler {
 			long daysLeft = ChronoUnit.DAYS.between(today, record.getNextDueDate());
 			String content = record.getPet().getName() + "의 다음 접종 예정일이 "
 					+ (daysLeft == 0 ? "오늘입니다." : daysLeft + "일 남았습니다.");
+			// 변경(2026-09-27): 최초 등록자 + 공동보호자 전원에게 발송 — 일상 관리 권한이 동등한데 알림만 등록자에게 가던 불일치
+			// (이전: record.getPet().getUser()에게만)
 			notificationService.notify(record.getPet().getUser().getId(), NotificationType.VACCINATION_DUE_SOON, content);
+			for (PetGuardian guardian : petGuardianRepository.findAllByPetId(record.getPet().getId())) {
+				notificationService.notify(guardian.getUser().getId(), NotificationType.VACCINATION_DUE_SOON, content);
+			}
 			record.markReminded();
 		}
 	}

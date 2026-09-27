@@ -324,6 +324,34 @@ class BusinessRuleTest {
 		assertThat(notifications).contains("1일 남았습니다");
 	}
 
+	@Test
+	void 공동보호자도_접종_리마인더를_한_번_받고_D_day_목록에서_볼_수_있다() throws Exception {
+		String guardianEmail = "guardian-remind-" + suffix + "@petcare.com";
+		String guardianToken = signupAndLogin(guardianEmail);
+		long petId = createPet(userToken, "공유리마인더펫");
+		mockMvc.perform(post("/api/pets/" + petId + "/guardians")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"" + guardianEmail + "\"}"))
+				.andExpect(status().isCreated());
+		mockMvc.perform(post("/api/pets/" + petId + "/health-records")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(healthRecordJson(LocalDate.now().plusDays(3))))
+				.andExpect(status().isCreated());
+
+		runReminders();
+		runReminders();
+		assertThat(countOf(notificationTypes(guardianToken), "VACCINATION_DUE_SOON")).isEqualTo(1);
+		assertThat(countOf(notificationTypes(userToken), "VACCINATION_DUE_SOON")).isEqualTo(1);
+
+		MvcResult upcoming = mockMvc.perform(get("/api/users/me/upcoming-vaccinations")
+						.header("Authorization", "Bearer " + guardianToken))
+				.andExpect(status().isOk())
+				.andReturn();
+		assertThat(data(upcoming).toString()).contains("공유리마인더펫");
+	}
+
 	// ---------- 계정 정지 ----------
 
 	@Test
