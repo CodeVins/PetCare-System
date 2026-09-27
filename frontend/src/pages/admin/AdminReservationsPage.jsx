@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { getSlotIndex } from '../../api/reservationApi'
 import {
   confirmReservation,
   getAdminReservations,
@@ -29,7 +28,6 @@ const ACTION_FNS = {
 export default function AdminReservationsPage() {
   const [statusFilter, setStatusFilter] = useState('PENDING')
   const [reservations, setReservations] = useState([])
-  const [index, setIndex] = useState({ slotMap: {}, hospitalNameBySlot: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actingId, setActingId] = useState(null)
@@ -38,11 +36,9 @@ export default function AdminReservationsPage() {
     setLoading(true)
     setError('')
     // ADMIN은 병원 전체, HOSPITAL_OWNER는 본인 병원만 — 서버가 이미 스코핑해서 내려준다.
-    Promise.all([getAdminReservations(statusFilter || undefined), getSlotIndex()])
-      .then(([reservationsRes, slotIndex]) => {
-        setIndex(slotIndex)
-        setReservations(reservationsRes.data.data.content)
-      })
+    // 변경(2026-09-27): ReservationResponse에 병원명/시간이 실려 와서 예약 목록만 조회 (이전: getSlotIndex()로 조인)
+    getAdminReservations(statusFilter || undefined)
+      .then((res) => setReservations(res.data.data.content))
       .catch((err) =>
         setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.'),
       )
@@ -121,16 +117,13 @@ export default function AdminReservationsPage() {
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {reservations.map((reservation) => {
-                  const slot = index.slotMap[reservation.slotId]
                   const acting = actingId === reservation.id
                   return (
                     <tr key={reservation.id} className="hover:bg-stone-50">
                       <td className="admin-td font-medium text-stone-900">
-                        {index.hospitalNameBySlot[reservation.slotId] || '병원 정보 없음'}
+                        {reservation.hospitalName}
                       </td>
-                      <td className="admin-td text-stone-600">
-                        {slot ? formatSlot(slot) : '시간 정보 없음'}
-                      </td>
+                      <td className="admin-td text-stone-600">{formatSlot(reservation)}</td>
                       <td className="admin-td text-stone-600">
                         {reservation.petName ? (
                           reservationPetCaption(reservation)

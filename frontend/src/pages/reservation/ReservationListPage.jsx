@@ -1,7 +1,7 @@
 import { CalendarCheck } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { cancelReservation, getMyReservationsDetailed } from '../../api/reservationApi'
+import { cancelReservation, getMyReservations } from '../../api/reservationApi'
 import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
@@ -33,8 +33,9 @@ export default function ReservationListPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
 
   useEffect(() => {
-    getMyReservationsDetailed()
-      .then(setReservations)
+    // 변경(2026-09-27): 응답에 병원명/시간이 실려 와서 조인 없이 바로 사용 (이전: getMyReservationsDetailed()로 슬롯 조인)
+    getMyReservations()
+      .then((res) => setReservations(res.data.data.content))
       .catch((err) =>
         setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.'),
       )
@@ -158,7 +159,7 @@ export default function ReservationListPage() {
                   )}
                   <p className="min-w-0 truncate text-sm text-stone-600">
                     {reservation.petName} ·{' '}
-                    {reservation.slot ? formatSlot(reservation.slot) : '시간 정보 없음'}
+                    {formatSlot(reservation)}
                   </p>
                 </div>
                 {CANCELLABLE_STATUSES.includes(reservation.status) && (

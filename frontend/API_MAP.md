@@ -26,9 +26,8 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   /api/hospitals/{id}/slots → 예약 가능 시간 + 대시보드 슬롯 등록.
   /api/hospitals/{id}/favorites, GET /api/favorites → 하트 토글, /favorites.
   /api/hospitals/{id}/reviews (CRUD), .../report, .../reply(CRUD, ADMIN/소유
-  HOSPITAL_OWNER 전용) → ReviewSection(병원 상세 하단). 리뷰 작성자 식별 필드가
-  없어서 "내 리뷰"는 작성 직후 reviewId를 localStorage(`myReviewIds`)에 저장해서
-  판별 — 다른 브라우저/기기에서는 수정·삭제 버튼이 안 보임(알려진 한계).
+  HOSPITAL_OWNER 전용) → ReviewSection(병원 상세 하단). "내 리뷰"는 응답의
+  `mine`(요청자 본인 작성 여부)으로 판별 — 기기와 무관하게 수정·삭제 버튼 노출.
   /api/admin/reviews/reports(hospitalId/reviewContent/reviewRating/reason/
   reporterId/createdAt 포함), .../hide, .../unhide → /admin/reviews(카드
   목록 — 별점·리뷰 원문·신고 사유를 그대로 보여줘야 판단 가능해서 표 대신 카드)
@@ -36,9 +35,10 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   CONFIRMED/REJECTED/CANCELLED/NO_SHOW. 생성 시 type(진료 유형 — CHECKUP/
   VACCINATION/TREATMENT/SURGERY/GROOMING/ETC) 필수 선택 → HospitalDetailPage
   예약 탭. ReservationResponse에 반려동물 스냅샷(petName/petSpecies/petBreed/
-  petBirthDate/petSize/petSex/petNeutered/petImageUrl)이 같이 오므로 프론트가
-  따로 /api/pets를 조인할 필요 없음(reservationApi.getMyReservationsDetailed는
-  슬롯→병원명 조인만 함). /api/reservations (CRUD + cancel) → /reservations.
+  petBirthDate/petSize/petSex/petNeutered/petImageUrl)과 병원/시간(hospitalId/
+  hospitalName/startTime/endTime)이 같이 오므로 조인 없이 바로 렌더
+  (`formatSlot(reservation)`). WaitlistResponse도 petName/hospitalName/startTime/
+  endTime 포함. /api/reservations (CRUD + cancel) → /reservations.
   /api/admin/reservations (목록+confirm/reject/no-show, CONFIRMED만 노쇼 전환
   가능) → /dashboard 예약 대기열, /admin/reservations.
   /api/waitlists (신청/내목록/취소, RESERVED 슬롯에만 신청 가능) → /waitlist,

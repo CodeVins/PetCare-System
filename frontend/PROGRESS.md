@@ -204,6 +204,18 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       응답의 hospitalId를 `getHospitals()` 목록과 조인) + 신고 일시를 다 보여줌.
       "노출중인 신고만" 체크박스로 처리 안 된 것만 걸러볼 수 있게 함.
 
+- [x] 2026-09-27 클라이언트 조인 제거 + 내 리뷰 판별을 서버 값으로 — 백엔드가
+      ReservationResponse/WaitlistResponse에 hospitalName/startTime/endTime
+      (대기는 petName도)을, ReviewResponse에 `mine`을 추가해서 우회 코드 삭제.
+      `reservationApi.getSlotIndex()`/`getMyReservationsDetailed()` 삭제 — 예약
+      목록·홈·대기 목록·대시보드 예약대기열·관리자 예약 5곳이 응답 필드를 바로
+      씀(`formatSlot(reservation)`). 겸사겸사 고쳐진 버그: getSlotIndex는 병원별
+      슬롯 첫 페이지(20개)만 받아서, 슬롯이 많은 병원의 예약은 "병원 정보 없음/
+      시간 정보 없음"으로 보였음. ReviewSection의 localStorage(`myReviewIds`)
+      추적 삭제 → `review.mine`. 같이 발견한 버그: 리뷰 수정 응답은 reply가 항상
+      null이라 `{...review, ...data.data}`로 덮으면 병원 답글이 새로고침 전까지
+      사라졌음 → 기존 reply 유지
+
 ## 참고
 - 빌드 번들이 500KB를 넘어 vite가 code-splitting 권장 경고를 띄움 (motion
   추가 후 630KB로 더 커짐). 기능은 다 붙었으니 라우트 단위 lazy import

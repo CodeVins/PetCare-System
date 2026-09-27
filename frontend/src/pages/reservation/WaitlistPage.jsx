@@ -1,8 +1,6 @@
 import { Bell, HourglassMedium } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getMyPets } from '../../api/petApi'
-import { getSlotIndex } from '../../api/reservationApi'
 import { getMyWaitlist, leaveWaitlist } from '../../api/waitlistApi'
 import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
@@ -13,22 +11,15 @@ import ReservationTabs from './ReservationTabs'
 
 export default function WaitlistPage() {
   const [waitlist, setWaitlist] = useState([])
-  const [petMap, setPetMap] = useState({})
-  const [index, setIndex] = useState({ slotMap: {}, hospitalNameBySlot: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [leavingId, setLeavingId] = useState(null)
 
   useEffect(() => {
-    // 슬롯/병원 조인은 예약 화면과 같은 함수를 쓴다 (reservationApi.getSlotIndex)
-    Promise.all([getMyWaitlist(), getMyPets(), getSlotIndex()])
-      .then(([waitlistRes, petsRes, slotIndex]) => {
-        setPetMap(
-          Object.fromEntries(petsRes.data.data.content.map((pet) => [pet.id, pet.name])),
-        )
-        setIndex(slotIndex)
-        setWaitlist(waitlistRes.data.data.content)
-      })
+    // 변경(2026-09-27): WaitlistResponse에 병원명/시간/반려동물 이름이 실려 와서 대기 목록만 조회
+    // (이전: getMyPets() + getSlotIndex()로 petId/slotId를 클라이언트에서 조인)
+    getMyWaitlist()
+      .then((res) => setWaitlist(res.data.data.content))
       .catch((err) =>
         setError(err.response?.data?.message || '대기 목록을 불러오지 못했습니다.'),
       )
@@ -86,19 +77,15 @@ export default function WaitlistPage() {
       {!loading && !error && waitlist.length > 0 && (
         <Reveal className="flex flex-col gap-3 md:grid md:grid-cols-2" stagger={0.05}>
           {waitlist.map((item) => {
-            const slot = index.slotMap[item.slotId]
             return (
               <RevealItem key={item.id}>
                 <article className="card flex h-full flex-col gap-2.5 p-4 md:p-5">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="min-w-0 truncate text-base font-bold">
-                      {index.hospitalNameBySlot[item.slotId] || '병원 정보 없음'}
-                    </h2>
+                    <h2 className="min-w-0 truncate text-base font-bold">{item.hospitalName}</h2>
                     <span className="badge badge-neutral">대기 중</span>
                   </div>
                   <p className="text-sm text-stone-600">
-                    {petMap[item.petId] || '반려동물 정보 없음'} ·{' '}
-                    {slot ? formatSlot(slot) : '시간 정보 없음'}
+                    {item.petName} · {formatSlot(item)}
                   </p>
                   <div className="mt-auto flex justify-end">
                     <button

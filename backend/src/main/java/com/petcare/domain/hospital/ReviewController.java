@@ -43,8 +43,10 @@ public class ReviewController {
 
 	@GetMapping
 	public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getReviews(
-			@PathVariable Long hospitalId, @PageableDefault(size = 20) Pageable pageable) {
-		return ResponseEntity.ok(ApiResponse.success(reviewService.getReviews(hospitalId, pageable)));
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
+			@PageableDefault(size = 20) Pageable pageable) {
+		return ResponseEntity.ok(ApiResponse.success(
+				reviewService.getReviews(userDetails.getUser().getId(), hospitalId, pageable)));
 	}
 
 	@PatchMapping("/{reviewId}")

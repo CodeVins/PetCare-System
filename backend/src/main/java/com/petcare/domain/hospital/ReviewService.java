@@ -55,12 +55,13 @@ public class ReviewService {
 		return ReviewResponse.from(reviewRepository.save(review));
 	}
 
-	public PageResponse<ReviewResponse> getReviews(Long hospitalId, Pageable pageable) {
+	// 변경(2026-09-27): 요청자 id를 받아 리뷰별 mine 계산 (이전: 요청자와 무관한 응답이라 프론트가 내 리뷰를 식별 못 함)
+	public PageResponse<ReviewResponse> getReviews(Long userId, Long hospitalId, Pageable pageable) {
 		return PageResponse.from(reviewRepository
 				.findAllByHospitalIdAndHiddenFalseOrderByCreatedAtDesc(hospitalId, pageable)
 				.map(review -> ReviewResponse.of(review, reviewReplyRepository.findByReviewId(review.getId())
 						.map(ReviewReplyResponse::from)
-						.orElse(null))));
+						.orElse(null), userId)));
 	}
 
 	@Transactional

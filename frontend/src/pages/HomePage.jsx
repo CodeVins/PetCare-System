@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BASE_URL } from '../api/axiosInstance'
 import { getMyPets } from '../api/petApi'
-import { getMyReservationsDetailed } from '../api/reservationApi'
+import { getMyReservations } from '../api/reservationApi'
 import { getUpcomingVaccinations } from '../api/userApi'
 import EmptyState from '../components/common/EmptyState'
 import { Reveal, RevealItem } from '../components/common/Reveal'
@@ -91,10 +91,11 @@ export default function HomePage() {
 
   useEffect(() => {
     // 한 화면이 3개 소스를 쓰지만 서로 독립이라 하나가 실패해도 나머지는 그린다.
+    // 변경(2026-09-27): 예약은 응답에 병원명/시간이 실려 와서 getMyReservations()로 교체 (이전: getMyReservationsDetailed()로 슬롯 조인)
     Promise.allSettled([
       getMyPets(),
       getUpcomingVaccinations(),
-      getMyReservationsDetailed(),
+      getMyReservations(),
     ])
       .then(([petsRes, vaccinationsRes, reservationsRes]) => {
         if (petsRes.status === 'fulfilled') setPets(petsRes.value.data.data.content)
@@ -102,7 +103,7 @@ export default function HomePage() {
           setVaccinations(vaccinationsRes.value.data.data)
         if (reservationsRes.status === 'fulfilled')
           setReservations(
-            reservationsRes.value.filter((r) => UPCOMING_STATUSES.includes(r.status)),
+            reservationsRes.value.data.data.content.filter((r) => UPCOMING_STATUSES.includes(r.status)),
           )
         if ([petsRes, vaccinationsRes, reservationsRes].every((r) => r.status === 'rejected'))
           setError('정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -204,7 +205,7 @@ export default function HomePage() {
                           {reservation.hospitalName}
                         </span>
                         <span className="truncate text-[13px] text-stone-600 md:text-sm">
-                          {reservation.slot ? formatSlot(reservation.slot) : '시간 정보 없음'}
+                          {formatSlot(reservation)}
                           {` · ${reservation.petName}`}
                         </span>
                       </span>

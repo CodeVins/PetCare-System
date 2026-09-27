@@ -15,31 +15,6 @@ import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import Stars from '../../components/common/Stars'
 
-const MY_REVIEWS_KEY = 'myReviewIds'
-
-// ponytail: ReviewResponse has no author field, so "is this my review" can't be
-// determined from the list. We remember the id locally after a successful post —
-// works on this browser only; a different device won't show edit/delete controls.
-function getMyReviewId(hospitalId) {
-  try {
-    const map = JSON.parse(localStorage.getItem(MY_REVIEWS_KEY) || '{}')
-    return map[hospitalId] ?? null
-  } catch {
-    return null
-  }
-}
-
-function setMyReviewId(hospitalId, reviewId) {
-  try {
-    const map = JSON.parse(localStorage.getItem(MY_REVIEWS_KEY) || '{}')
-    if (reviewId == null) delete map[hospitalId]
-    else map[hospitalId] = reviewId
-    localStorage.setItem(MY_REVIEWS_KEY, JSON.stringify(map))
-  } catch {
-    // ignore storage errors
-  }
-}
-
 // 별 자체를 누르는 평점 입력 (radiogroup 시맨틱 유지)
 function StarPicker({ value, onChange }) {
   return (
@@ -73,7 +48,6 @@ export default function ReviewSection({
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [myReviewId, setMyReviewIdState] = useState(() => getMyReviewId(hospitalId))
 
   const [rating, setRating] = useState(5)
   const [content, setContent] = useState('')
@@ -97,7 +71,10 @@ export default function ReviewSection({
       .finally(() => setLoading(false))
   }, [hospitalId])
 
-  const myReview = reviews.find((review) => review.id === myReviewId) || null
+  // 변경(2026-09-27): 내 리뷰를 서버가 내려주는 review.mine으로 판별 (이전: ReviewResponse에 작성자 정보가
+  // 없어서 작성 직후 id를 localStorage에 저장해 추적 — 다른 브라우저/기기에선 수정·삭제 버튼이 안 보였음)
+  const myReview = reviews.find((review) => review.mine) || null
+  const myReviewId = myReview?.id ?? null
 
   const startEdit = () => {
     if (!myReview) return
@@ -121,16 +98,16 @@ export default function ReviewSection({
     try {
       if (editing && myReviewId) {
         const { data } = await updateReview(hospitalId, myReviewId, { rating, content })
+        // 변경(2026-09-27): 기존 답글(reply) 유지 — 수정 응답은 reply가 항상 null이라 그대로 덮어쓰면
+        // 병원 답글이 새로고침 전까지 사라졌음 (이전: { ...review, ...data.data })
         setReviews((prev) =>
           prev.map((review) =>
-            review.id === myReviewId ? { ...review, ...data.data } : review,
+            review.id === myReviewId ? { ...review, ...data.data, reply: review.reply } : review,
           ),
         )
       } else {
         const { data } = await createReview(hospitalId, { rating, content })
         setReviews((prev) => [data.data, ...prev])
-        setMyReviewId(hospitalId, data.data.id)
-        setMyReviewIdState(data.data.id)
       }
       cancelEdit()
     } catch (err) {
@@ -146,8 +123,6 @@ export default function ReviewSection({
     try {
       await deleteReview(hospitalId, myReviewId)
       setReviews((prev) => prev.filter((review) => review.id !== myReviewId))
-      setMyReviewId(hospitalId, null)
-      setMyReviewIdState(null)
       cancelEdit()
     } catch (err) {
       setError(err.response?.data?.message || '삭제에 실패했습니다.')

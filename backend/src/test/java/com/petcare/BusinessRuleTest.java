@@ -200,6 +200,35 @@ class BusinessRuleTest {
 		assertThat(notificationTypes(secondToken)).doesNotContain("WAITLIST_SLOT_AVAILABLE");
 	}
 
+	// ---------- 응답 필드 ----------
+
+	@Test
+	void 예약_응답에_병원명과_시간이_있고_리뷰의_mine은_작성자에게만_true다() throws Exception {
+		LocalDateTime start = future(24);
+		long slotId = createSlot(hospitalId, start, start.plusMinutes(30));
+		long reservationId = createReservation(userToken, createPet(userToken, "응답펫"), slotId);
+
+		MvcResult reservation = mockMvc.perform(get("/api/reservations/" + reservationId)
+						.header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk())
+				.andReturn();
+		assertThat(data(reservation).get("hospitalName").asText()).isEqualTo("규칙테스트병원");
+		assertThat(LocalDateTime.parse(data(reservation).get("startTime").asText())).isEqualTo(start);
+
+		mockMvc.perform(patch("/api/admin/reservations/" + reservationId + "/confirm")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/hospitals/" + hospitalId + "/reviews")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"rating\":5,\"content\":\"좋아요\"}"))
+				.andExpect(status().isCreated());
+
+		String otherToken = signupAndLogin("reviewer-other-" + suffix + "@petcare.com");
+		assertThat(firstReviewMine(userToken)).isTrue();
+		assertThat(firstReviewMine(otherToken)).isFalse();
+	}
+
 	// ---------- 계정 정지 ----------
 
 	@Test
@@ -336,6 +365,14 @@ class BusinessRuleTest {
 				.andExpect(status().isOk())
 				.andReturn();
 		return data(result).get("content").toString();
+	}
+
+	private boolean firstReviewMine(String token) throws Exception {
+		MvcResult result = mockMvc.perform(get("/api/hospitals/" + hospitalId + "/reviews")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andReturn();
+		return data(result).get("content").get(0).get("mine").asBoolean();
 	}
 
 	private JsonNode data(MvcResult result) throws Exception {

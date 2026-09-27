@@ -1,6 +1,5 @@
 import { CalendarCheck } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
-import { getSlotIndex } from '../../api/reservationApi'
 import {
   confirmReservation,
   getAdminReservations,
@@ -31,7 +30,6 @@ const ACTION_FNS = {
 export default function ReservationQueueSection() {
   const [statusFilter, setStatusFilter] = useState('PENDING')
   const [reservations, setReservations] = useState([])
-  const [index, setIndex] = useState({ slotMap: {}, hospitalNameBySlot: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actingId, setActingId] = useState(null)
@@ -39,12 +37,9 @@ export default function ReservationQueueSection() {
   useEffect(() => {
     setLoading(true)
     setError('')
-    // 슬롯/병원 조인은 예약 화면과 같은 함수 (reservationApi.getSlotIndex)
-    Promise.all([getAdminReservations(statusFilter || undefined), getSlotIndex()])
-      .then(([reservationsRes, slotIndex]) => {
-        setIndex(slotIndex)
-        setReservations(reservationsRes.data.data.content)
-      })
+    // 변경(2026-09-27): ReservationResponse에 병원명/시간이 실려 와서 예약 목록만 조회 (이전: getSlotIndex()로 조인)
+    getAdminReservations(statusFilter || undefined)
+      .then((res) => setReservations(res.data.data.content))
       .catch((err) =>
         setError(err.response?.data?.message || '예약 목록을 불러오지 못했습니다.'),
       )
@@ -106,7 +101,6 @@ export default function ReservationQueueSection() {
       {!loading && !error && reservations.length > 0 && (
         <div className="flex flex-col gap-3 md:grid md:grid-cols-2">
           {reservations.map((reservation) => {
-            const slot = index.slotMap[reservation.slotId]
             return (
               <article
                 key={reservation.id}
@@ -114,13 +108,11 @@ export default function ReservationQueueSection() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="min-w-0 truncate text-base font-bold">
-                    {index.hospitalNameBySlot[reservation.slotId] || '병원 정보 없음'}
+                    {reservation.hospitalName}
                   </h3>
                   <StatusBadge status={reservation.status} />
                 </div>
-                <p className="text-sm text-stone-600">
-                  {slot ? formatSlot(slot) : '시간 정보 없음'}
-                </p>
+                <p className="text-sm text-stone-600">{formatSlot(reservation)}</p>
                 <div className="flex items-center gap-1.5">
                   {reservation.type && (
                     <span className="badge badge-neutral h-6 shrink-0 px-2 text-xs">

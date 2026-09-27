@@ -94,6 +94,7 @@ com.petcare
 - 슬롯 생성 시 그 병원을 찜한 유저들에게 `FAVORITE_HOSPITAL_NEW_SLOT` 알림 자동 발송 (`SlotService.notifyFavoriters`)
 - 예약 생성 시 요청자뿐 아니라 병원 소유자(`Hospital.owner`, 있을 때만)에게도 `RESERVATION_REQUESTED` 알림 발송 — 확정/거절할 사람이 대시보드를 안 열어도 알 수 있게
 - 슬롯/예약 시간 규칙(`Slot.hasStarted()` 기준): 슬롯 생성은 `@Future`(과거 400) + 같은 병원 겹치는 시간대 409(경계 맞닿음은 허용), 지난 슬롯은 예약·대기신청 409, 지난 예약은 취소 409, 노쇼는 시작 시간이 지난 뒤에만(시작 전 409), `WaitlistService.notifyNextInLine()`은 지난 슬롯이면 알림 생략
+- 응답 DTO: `ReservationResponse`/`WaitlistResponse`에 `hospitalId`/`hospitalName`/`startTime`/`endTime`(대기는 `petName`도) 포함 — 프론트가 슬롯/병원을 따로 조인하지 않게. `ReviewResponse.mine`은 요청자 본인 리뷰 여부(작성자 id는 노출 안 함, 목록 조회는 전부 인증 필요라 항상 계산 가능)
 - `PATCH /api/notifications/read-all` — 내 안읽은 알림 전체 읽음(벌크 update 쿼리, 처리 건수 반환)
 - `application.yml`에 `hibernate.default_batch_fetch_size: 100` — fetch join 없이 지연 로딩 연관(리뷰 답글, 예약→펫 등)을 IN 쿼리로 묶어 N+1 완화
 - `GET /api/hospitals`에 `&is24Hours=&hasParking=` 필터 추가 (Querydsl where절, null이면 무시)
