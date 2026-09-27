@@ -284,6 +284,42 @@ class BusinessRuleTest {
 		assertThat(firstReviewMine(otherToken)).isFalse();
 	}
 
+	// ---------- 리마인더 ----------
+
+	@Test
+	void 리마인더는_여러_번_실행해도_한_번만_가고_접종_예정일을_바꾸면_다시_간다() throws Exception {
+		long petId = createPet(userToken, "리마인더펫");
+		LocalDateTime start = LocalDate.now().plusDays(1).atTime(10, 0);
+		long reservationId = createReservation(userToken, petId, createSlot(hospitalId, start, start.plusMinutes(30)));
+		mockMvc.perform(patch("/api/admin/reservations/" + reservationId + "/confirm")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		MvcResult record = mockMvc.perform(post("/api/pets/" + petId + "/health-records")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(healthRecordJson(LocalDate.now().plusDays(2))))
+				.andExpect(status().isCreated())
+				.andReturn();
+		long recordId = data(record).get("id").asLong();
+
+		runReminders();
+		runReminders();
+		String notifications = notificationTypes(userToken);
+		assertThat(countOf(notifications, "RESERVATION_REMINDER")).isEqualTo(1);
+		assertThat(countOf(notifications, "VACCINATION_DUE_SOON")).isEqualTo(1);
+		assertThat(notifications).contains("2일 남았습니다");
+
+		mockMvc.perform(patch("/api/pets/" + petId + "/health-records/" + recordId)
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(healthRecordJson(LocalDate.now().plusDays(1))))
+				.andExpect(status().isOk());
+		runReminders();
+		notifications = notificationTypes(userToken);
+		assertThat(countOf(notifications, "VACCINATION_DUE_SOON")).isEqualTo(2);
+		assertThat(notifications).contains("1일 남았습니다");
+	}
+
 	// ---------- 계정 정지 ----------
 
 	@Test
@@ -442,6 +478,20 @@ class BusinessRuleTest {
 				.andExpect(status().isOk())
 				.andReturn();
 		return data(result).get("content").get(0).get("mine").asBoolean();
+	}
+
+	private void runReminders() throws Exception {
+		mockMvc.perform(post("/api/admin/reminders/run").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+	}
+
+	private String healthRecordJson(LocalDate nextDueDate) {
+		return "{\"type\":\"VACCINATION\",\"recordedAt\":\"" + LocalDate.now() + "\",\"content\":\"종합백신\","
+				+ "\"nextDueDate\":\"" + nextDueDate + "\"}";
+	}
+
+	private int countOf(String text, String token) {
+		return text.split(token, -1).length - 1;
 	}
 
 	private JsonNode data(MvcResult result) throws Exception {

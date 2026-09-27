@@ -6,6 +6,7 @@ import com.petcare.domain.reservation.Reservation;
 import com.petcare.domain.reservation.ReservationRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,32 +21,39 @@ public class ReminderScheduler {
 	private final ReservationRepository reservationRepository;
 	private final NotificationService notificationService;
 
-	// ponytail: exact-day match with no dedup flag — if the server is down at 09:00 on the exact
-	// due date, that reminder is silently missed. Upgrade: add a `reminderSent` flag + a date-range
-	// catch-up check if missed reminders become a problem.
+	private static final int VACCINATION_REMIND_DAYS = 3;
+
+	// 변경(2026-09-27): 정확히 D-3인 날만 → "오늘~D-3 사이 + 아직 안 보낸 것"으로 매칭하고 보낸 뒤 markReminded()
+	// (이전: 09시에 서버가 꺼져 있으면 누락, 같은 날 여러 번 실행하면 중복 발송). 문구도 남은 일수를 실제로 계산
 	@Transactional
 	@Scheduled(cron = "0 0 9 * * *")
 	public void sendVaccinationReminders() {
-		LocalDate targetDate = LocalDate.now().plusDays(3);
-		List<HealthRecord> dueSoon = healthRecordRepository.findAllByNextDueDate(targetDate);
+		LocalDate today = LocalDate.now();
+		List<HealthRecord> dueSoon = healthRecordRepository.findUnremindedDueBetween(
+				today, today.plusDays(VACCINATION_REMIND_DAYS));
 		for (HealthRecord record : dueSoon) {
-			Long userId = record.getPet().getUser().getId();
-			String content = record.getPet().getName() + "의 다음 접종 예정일이 3일 남았습니다.";
-			notificationService.notify(userId, NotificationType.VACCINATION_DUE_SOON, content);
+			long daysLeft = ChronoUnit.DAYS.between(today, record.getNextDueDate());
+			String content = record.getPet().getName() + "의 다음 접종 예정일이 "
+					+ (daysLeft == 0 ? "오늘입니다." : daysLeft + "일 남았습니다.");
+			notificationService.notify(record.getPet().getUser().getId(), NotificationType.VACCINATION_DUE_SOON, content);
+			record.markReminded();
 		}
 	}
 
+	// 변경(2026-09-27): "내일 하루" → "지금~내일 끝 + 아직 안 보낸 것"으로 매칭하고 보낸 뒤 markReminderSent()
+	// (이전: 같은 날 여러 번 실행하면 중복 발송, 전날 09시 이후에 확정된 오늘 예약은 알림을 못 받음)
 	@Transactional
 	@Scheduled(cron = "0 0 9 * * *")
 	public void sendReservationReminders() {
-		LocalDate tomorrow = LocalDate.now().plusDays(1);
-		LocalDateTime start = tomorrow.atStartOfDay();
-		LocalDateTime end = tomorrow.plusDays(1).atStartOfDay();
+		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime end = now.toLocalDate().plusDays(2).atStartOfDay();
 
-		List<Reservation> reservations = reservationRepository.findConfirmedReservationsStartingBetween(start, end);
+		List<Reservation> reservations = reservationRepository.findUnremindedConfirmedStartingBetween(now, end);
 		for (Reservation reservation : reservations) {
-			Long userId = reservation.getUser().getId();
-			notificationService.notify(userId, NotificationType.RESERVATION_REMINDER, "내일 예약이 있습니다.");
+			boolean isToday = reservation.getSlot().getStartTime().toLocalDate().equals(now.toLocalDate());
+			notificationService.notify(reservation.getUser().getId(), NotificationType.RESERVATION_REMINDER,
+					isToday ? "오늘 예약이 있습니다." : "내일 예약이 있습니다.");
+			reservation.markReminderSent();
 		}
 	}
 }

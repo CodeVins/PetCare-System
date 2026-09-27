@@ -9,8 +9,10 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -20,6 +22,9 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
+// 병원별 슬롯 목록(hospital_id + start_time > now, start_time 정렬), 겹침 검사, 일괄 등록 기간 조회용
+// (hospital_id 단일 FK 인덱스만으로는 시간 범위/정렬을 못 탐)
+@Table(indexes = @Index(name = "idx_slot_hospital_start", columnList = "hospital_id, start_time"))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Slot extends BaseEntity {
 

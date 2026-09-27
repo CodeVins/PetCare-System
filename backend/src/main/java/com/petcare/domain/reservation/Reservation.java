@@ -48,6 +48,10 @@ public class Reservation extends BaseEntity {
 	@Column(columnDefinition = "varchar(20)")
 	private ReservationType type;
 
+	// 예약 리마인더 발송 여부 — 같은 날 스케줄러/수동 실행이 여러 번 돌아도 한 번만 보내기 위함
+	@Column(name = "reminder_sent", nullable = false)
+	private boolean reminderSent;
+
 	@Builder
 	private Reservation(Slot slot, Pet pet, User user, ReservationStatus status, ReservationType type) {
 		this.slot = slot;
@@ -75,5 +79,9 @@ public class Reservation extends BaseEntity {
 
 	public void markNoShow() {
 		this.status = ReservationStatus.NO_SHOW;
+	}
+
+	public void markReminderSent() {
+		this.reminderSent = true;
 	}
 }

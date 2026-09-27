@@ -32,7 +32,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
 	long countBySlot_Hospital_IdAndStatus(Long hospitalId, ReservationStatus status);
 
-	@Query("select r from Reservation r where r.status = 'CONFIRMED' and r.slot.startTime >= :start and r.slot.startTime < :end")
-	List<Reservation> findConfirmedReservationsStartingBetween(
+	// 변경(2026-09-27): 아직 리마인더를 안 보낸 예약만 (이전: reminderSent 조건 없음 — 같은 날 여러 번 실행하면 중복 발송)
+	@Query("select r from Reservation r where r.status = 'CONFIRMED' and r.reminderSent = false"
+			+ " and r.slot.startTime >= :start and r.slot.startTime < :end")
+	List<Reservation> findUnremindedConfirmedStartingBetween(
 			@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

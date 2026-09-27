@@ -65,8 +65,8 @@ com.petcare
 - 유저는 PENDING이든 CONFIRMED든 취소 가능(`PATCH /api/reservations/{id}/cancel`), REJECTED/CANCELLED는 재취소 불가(409)
 
 ## 리마인더/스케줄러
-- `ReminderScheduler`(domain/notification, `@Scheduled(cron="0 0 9 * * *")`): 접종 예정일 D-3, 예약 전날에 알림 생성. `@Transactional` 필수(지연 로딩 엔티티를 세션 밖에서 접근하면 `LazyInitializationException` 남)
-- ponytail: 정확히 해당 날짜에만 매칭하는 방식이라 그 시각에 서버가 꺼져있으면 알림이 누락됨. 중복방지 플래그 없음(같은 날 여러 번 실행하면 중복 알림 생성됨) — 필요해지면 `reminderSent` 플래그 추가
+- `ReminderScheduler`(domain/notification, `@Scheduled(cron="0 0 9 * * *")`): 접종 예정일이 오늘~D-3 사이인 기록, 지금~내일 끝 사이에 시작하는 CONFIRMED 예약에 알림 생성(남은 일수/오늘·내일 문구는 실제 계산). `@Transactional` 필수(지연 로딩 엔티티를 세션 밖에서 접근하면 `LazyInitializationException` 남)
+- 중복 방지: `Reservation.reminderSent`(boolean), `HealthRecord.remindedDueDate`(알림 보낸 예정일 — `nextDueDate`와 같으면 발송 완료, 예정일을 수정하면 값이 달라져 자동으로 다시 알림). 같은 날 여러 번 실행해도 한 번만 가고, 범위 매칭이라 09시에 서버가 꺼져 있었어도 다음 실행 때 따라잡음(이전엔 정확히 D-3/내일만 매칭해서 누락+중복 둘 다 있었음). 알림 설정을 끈 유저도 플래그는 세팅됨(다시 켜도 지난 리마인더는 안 옴)
 - `POST /api/admin/reminders/run` (ADMIN 전용): 크론 기다리지 않고 수동으로 즉시 실행 (테스트/데모용)
 - `GET /api/users/me/upcoming-vaccinations`: 마이페이지용 D-day 목록
 
@@ -75,6 +75,8 @@ com.petcare
 - 브라우저 네이티브 `EventSource`는 커스텀 헤더를 못 보내서, 이 경로에 한해 `?token=`쿼리파라미터로도 JWT 인증 허용(`JwtAuthenticationFilter`에서 경로 하드코딩 체크). 다른 엔드포인트는 여전히 Authorization 헤더만 허용
 - `NotificationService.notify()`가 DB 저장 후 연결된 SSE 있으면 바로 push, 없으면 DB에만 남고 다음 폴링(`GET /api/notifications`)으로 확인 — 기존 흐름 안 깨짐
 - `SseEmitterRepository`(domain/notification)가 유저별 활성 emitter를 메모리(ConcurrentHashMap)에 보관. ponytail: 서버 인스턴스 하나 기준이라 스케일아웃 시 다른 인스턴스에 붙은 클라이언트에겐 못 보냄 — 필요해지면 Redis pub/sub 등으로 인스턴스 간 브로드캐스트 추가
+- Heartbeat: `SseEmitterRepository.sendHeartbeat()`(`@Scheduled(fixedRate=25초)`)가 SSE 주석(`:ping`)을 보냄 — 알림이 뜸하면 프록시/로드밸런서가 유휴 연결을 조용히 끊는 것 방지, 전송 실패한 emitter와 빈 유저 항목도 여기서 정리. `EventSource`는 주석을 무시해서 프론트 변경 없음
+- 인덱스(`@Table(indexes=...)`): MySQL은 FK 컬럼에 인덱스를 자동 생성하므로 단일 FK 인덱스는 따로 안 만듦. 실제 쿼리에 맞춘 복합/비FK 인덱스만 — `slot(hospital_id, start_time)`, `notification(user_id, is_read)`, `notification(user_id, created_at)`, `health_record(next_due_date)`. `ddl-auto: update`가 없는 인덱스를 생성함
 - 모든 엔티티는 `BaseEntity`(createdAt/updatedAt, JPA Auditing) 상속
 
 ## 컨벤션
