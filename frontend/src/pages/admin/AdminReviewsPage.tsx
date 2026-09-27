@@ -7,8 +7,10 @@ import Stars from '../../components/common/Stars'
 import { formatDateTime } from '../../lib/format'
 import AdminPageHeader from './AdminPageHeader'
 import type { ReviewReport } from '../../types/api'
+import { useToast } from '../../hooks/useToast'
 
 export default function AdminReviewsPage() {
+  const toast = useToast()
   const [reports, setReports] = useState<ReviewReport[]>([])
   const [hospitalNameById, setHospitalNameById] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
@@ -41,8 +43,10 @@ export default function AdminReviewsPage() {
       setReports((prev) =>
         prev.map((r) => (r.id === report.id ? { ...r, reviewHidden: !r.reviewHidden } : r)),
       )
+      toast(report.reviewHidden ? '리뷰를 다시 보이게 했습니다.' : '리뷰를 숨겼습니다.')
     } catch (err) {
-      setError(errorMessage(err, '처리에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패를 토스트로 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
     } finally {
       setActingId(null)
     }

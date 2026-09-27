@@ -18,6 +18,7 @@ import InfoRow from '../../components/common/InfoRow'
 import PageHeader from '../../components/common/PageHeader'
 import Tabs from '../../components/common/Tabs'
 import TextField from '../../components/common/TextField'
+import { useToast } from '../../hooks/useToast'
 import { calculateAge, SEX_LABEL, SPECIES_LABEL } from '../../lib/format'
 import FeedingCalculatorSection from './FeedingCalculatorSection'
 import GuardianSection from './GuardianSection'
@@ -98,7 +99,7 @@ export default function PetFormPage() {
   const [role, setRole] = useState<PetRole>('OWNER')
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const toast = useToast()
   const [error, setError] = useState('')
   const [tab, setTab] = useState<PetTab>('overview')
   // 등록 화면(isEdit=false)은 폼만 보여주고, 상세 화면은 정보 카드를 먼저 보여준
@@ -193,7 +194,6 @@ export default function PetFormPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
-    setSaved(false)
     setSaving(true)
     const payload = {
       name,
@@ -208,10 +208,12 @@ export default function PetFormPage() {
       if (isEdit) {
         await updatePet(petId, payload)
         savedSnapshot.current = { name, species, breed, birthDate, size, sex, neutered }
-        setSaved(true)
+        // 변경(2026-09-27): 저장 완료 안내를 토스트로 (이전: 개요 카드 위 초록 Alert가 계속 남아 있었음)
+        toast('정보를 저장했어요.')
         setEditing(false)
       } else {
         await createPet(payload)
+        toast('반려동물을 등록했어요.')
         navigate('/pets', { replace: true })
       }
     } catch (err) {
@@ -223,7 +225,6 @@ export default function PetFormPage() {
 
   const handleEditStart = () => {
     setError('')
-    setSaved(false)
     setEditing(true)
   }
 
@@ -247,6 +248,7 @@ export default function PetFormPage() {
     setSaving(true)
     try {
       await deletePet(petId)
+      toast(`${name}의 정보를 삭제했어요.`)
       navigate('/pets', { replace: true })
     } catch (err) {
       setError(errorMessage(err, '삭제에 실패했습니다.'))
@@ -394,7 +396,6 @@ export default function PetFormPage() {
   // 연필 아이콘을 누르면 위 form으로 전환된다.
   const overviewView = (
     <div className="flex flex-col gap-4">
-      {saved && <Alert tone="ok">정보를 저장했어요.</Alert>}
 
       <div className="flex items-center gap-4">
         {avatar}

@@ -17,6 +17,7 @@ import SelectField from '../../components/common/SelectField'
 import Tabs from '../../components/common/Tabs'
 import { useAuth } from '../../hooks/useAuth'
 import { useFavoriteIds } from '../../hooks/useFavoriteIds'
+import { useToast } from '../../hooks/useToast'
 import { formatDateLabel, formatTimeRange, RESERVATION_TYPE_LABEL } from '../../lib/format'
 import { OWNER_ROLES } from '../../lib/roles'
 import type { Hospital, Pet, ReservationType, Slot } from '../../types/api'
@@ -56,7 +57,7 @@ export default function HospitalDetailPage() {
   const [chatError, setChatError] = useState('')
 
   const [waitlistJoiningId, setWaitlistJoiningId] = useState<number | null>(null)
-  const [waitlistMessage, setWaitlistMessage] = useState('')
+  const toast = useToast()
 
   useEffect(() => {
     // 변경(2026-09-27): 병원·슬롯(공개)과 내 반려동물(회원 전용)을 분리 — 비회원은 공개 데이터만 조회
@@ -121,6 +122,7 @@ export default function HospitalDetailPage() {
           slotId: selectedSlotId,
           type: reservationType,
         })
+        toast('예약을 신청했어요. 병원에서 확정하면 알림으로 알려드릴게요.')
         navigate('/reservations', { replace: true })
       } catch (err) {
         setReserveError(errorMessage(err, '예약에 실패했습니다.'))
@@ -129,17 +131,17 @@ export default function HospitalDetailPage() {
   }
 
   const handleJoinWaitlist = async (slotId: number) => {
-    setWaitlistMessage('')
     if (!selectedPetId) {
-      setWaitlistMessage('반려동물을 선택해 주세요.')
+      toast('반려동물을 선택해 주세요.', 'error')
       return
     }
     setWaitlistJoiningId(slotId)
     try {
       await joinWaitlist({ petId: Number(selectedPetId), slotId })
-      setWaitlistMessage('대기 신청이 완료되었습니다. 자리가 나면 알림으로 알려드려요.')
+      // 변경(2026-09-27): 대기 신청 결과를 슬롯 아래 문구 대신 토스트로 (이전: waitlistMessage 인라인 텍스트)
+      toast('대기 신청했어요. 자리가 나면 알림으로 알려드릴게요.')
     } catch (err) {
-      setWaitlistMessage(errorMessage(err, '대기 신청에 실패했습니다.'))
+      toast(errorMessage(err, '대기 신청에 실패했습니다.'), 'error')
     } finally {
       setWaitlistJoiningId(null)
     }
@@ -357,9 +359,6 @@ export default function HospitalDetailPage() {
                       날짜와 시간을 선택해 주세요
                     </p>
                     {slotList}
-                    {waitlistMessage && (
-                      <p className="mt-2 text-sm text-stone-600">{waitlistMessage}</p>
-                    )}
                   </div>
 
                   <Alert tone="error">{reserveError}</Alert>

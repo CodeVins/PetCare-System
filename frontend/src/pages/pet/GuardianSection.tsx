@@ -13,6 +13,7 @@ import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import TextField from '../../components/common/TextField'
 import type { PetGuardian } from '../../types/api'
+import { useToast } from '../../hooks/useToast'
 
 export default function GuardianSection({
   petId,
@@ -21,6 +22,7 @@ export default function GuardianSection({
   petId: number | string
   isOwner: boolean
 }) {
+  const toast = useToast()
   const [guardians, setGuardians] = useState<PetGuardian[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -51,6 +53,7 @@ export default function GuardianSection({
       const { data } = await inviteGuardian(petId, email)
       setGuardians((prev) => [...prev, data.data])
       setEmail('')
+      toast(`${data.data.email}님을 공동 보호자로 초대했어요.`)
     } catch (err) {
       setInviteError(errorMessage(err, '초대에 실패했습니다.'))
     } finally {
@@ -64,8 +67,10 @@ export default function GuardianSection({
     try {
       await removeGuardian(petId, userId)
       setGuardians((prev) => prev.filter((guardian) => guardian.userId !== userId))
+      toast('보호자를 내보냈어요.')
     } catch (err) {
-      setError(errorMessage(err, '처리에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패를 토스트로 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
     } finally {
       setActingUserId(null)
     }
@@ -76,9 +81,10 @@ export default function GuardianSection({
     setLeaving(true)
     try {
       await leaveGuardian(petId)
+      toast('공동 보호자에서 나왔어요.')
       navigate('/pets', { replace: true })
     } catch (err) {
-      setError(errorMessage(err, '처리에 실패했습니다.'))
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
       setLeaving(false)
     }
   }

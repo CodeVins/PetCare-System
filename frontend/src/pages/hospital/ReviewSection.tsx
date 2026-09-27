@@ -17,6 +17,7 @@ import EmptyState from '../../components/common/EmptyState'
 import LoginRequired from '../../components/common/LoginRequired'
 import Stars from '../../components/common/Stars'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../hooks/useToast'
 import type { Review } from '../../types/api'
 
 // 별 자체를 누르는 평점 입력 (radiogroup 시맨틱 유지)
@@ -71,7 +72,7 @@ export default function ReviewSection({
   const [reportingId, setReportingId] = useState<number | null>(null)
   const [reportReason, setReportReason] = useState('')
   const [reporting, setReporting] = useState(false)
-  const [reportMessage, setReportMessage] = useState('')
+  const toast = useToast()
 
   const [replyingId, setReplyingId] = useState<number | null>(null)
   const [replyContent, setReplyContent] = useState('')
@@ -118,9 +119,11 @@ export default function ReviewSection({
             review.id === myReviewId ? { ...review, ...data.data, reply: review.reply } : review,
           ),
         )
+        toast('리뷰를 수정했어요.')
       } else {
         const { data } = await createReview(hospitalId, { rating, content })
         setReviews((prev) => [data.data, ...prev])
+        toast('리뷰를 등록했어요.')
       }
       cancelEdit()
     } catch (err) {
@@ -137,22 +140,24 @@ export default function ReviewSection({
       await deleteReview(hospitalId, myReviewId)
       setReviews((prev) => prev.filter((review) => review.id !== myReviewId))
       cancelEdit()
+      toast('리뷰를 삭제했어요.')
     } catch (err) {
-      setError(errorMessage(err, '삭제에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패는 토스트로 (이전: setError로 리뷰 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '삭제에 실패했습니다.'), 'error')
     }
   }
 
   const handleReport = async (reviewId: number) => {
     if (!reportReason.trim()) return
     setReporting(true)
-    setReportMessage('')
     try {
       await reportReview(hospitalId, reviewId, reportReason.trim())
-      setReportMessage('신고가 접수되었습니다.')
+      // 변경(2026-09-27): 신고 결과를 토스트로 하고 입력창은 바로 닫음 (이전: 입력창 아래 문구 0.8초 후 닫힘)
+      toast('신고가 접수됐어요.')
       setReportReason('')
-      setTimeout(() => setReportingId(null), 800)
+      setReportingId(null)
     } catch (err) {
-      setReportMessage(errorMessage(err, '신고에 실패했습니다.'))
+      toast(errorMessage(err, '신고에 실패했습니다.'), 'error')
     } finally {
       setReporting(false)
     }
@@ -174,8 +179,9 @@ export default function ReviewSection({
       )
       setReplyingId(null)
       setReplyContent('')
+      toast(hasExistingReply ? '답글을 수정했어요.' : '답글을 등록했어요.')
     } catch (err) {
-      setError(errorMessage(err, '답글 저장에 실패했습니다.'))
+      toast(errorMessage(err, '답글 저장에 실패했습니다.'), 'error')
     } finally {
       setReplySaving(false)
     }
@@ -188,8 +194,9 @@ export default function ReviewSection({
       setReviews((prev) =>
         prev.map((review) => (review.id === reviewId ? { ...review, reply: null } : review)),
       )
+      toast('답글을 삭제했어요.')
     } catch (err) {
-      setError(errorMessage(err, '삭제에 실패했습니다.'))
+      toast(errorMessage(err, '삭제에 실패했습니다.'), 'error')
     }
   }
 
@@ -331,10 +338,7 @@ export default function ReviewSection({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
-                          setReportingId(review.id)
-                          setReportMessage('')
-                        }}
+                        onClick={() => setReportingId(review.id)}
                         className={`${linkBtn} flex items-center gap-1 text-stone-600 hover:text-red-700`}
                       >
                         <WarningCircle size={14} />
@@ -373,7 +377,6 @@ export default function ReviewSection({
                         제출
                       </button>
                     </div>
-                    {reportMessage && <p className="text-[13px] text-stone-600">{reportMessage}</p>}
                   </div>
                 )}
 

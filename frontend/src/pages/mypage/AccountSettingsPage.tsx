@@ -5,6 +5,7 @@ import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import PageHeader from '../../components/common/PageHeader'
 import TextField from '../../components/common/TextField'
+import { useToast } from '../../hooks/useToast'
 
 export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -13,14 +14,14 @@ export default function AccountSettingsPage() {
   const [email, setEmail] = useState('')
   const [emailSaving, setEmailSaving] = useState(false)
   const [emailError, setEmailError] = useState('')
-  const [emailSuccess, setEmailSuccess] = useState(false)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState('')
-  const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+  const toast = useToast()
 
   useEffect(() => {
     getMe()
@@ -36,11 +37,11 @@ export default function AccountSettingsPage() {
   const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setEmailError('')
-    setEmailSuccess(false)
     setEmailSaving(true)
     try {
       await updateEmail(email)
-      setEmailSuccess(true)
+      // 변경(2026-09-27): 변경 완료 안내를 토스트로 (이전: 폼 아래 초록 Alert)
+      toast('이메일을 변경했어요.')
     } catch (err) {
       setEmailError(errorMessage(err, '이메일 변경에 실패했습니다.'))
     } finally {
@@ -51,7 +52,6 @@ export default function AccountSettingsPage() {
   const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setPasswordError('')
-    setPasswordSuccess(false)
     if (newPassword !== newPasswordConfirm) {
       setPasswordError('새 비밀번호가 일치하지 않습니다.')
       return
@@ -59,7 +59,7 @@ export default function AccountSettingsPage() {
     setPasswordSaving(true)
     try {
       await changePassword({ currentPassword, newPassword })
-      setPasswordSuccess(true)
+      toast('비밀번호를 변경했어요.')
       setCurrentPassword('')
       setNewPassword('')
       setNewPasswordConfirm('')
@@ -93,15 +93,11 @@ export default function AccountSettingsPage() {
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(event) => {
-            setEmail(event.target.value)
-            setEmailSuccess(false)
-          }}
+          onChange={(event) => setEmail(event.target.value)}
           hint="이메일을 바꾸면 다시 로그인해야 할 수 있어요."
           required
         />
         <Alert tone="error">{emailError}</Alert>
-        {emailSuccess && <Alert tone="ok">이메일이 변경되었습니다.</Alert>}
         <Button type="submit" loading={emailSaving} className="w-full">
           이메일 변경
         </Button>
@@ -145,7 +141,6 @@ export default function AccountSettingsPage() {
           required
         />
         <Alert tone="error">{passwordError}</Alert>
-        {passwordSuccess && <Alert tone="ok">비밀번호가 변경되었습니다.</Alert>}
         <Button
           type="submit"
           loading={passwordSaving}

@@ -1,7 +1,7 @@
-import { useActionState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login as loginRequest } from '../../api/authApi'
-import { errorMessage } from '../../api/axiosInstance'
+import { errorMessage, LOGIN_NOTICE_KEY } from '../../api/axiosInstance'
 import { getMe } from '../../api/userApi'
 import Alert from '../../components/common/Alert'
 import SubmitButton from '../../components/common/SubmitButton'
@@ -19,6 +19,12 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const locationState = (location.state ?? {}) as AuthLocationState
+  // 세션이 끊겨 튕겨 왔을 때 axiosInstance가 남긴 이유(정지 계정 등) — 한 번만 보여주고 지운다
+  // (StrictMode에서 initializer가 두 번 불려도 같은 값이 나오게, 지우는 건 effect에서)
+  const [sessionNotice] = useState(() => sessionStorage.getItem(LOGIN_NOTICE_KEY) ?? '')
+  useEffect(() => {
+    sessionStorage.removeItem(LOGIN_NOTICE_KEY)
+  }, [])
 
   // 변경(2026-09-27): useState 4개 + onSubmit → React 19 useActionState + <form action>.
   // 제출 중 상태는 SubmitButton이 useFormStatus로 읽는다 (이전: loading/error/email/password 수동 관리)
@@ -55,6 +61,7 @@ export default function LoginPage() {
       {locationState.passwordResetSuccess && (
         <Alert tone="ok">비밀번호가 변경되었어요. 새 비밀번호로 로그인해 주세요.</Alert>
       )}
+      <Alert tone="error">{sessionNotice}</Alert>
 
       <form action={formAction} className="flex flex-col gap-4">
         <TextField

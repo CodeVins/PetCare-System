@@ -8,6 +8,7 @@ import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
+import { useToast } from '../../hooks/useToast'
 import { formatSlot } from '../../lib/format'
 import ReservationTabs from './ReservationTabs'
 
@@ -16,6 +17,7 @@ export default function WaitlistPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [leavingId, setLeavingId] = useState<number | null>(null)
+  const toast = useToast()
 
   useEffect(() => {
     // 변경(2026-09-27): WaitlistResponse에 병원명/시간/반려동물 이름이 실려 와서 대기 목록만 조회
@@ -34,8 +36,10 @@ export default function WaitlistPage() {
     try {
       await leaveWaitlist(waitlistId)
       setWaitlist((prev) => prev.filter((item) => item.id !== waitlistId))
+      toast('대기 신청을 취소했어요.')
     } catch (err) {
-      setError(errorMessage(err, '취소에 실패했습니다.'))
+      // 변경(2026-09-27): 실패를 토스트로 (이전: setError로 대기 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '취소에 실패했습니다.'), 'error')
     } finally {
       setLeavingId(null)
     }

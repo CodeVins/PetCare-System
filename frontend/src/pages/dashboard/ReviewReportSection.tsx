@@ -7,6 +7,7 @@ import EmptyState from '../../components/common/EmptyState'
 import Stars from '../../components/common/Stars'
 import { formatDateTime } from '../../lib/format'
 import type { ReviewReport } from '../../types/api'
+import { useToast } from '../../hooks/useToast'
 
 // 관리자 /admin/reviews 와 같은 API — 서버가 HOSPITAL_OWNER에게는 본인 병원 신고만
 // 스코핑해서 내려준다. 화면만 소비자 앱 톤(card/badge/btn-*)으로.
@@ -15,6 +16,7 @@ export default function ReviewReportSection({
 }: {
   hospitalNameById: Record<number, string>
 }) {
+  const toast = useToast()
   const [reports, setReports] = useState<ReviewReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,8 +41,10 @@ export default function ReviewReportSection({
           r.reviewId === report.reviewId ? { ...r, reviewHidden: !report.reviewHidden } : r,
         ),
       )
+      toast(report.reviewHidden ? '리뷰를 다시 보이게 했어요.' : '리뷰를 숨겼어요.')
     } catch (err) {
-      setError(errorMessage(err, '처리에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패를 토스트로 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
     } finally {
       setActingId(null)
     }

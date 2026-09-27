@@ -7,6 +7,7 @@ import {
 import Alert from '../../components/common/Alert'
 import Toggle from '../../components/common/Toggle'
 import type { NotificationCategory, NotificationPreference } from '../../types/api'
+import { useToast } from '../../hooks/useToast'
 
 const CATEGORY = {
   RESERVATION: ['예약', '예약 확정, 거절, 취소, 리마인더'],
@@ -17,6 +18,7 @@ const CATEGORY = {
 }
 
 export default function NotificationPreferenceSection() {
+  const toast = useToast()
   const [preferences, setPreferences] = useState<NotificationPreference[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,7 +49,8 @@ export default function NotificationPreferenceSection() {
           pref.category === category ? { ...pref, enabled: !enabled } : pref,
         ),
       )
-      setError(errorMessage(err, '변경에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패를 토스트로 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '알림 설정을 바꾸지 못했어요.'), 'error')
     } finally {
       setUpdatingCategory(null)
     }

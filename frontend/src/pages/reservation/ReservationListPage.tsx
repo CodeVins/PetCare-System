@@ -10,6 +10,7 @@ import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
 import StatusBadge from '../../components/common/StatusBadge'
 import { usePagedList } from '../../hooks/usePagedList'
+import { useToast } from '../../hooks/useToast'
 import { formatSlot, RESERVATION_TYPE_LABEL } from '../../lib/format'
 import ReservationTabs from './ReservationTabs'
 import type { ReservationStatus } from '../../types/api'
@@ -37,12 +38,12 @@ export default function ReservationListPage() {
     setItems: setReservations,
     loading,
     error,
-    setError,
     hasMore,
     loadMore,
     loadingMore,
   } = usePagedList(getMyReservations, null, '예약 목록을 불러오지 못했습니다.')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const toast = useToast()
   const [statusFilter, setStatusFilter] = useState('ALL')
 
   const handleCancel = async (reservationId: number) => {
@@ -57,8 +58,10 @@ export default function ReservationListPage() {
             : reservation,
         ),
       )
+      toast('예약을 취소했어요.')
     } catch (err) {
-      setError(errorMessage(err, '예약 취소에 실패했습니다.'))
+      // 변경(2026-09-27): 취소 실패를 토스트로 (이전: setError로 예약 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '예약 취소에 실패했습니다.'), 'error')
     } finally {
       setCancellingId(null)
     }

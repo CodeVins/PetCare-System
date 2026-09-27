@@ -8,6 +8,7 @@ import ChoiceGroup from '../../components/common/ChoiceGroup'
 import EmptyState from '../../components/common/EmptyState'
 import SelectField from '../../components/common/SelectField'
 import TextField from '../../components/common/TextField'
+import { useToast } from '../../hooks/useToast'
 import { formatDateLabel, formatTimeRange } from '../../lib/format'
 import type { DayOfWeek, Slot, SlotBulkPayload } from '../../types/api'
 
@@ -52,7 +53,7 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
   const [bulk, setBulk] = useState(INITIAL_BULK)
   const [creating, setCreating] = useState(false)
   const [formError, setFormError] = useState('')
-  const [formResult, setFormResult] = useState('')
+  const toast = useToast()
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const loadSlots = useCallback(() => {
@@ -91,7 +92,6 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setFormResult('')
     const message = validate()
     setFormError(message)
     if (message) return
@@ -101,13 +101,14 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
       if (mode === 'single') {
         await createSlot(hospitalId, newSlot)
         setNewSlot({ startTime: '', endTime: '' })
-        setFormResult('슬롯을 등록했습니다.')
+        toast('슬롯을 등록했어요.')
       } else {
         const { data } = await createSlotsBulk(hospitalId, bulk)
         const { created, skipped } = data.data
-        setFormResult(
-          `${created}개 등록했습니다.` +
-            (skipped > 0 ? ` (지난 시간이거나 기존 슬롯과 겹친 ${skipped}개는 건너뜀)` : ''),
+        // 변경(2026-09-27): 등록 결과를 폼 아래 Alert 대신 토스트로 (이전: setFormResult + <Alert tone="ok">)
+        toast(
+          `${created}개 등록했어요.` +
+            (skipped > 0 ? ` 지난 시간이거나 기존 슬롯과 겹친 ${skipped}개는 건너뛰었어요.` : ''),
         )
       }
       loadSlots()
@@ -122,12 +123,13 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
     const label = `${formatDateLabel(slot.startTime.slice(0, 10))} ${formatTimeRange(slot.startTime, slot.endTime)}`
     if (!window.confirm(`${label} 슬롯을 삭제할까요?`)) return
     setDeletingId(slot.id)
-    setError('')
     try {
       await deleteSlot(hospitalId, slot.id)
       setSlots((prev) => prev.filter((s) => s.id !== slot.id))
+      toast(`${label} 슬롯을 삭제했어요.`)
     } catch (err) {
-      setError(errorMessage(err, '슬롯 삭제에 실패했습니다.'))
+      // 변경(2026-09-27): 삭제 실패(예약 이력 409 등)를 토스트로 (이전: 목록 위 에러 Alert)
+      toast(errorMessage(err, '슬롯 삭제에 실패했습니다.'), 'error')
     } finally {
       setDeletingId(null)
     }
@@ -148,7 +150,6 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
           onChange={(value) => {
             setMode(value)
             setFormError('')
-            setFormResult('')
           }}
           options={[
             { value: 'single', label: '한 개씩' },
@@ -232,7 +233,6 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
         )}
 
         <Alert tone="error">{formError}</Alert>
-        <Alert tone="ok">{formResult}</Alert>
         <Button type="submit" loading={creating} className="w-full">
           {mode === 'single' ? '슬롯 등록' : '반복 등록'}
         </Button>

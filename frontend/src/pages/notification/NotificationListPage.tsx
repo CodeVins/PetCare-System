@@ -21,6 +21,7 @@ import { useNotifications } from '../../hooks/useNotifications'
 import { usePagedList } from '../../hooks/usePagedList'
 import { formatDateTime } from '../../lib/format'
 import type { Notification, NotificationType } from '../../types/api'
+import { useToast } from '../../hooks/useToast'
 
 const TYPE_ICON: Partial<Record<NotificationType, Icon>> = {
   RESERVATION_REQUESTED: Clock,
@@ -45,16 +46,19 @@ export default function NotificationListPage() {
     loadMore,
     loadingMore,
   } = usePagedList(getNotifications, null, '알림을 불러오지 못했습니다.')
+  const toast = useToast()
   const [markingAll, setMarkingAll] = useState(false)
   const { decrementUnread, refreshUnreadCount } = useNotifications()
 
   const handleMarkAll = async () => {
     setMarkingAll(true)
     try {
-      await markAllNotificationsAsRead()
+      const { data } = await markAllNotificationsAsRead()
       setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))
+      toast(`알림 ${data.data}개를 읽음으로 표시했어요.`)
     } catch {
       // 실패해도 목록은 그대로 두고 뱃지만 서버 기준으로 다시 맞춤
+      toast('읽음 처리에 실패했어요.', 'error')
     } finally {
       refreshUnreadCount()
       setMarkingAll(false)

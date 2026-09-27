@@ -9,6 +9,7 @@ import {
 import Alert from '../../components/common/Alert'
 import StatusBadge from '../../components/common/StatusBadge'
 import { usePagedList } from '../../hooks/usePagedList'
+import { useToast } from '../../hooks/useToast'
 import { formatSlot, RESERVATION_TYPE_LABEL, reservationPetCaption } from '../../lib/format'
 import type { ReservationStatus } from '../../types/api'
 import AdminPageHeader from './AdminPageHeader'
@@ -28,6 +29,12 @@ const ACTION_FNS = {
   noShow: noShowReservation,
 }
 
+const ACTION_DONE = {
+  confirm: '예약을 확정했어요.',
+  reject: '예약을 거절했어요.',
+  noShow: '노쇼로 처리했어요.',
+}
+
 export default function AdminReservationsPage() {
   const [statusFilter, setStatusFilter] = useState<ReservationStatus | ''>('PENDING')
   // ADMIN은 병원 전체, HOSPITAL_OWNER는 본인 병원만 — 서버가 이미 스코핑해서 내려준다.
@@ -37,7 +44,6 @@ export default function AdminReservationsPage() {
     setItems: setReservations,
     loading,
     error,
-    setError,
     hasMore,
     loadMore,
     loadingMore,
@@ -47,14 +53,17 @@ export default function AdminReservationsPage() {
     '예약 목록을 불러오지 못했습니다.',
   )
   const [actingId, setActingId] = useState<number | null>(null)
+  const toast = useToast()
 
   const handleAction = async (reservationId: number, action: keyof typeof ACTION_FNS) => {
     setActingId(reservationId)
     try {
       await ACTION_FNS[action](reservationId)
       setReservations((prev) => prev.filter((r) => r.id !== reservationId))
+      toast(ACTION_DONE[action])
     } catch (err) {
-      setError(errorMessage(err, '처리에 실패했습니다.'))
+      // 변경(2026-09-27): 처리 실패를 토스트로 — 목록은 그대로 두고 알림만 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
     } finally {
       setActingId(null)
     }

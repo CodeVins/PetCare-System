@@ -12,6 +12,7 @@ import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import StatusBadge from '../../components/common/StatusBadge'
 import { usePagedList } from '../../hooks/usePagedList'
+import { useToast } from '../../hooks/useToast'
 import { formatSlot, RESERVATION_TYPE_LABEL, reservationPetCaption } from '../../lib/format'
 import type { ReservationStatus } from '../../types/api'
 
@@ -30,6 +31,12 @@ const ACTION_FNS = {
   noShow: noShowReservation,
 }
 
+const ACTION_DONE = {
+  confirm: '예약을 확정했어요.',
+  reject: '예약을 거절했어요.',
+  noShow: '노쇼로 처리했어요.',
+}
+
 export default function ReservationQueueSection() {
   const [statusFilter, setStatusFilter] = useState<ReservationStatus | ''>('PENDING')
   // 변경(2026-09-27): usePagedList로 "더 보기" 페이지네이션 (이전: 첫 페이지 20개만 보임)
@@ -38,7 +45,6 @@ export default function ReservationQueueSection() {
     setItems: setReservations,
     loading,
     error,
-    setError,
     hasMore,
     loadMore,
     loadingMore,
@@ -48,6 +54,7 @@ export default function ReservationQueueSection() {
     '예약 목록을 불러오지 못했습니다.',
   )
   const [actingId, setActingId] = useState<number | null>(null)
+  const toast = useToast()
 
   const handleAction = async (reservationId: number, action: keyof typeof ACTION_FNS) => {
     setActingId(reservationId)
@@ -56,8 +63,10 @@ export default function ReservationQueueSection() {
       setReservations((prev) =>
         prev.filter((reservation) => reservation.id !== reservationId),
       )
+      toast(ACTION_DONE[action])
     } catch (err) {
-      setError(errorMessage(err, '처리에 실패했습니다.'))
+      // 변경(2026-09-27): 처리 실패를 토스트로 — 목록은 그대로 두고 알림만 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
     } finally {
       setActingId(null)
     }

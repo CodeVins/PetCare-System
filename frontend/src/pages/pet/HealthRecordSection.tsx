@@ -9,6 +9,7 @@ import type { HealthRecord, HealthRecordType } from '../../types/api'
 import HealthRecordDialog from './HealthRecordDialog'
 import { RECORD_TYPE_ORDER, RECORD_TYPES } from './healthRecordTypes'
 import WeightChart from './WeightChart'
+import { useToast } from '../../hooks/useToast'
 
 type Filter = HealthRecordType | 'ALL'
 
@@ -27,6 +28,7 @@ function monthLabel(yearMonth: string) {
 // 변경(2026-09-27): 작성 폼을 HealthRecordDialog로 분리하고, 목록을 종류 필터 + 월별 묶음 + 날짜 칸
 // 형태로 바꿈 (이전: 화면 상단에 항상 펼쳐진 작성 폼 + 모든 기록을 한 줄씩 나열해 찾기 어려웠음)
 export default function HealthRecordSection({ petId }: { petId: number | string }) {
+  const toast = useToast()
   const [records, setRecords] = useState<HealthRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -53,6 +55,7 @@ export default function HealthRecordSection({ petId }: { petId: number | string 
   }
 
   const handleSaved = (saved: HealthRecord) => {
+    toast(editing ? '기록을 수정했어요.' : '기록을 저장했어요.')
     setRecords((prev) =>
       sortByDateDesc(
         prev.some((r) => r.id === saved.id)
@@ -68,8 +71,10 @@ export default function HealthRecordSection({ petId }: { petId: number | string 
     try {
       await deleteHealthRecord(petId, record.id)
       setRecords((prev) => prev.filter((r) => r.id !== record.id))
+      toast('기록을 삭제했어요.')
     } catch (err) {
-      setError(errorMessage(err, '삭제에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패를 토스트로 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '삭제에 실패했습니다.'), 'error')
     }
   }
 

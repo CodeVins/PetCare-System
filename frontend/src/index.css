@@ -23,6 +23,14 @@
   --shadow-lg: 0 8px 24px rgb(13 79 72 / 0.14);
 }
 
+/* 토스트 등장 (hooks/useToast) */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 body {
   @apply bg-stone-50 text-stone-900;
   font-size: 15px;

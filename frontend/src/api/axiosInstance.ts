@@ -20,9 +20,13 @@ axiosInstance.interceptors.request.use((config) => {
   return config
 })
 
-function clearSession() {
+// 로그인 화면으로 보낼 때 이유를 넘기는 키 — LoginPage가 한 번 읽고 지운다
+export const LOGIN_NOTICE_KEY = 'loginNotice'
+
+function clearSession(notice?: string) {
   localStorage.removeItem('accessToken')
   localStorage.removeItem('refreshToken')
+  if (notice) sessionStorage.setItem(LOGIN_NOTICE_KEY, notice)
   window.location.href = '/login'
 }
 
@@ -64,7 +68,7 @@ axiosInstance.interceptors.response.use(
       // 변경(2026-09-27): 토큰이 아예 없는 비회원이면 /login으로 튕기지 않고 에러만 돌려줌 — 비회원도
       // 홈·병원 둘러보기가 가능해져서, 화면이 "로그인 후 이용" 안내를 직접 띄운다
       // (이전: 토큰 없으면 무조건 clearSession()으로 /login 이동)
-      if (localStorage.getItem('accessToken')) clearSession()
+      if (localStorage.getItem('accessToken')) clearSession('로그인이 만료되었습니다. 다시 로그인해 주세요.')
       return Promise.reject(error)
     }
 
@@ -75,8 +79,15 @@ axiosInstance.interceptors.response.use(
       localStorage.setItem('refreshToken', data.data.refreshToken)
       originalRequest.headers.Authorization = `Bearer ${data.data.accessToken}`
       return axiosInstance(originalRequest)
-    } catch {
-      clearSession()
+    } catch (reissueError) {
+      // 변경(2026-09-27): 재발급이 403(정지 계정 등)이면 서버 문구를 로그인 화면에 전달, 그 외(만료 등)는
+      // "다시 로그인" 안내 (이전: 이유 없이 /login으로만 이동 — 사용 중 정지되면 왜 튕겼는지 알 수 없었음)
+      const forbidden = axios.isAxiosError(reissueError) && reissueError.response?.status === 403
+      clearSession(
+        forbidden
+          ? errorMessage(reissueError, '계정을 사용할 수 없습니다.')
+          : '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+      )
       return Promise.reject(error)
     }
   },

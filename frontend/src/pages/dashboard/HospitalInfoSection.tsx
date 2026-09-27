@@ -10,6 +10,7 @@ import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
 import Toggle from '../../components/common/Toggle'
+import { useToast } from '../../hooks/useToast'
 import type { Hospital } from '../../types/api'
 
 function toFormState(hospital: Hospital) {
@@ -35,21 +36,19 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
   const [form, setForm] = useState(toFormState(hospital))
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
-  const [formSuccess, setFormSuccess] = useState(false)
+  const toast = useToast()
 
   const [imageSaving, setImageSaving] = useState(false)
   const [imageError, setImageError] = useState('')
 
   useEffect(() => {
     setForm(toFormState(hospital))
-    setFormSuccess(false)
     // 선택한 병원이 바뀌면 폼도 그 병원 값으로 갈아끼운다
   }, [hospital])
 
   const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormError('')
-    setFormSuccess(false)
     setSaving(true)
     try {
       const { data } = await updateHospital(hospital.id, {
@@ -65,7 +64,8 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
           form.avgTreatmentPrice === '' ? null : Number(form.avgTreatmentPrice),
       })
       onHospitalUpdated(data.data)
-      setFormSuccess(true)
+      // 변경(2026-09-27): 저장 완료 안내를 토스트로 (이전: 폼 아래 초록 Alert)
+      toast('병원 정보를 저장했어요.')
     } catch (err) {
       setFormError(errorMessage(err, '저장에 실패했습니다.'))
     } finally {
@@ -212,7 +212,6 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
         />
 
         <Alert tone="error">{formError}</Alert>
-        {formSuccess && <Alert tone="ok">병원 정보를 저장했어요.</Alert>}
 
         <Button type="submit" loading={saving} className="w-full">
           병원 정보 저장

@@ -10,8 +10,10 @@ import { Reveal, RevealItem } from '../../components/common/Reveal'
 import type { Hospital } from '../../types/api'
 import HospitalCard from './HospitalCard'
 import HospitalTabs from './HospitalTabs'
+import { useToast } from '../../hooks/useToast'
 
 export default function FavoriteHospitalListPage() {
+  const toast = useToast()
   const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -28,10 +30,12 @@ export default function FavoriteHospitalListPage() {
     setHospitals((prev) => prev.filter((hospital) => hospital.id !== hospitalId))
     try {
       await removeFavorite(hospitalId)
+      toast('즐겨찾기에서 뺐어요.')
     } catch (err) {
       // 실패하면 목록에 되돌려 놓는다
       if (removed) setHospitals((prev) => [...prev, removed])
-      setError(errorMessage(err, '삭제에 실패했습니다.'))
+      // 변경(2026-09-27): 동작 실패를 토스트로 (이전: setError로 목록 전체가 에러 문구로 바뀜)
+      toast(errorMessage(err, '즐겨찾기에서 빼지 못했어요.'), 'error')
     }
   }
 
