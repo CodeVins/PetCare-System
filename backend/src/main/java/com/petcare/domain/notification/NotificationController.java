@@ -53,6 +53,11 @@ public class NotificationController {
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 
+	@PatchMapping("/read-all")
+	public ResponseEntity<ApiResponse<Integer>> markAllAsRead(@AuthenticationPrincipal CustomUserDetails userDetails) {
+		return ResponseEntity.ok(ApiResponse.success(notificationService.markAllAsRead(userDetails.getUser().getId())));
+	}
+
 	@GetMapping("/preferences")
 	public ResponseEntity<ApiResponse<List<NotificationPreferenceResponse>>> getPreferences(
 			@AuthenticationPrincipal CustomUserDetails userDetails) {

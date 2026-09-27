@@ -20,7 +20,7 @@
 | 유저 목록 | `GET /api/admin/users` | 페이지네이션 |
 | 유저 상세 통계 | `GET /api/admin/users/{userId}/stats` | 예약 횟수, 노쇼 횟수, 작성한 리뷰 답글 수, 등록(소유)한 펫 수, 내 펫에 붙은 공동보호자 distinct 수. 존재하지 않는 유저면 404 |
 | 역할 변경 | `PATCH /api/admin/users/{userId}/role` | 본인 불가 |
-| 계정 정지 | `PATCH /api/admin/users/{userId}/suspend` | 본인 불가. 이미 발급된 accessToken은 즉시 무효화 안 됨(최대 1시간 뒤 자연 만료, 알려진 한계) |
+| 계정 정지 | `PATCH /api/admin/users/{userId}/suspend` | 본인 불가. 즉시 반영 — 기존 accessToken은 다음 요청부터 401, refreshToken 재발급은 403 |
 | 계정 정지 해제 | `PATCH /api/admin/users/{userId}/activate` | |
 
 ### 병원 관리

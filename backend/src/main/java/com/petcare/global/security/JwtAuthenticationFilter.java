@@ -30,10 +30,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		if (StringUtils.hasText(token) && jwtTokenProvider.isValid(token)) {
 			CustomUserDetails userDetails = userDetailsService.loadUserByUsername(jwtTokenProvider.getEmail(token));
-			UsernamePasswordAuthenticationToken authentication =
-					new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-			authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-			SecurityContextHolder.getContext().setAuthentication(authentication);
+			// 변경(2026-09-27): 정지 계정은 인증을 세팅하지 않음(→ 401) — 어차피 매 요청마다 유저를 DB에서 읽고 있어서
+			// 추가 비용 없이 정지를 즉시 반영 가능 (이전: 로그인 시점에만 체크, 기존 accessToken은 최대 1시간 계속 유효)
+			if (!userDetails.getUser().isSuspended()) {
+				UsernamePasswordAuthenticationToken authentication =
+						new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+			}
 		}
 
 		filterChain.doFilter(request, response);

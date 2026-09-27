@@ -80,8 +80,7 @@ com.petcare
 ## 컨벤션
 - API 응답은 공통 `ApiResponse<T>`(success/data/message) 포맷 사용, 전부 `GlobalExceptionHandler`를 거침
 - 예약 동시성 제어는 낙관적 락(@Version) 우선 적용 (Slot 기준, 충돌 시 409)
-- 커밋 메시지: "타입: 설명" 형식 (예: feat: 회원가입 API 추가), 한국어
-- 엔티티: `@NoArgsConstructor(PROTECTED)` + `@Builder`가 붙은 private 생성자만 사용, public setter 없음. 상태 변경은 `update()`/`cancel()`/`reserve()`/`changeEmail()` 같은 의미 있는 메서드로만
+- 커밋 메시지: "타입: 설명" 형식 (예: feat: 회원가입 API 추가), 한국어- 엔티티: `@NoArgsConstructor(PROTECTED)` + `@Builder`가 붙은 private 생성자만 사용, public setter 없음. 상태 변경은 `update()`/`cancel()`/`reserve()`/`changeEmail()` 같은 의미 있는 메서드로만
 - 소유권 검증: `엔티티.isOwnedBy(userId)`를 서비스 계층에서 체크, 위반 시 `ForbiddenException`(403)
 - 공통 예외(`global/exception`): `NotFoundException`(404), `ForbiddenException`(403), `ConflictException`(409) — 도메인별로 새 예외 클래스 만들지 않고 이 3개 재사용. 이메일 중복/로그인 실패만 전용 예외(`DuplicateEmailException`, `InvalidCredentialsException`) 사용
 - 인증: JWT Bearer 토큰, stateless. 토큰의 subject는 이메일이라서 **이메일을 변경하면 기존 토큰이 즉시 무효화됨**(재로그인 필요) — 프론트에서 이메일 변경 후 자동 로그아웃 처리 필요
@@ -91,6 +90,8 @@ com.petcare
 - 병원 소유자(HOSPITAL_OWNER): `Hospital.owner`로 병원 하나에 소유자 한 명 연결. `PATCH /api/admin/hospitals/{hospitalId}/owner`(ADMIN 전용)로 지정 — 지정 시 대상 유저가 USER면 자동으로 HOSPITAL_OWNER로 승격됨. 슬롯 생성(`POST /api/hospitals/{id}/slots`)과 예약 확정/거절/목록(`/api/admin/reservations/**`)은 `@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")`로 게이트를 열어두고, 서비스 계층에서 `Hospital.isManagedBy(currentUser)`(ADMIN은 항상 true, HOSPITAL_OWNER는 본인 소유 병원만 true)로 세밀하게 재검증. 병원 생성 자체는 여전히 ADMIN 전용 유지 — 새 병원 등록 후 소유자를 배정하는 구조
 - `PATCH /api/hospitals/{hospitalId}` — 병원 정보 수정(이름/주소/위경도/운영시간/진료과목), ADMIN 또는 소유 HOSPITAL_OWNER만. 필드 전체를 다시 받는 방식이라 일부 필드 생략하면 null로 덮어써짐 (Pet/HealthRecord 수정 API와 동일한 컨벤션)
 - 슬롯 생성 시 그 병원을 찜한 유저들에게 `FAVORITE_HOSPITAL_NEW_SLOT` 알림 자동 발송 (`SlotService.notifyFavoriters`)
+- 예약 생성 시 요청자뿐 아니라 병원 소유자(`Hospital.owner`, 있을 때만)에게도 `RESERVATION_REQUESTED` 알림 발송 — 확정/거절할 사람이 대시보드를 안 열어도 알 수 있게- `PATCH /api/notifications/read-all` — 내 안읽은 알림 전체 읽음(벌크 update 쿼리, 처리 건수 반환)
+- `application.yml`에 `hibernate.default_batch_fetch_size: 100` — fetch join 없이 지연 로딩 연관(리뷰 답글, 예약→펫 등)을 IN 쿼리로 묶어 N+1 완화
 - `GET /api/hospitals`에 `&is24Hours=&hasParking=` 필터 추가 (Querydsl where절, null이면 무시)
 
 ## 실시간 채팅 (1:1 문의)
@@ -140,7 +141,7 @@ com.petcare
 - `POST/PATCH/DELETE /api/hospitals/{hospitalId}/reviews/{reviewId}/reply` — ADMIN 또는 해당 병원 소유 HOSPITAL_OWNER만(`Hospital.isManagedBy()` 재검증), 리뷰 1개당 답글 1개(중복 작성 시 409). `GET .../reviews` 응답에 `reply` 필드로 같이 내려감(리뷰마다 답글 존재 여부 조회하는 N+1 방식 — ponytail: 목록이 커지면 답글 일괄 조회로 최적화 필요)
 - `PATCH /api/admin/reservations/{id}/no-show` (ADMIN 또는 해당 병원 HOSPITAL_OWNER) — CONFIRMED 상태만 NO_SHOW로 전환 가능(PENDING/이미 NO_SHOW 등은 409). NO_SHOW는 취소 불가 상태(`isCancellable()`에 포함 안 됨)라 사용자가 되돌릴 수 없고, 리뷰 작성 자격 판단(CONFIRMED 기준)에서도 자동으로 제외됨. 슬롯은 릴리즈하지 않음(이미 지나간 시간이라 대기자 알림 대상 아님). `GET /api/admin/stats/summary`에 `noShowReservations` 집계 포함
 - `POST/DELETE /api/hospitals/{hospitalId}/image` — Pet 사진 업로드와 동일 패턴(`FileStorageService`를 pet/hospital 공용으로 일반화, `uploads/hospitals/`, jpg/png/webp만, 5MB 제한). ADMIN 또는 소유 HOSPITAL_OWNER만
-- `PATCH /api/admin/users/{userId}/suspend`, `PATCH /api/admin/users/{userId}/activate` (ADMIN 전용) — 정지된 계정은 로그인 시 403(`AuthService.login()`에서 체크). 본인 계정은 정지 불가(역할 변경과 동일한 자기 자신 보호 패턴). **알려진 한계**: JWT가 stateless라 이미 발급된 accessToken은 정지해도 즉시 무효화되지 않고 최대 1시간 뒤 자연 만료(이메일 변경 때와 동일한 제약) — 즉시 차단이 필요하면 매 요청마다 DB 조회가 필요한데 지금은 로그인 시점에만 체크
+- `PATCH /api/admin/users/{userId}/suspend`, `PATCH /api/admin/users/{userId}/activate` (ADMIN 전용) — 정지된 계정은 로그인 시 403(`AuthService.login()`에서 체크). 본인 계정은 정지 불가(역할 변경과 동일한 자기 자신 보호 패턴). **정지는 즉시 반영**: `JwtAuthenticationFilter`가 이미 매 요청마다 유저를 DB에서 읽으므로(`loadUserByUsername`) 거기서 `suspended`면 인증을 세팅하지 않음 → 기존 accessToken으로도 바로 401. `AuthService.reissue()`도 정지 계정이면 403(겪은 버그: 예전엔 로그인만 막아서 refreshToken으로 14일간 계속 재발급 가능했음)
 
 ## 다중 보호자 (가족 공유 반려동물 계정)
 - 최초 등록자(`Pet.user`)와 공동보호자(`PetGuardian`)는 프로필/건강기록/예약/사진 업로드 등 일상 관리 권한은 완전히 동등. **단, 보호자 초대/퇴출과 Pet 삭제는 최초 등록자만 가능**(민감한 "누가 접근 가능한가"를 결정하는 권한이라 별도 분리)

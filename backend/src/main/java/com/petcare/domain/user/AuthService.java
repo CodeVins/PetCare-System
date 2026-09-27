@@ -65,6 +65,10 @@ public class AuthService {
 			refreshTokenRepository.delete(refreshToken);
 			throw new InvalidCredentialsException("만료된 refreshToken입니다. 다시 로그인해주세요.");
 		}
+		// 변경(2026-09-27): 정지 계정 재발급 차단 (이전: 로그인만 막아서 정지돼도 refreshToken으로 14일간 계속 재발급 가능)
+		if (refreshToken.getUser().isSuspended()) {
+			throw new ForbiddenException("정지된 계정입니다. 관리자에게 문의해주세요.");
+		}
 
 		return issueTokens(refreshToken.getUser());
 	}

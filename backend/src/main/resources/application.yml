@@ -15,6 +15,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # 변경(2026-09-27): 지연 로딩 연관을 IN 쿼리로 묶어서 N+1 완화 (이전: 미설정 — fetch join이 없어 리뷰 답글·예약→펫 등이 건별 조회)
+        default_batch_fetch_size: 100
     show-sql: true
 
   servlet:

@@ -61,6 +61,13 @@ public class ReservationService {
 
 		ReservationResponse response = ReservationResponse.from(reservationRepository.save(reservation));
 		notificationService.notify(userId, NotificationType.RESERVATION_REQUESTED, "예약 요청이 접수되었습니다. 병원 확인을 기다려주세요.");
+		// 변경(2026-09-27): 병원 소유자에게도 알림 — 확정/거절할 사람이 대시보드를 열어봐야만 새 예약을 알 수 있었음
+		// (이전: 요청자 본인에게만 알림)
+		User owner = slot.getHospital().getOwner();
+		if (owner != null) {
+			notificationService.notify(owner.getId(), NotificationType.RESERVATION_REQUESTED,
+					"새 예약 요청이 들어왔습니다. 확정 또는 거절해주세요.");
+		}
 		return response;
 	}
 

@@ -93,6 +93,11 @@ public class NotificationService {
 		notification.markAsRead();
 	}
 
+	@Transactional
+	public int markAllAsRead(Long userId) {
+		return notificationRepository.markAllAsRead(userId);
+	}
+
 	public List<NotificationPreferenceResponse> getPreferences(Long userId) {
 		List<NotificationPreference> preferences = notificationPreferenceRepository.findAllByUserId(userId);
 		return Arrays.stream(NotificationCategory.values())

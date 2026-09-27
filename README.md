@@ -242,6 +242,7 @@ stateDiagram-v2
 - `NotificationType.category()`로 5개 카테고리(예약/접종/찜/채팅/대기자)에 그룹핑 → 카테고리 단위 on/off.
 - `ReminderScheduler`(`@Scheduled(cron = "0 0 9 * * *")`, `@Transactional`)가 매일 09시에 접종 예정일 D-3, 예약 전날 알림을 생성. 관리자는 `POST /api/admin/reminders/run`으로 즉시 실행 가능(데모용).
 - 슬롯 생성 시 그 병원을 찜한 유저 전원에게 `FAVORITE_HOSPITAL_NEW_SLOT` 자동 발송.
+- 예약 요청 시 요청자와 병원 소유자 모두에게 `RESERVATION_REQUESTED` 발송.
 - 예약 취소/거절로 슬롯이 다시 열리면 대기열 1순위(`createdAt` 기준) **한 명에게만** `WAITLIST_SLOT_AVAILABLE`을 보내고 대기 항목 삭제(선착순 스탬피드 방지).
 
 ### 6. 다중 보호자(가족 공유) 권한 모델
@@ -269,7 +270,7 @@ stateDiagram-v2
 - 회원가입, 로그인/로그아웃, Access/Refresh Token 자동 재발급
 - 비밀번호 찾기(이메일 요청 → 토큰 기반 재설정) — 실제 메일 발송 대신 서버 로그로 대체된 데모 구현
 - 내 정보 조회, 이메일 변경(변경 시 자동 로그아웃), 비밀번호 변경
-- 정지된 계정은 로그인 시 403
+- 정지된 계정은 즉시 차단 — 로그인·토큰 재발급 403, 기존 Access Token도 다음 요청부터 401
 - 로그인 직후 역할 확인 → ADMIN은 관리자 패널(`/admin`)로, 그 외는 홈으로 자동 이동
 
 ### 반려동물
@@ -295,7 +296,7 @@ stateDiagram-v2
 - 마감된 슬롯에 대기자 명단 등록/취소, 슬롯이 열리면 1순위에게 알림
 
 ### 알림
-- 알림 목록, 읽음 처리, 헤더의 안읽은 개수 뱃지(SSE로 실시간 갱신)
+- 알림 목록, 개별/전체 읽음 처리, 헤더의 안읽은 개수 뱃지(SSE로 실시간 갱신)
 - 카테고리(예약/접종/찜한병원/채팅/대기자명단)별 수신 on/off
 - 예방접종 D-3, 예약 전날 자동 리마인더
 - 마이페이지 예정 접종 D-day 목록
@@ -429,6 +430,7 @@ stateDiagram-v2
 | GET | `/api/notifications/subscribe` | SSE 구독 (`?token=` 허용) |
 | GET | `/api/notifications/unread-count` | 안읽은 개수 |
 | PATCH | `/api/notifications/{notificationId}/read` | 읽음 처리 |
+| PATCH | `/api/notifications/read-all` | 전체 읽음 처리 (처리 건수 반환) |
 | GET | `/api/notifications/preferences` | 카테고리별 설정 (항상 5개) |
 | PATCH | `/api/notifications/preferences` | `{category, enabled}` upsert |
 | POST | `/api/chat-rooms` | 채팅방 get-or-create |
@@ -538,8 +540,7 @@ cd backend
 
 | 테스트 | 검증 내용 |
 |---|---|
-| `AuthFlowTest` | 회원가입 → 로그인, 이메일 중복 가입 거부, 잘못된 비밀번호 로그인 실패 |
-| `ReservationFlowTest` | 예약 생성 시 PENDING → 관리자 확정 흐름, **멀티스레드로 같은 슬롯에 동시 예약 시 정확히 1건만 성공**(낙관적 락) |
+| `AuthFlowTest` | 회원가입 → 로그인, 이메일 중복 가입 거부, 잘못된 비밀번호 로그인 실패 || `ReservationFlowTest` | 예약 생성 시 PENDING → 관리자 확정 흐름, **멀티스레드로 같은 슬롯에 동시 예약 시 정확히 1건만 성공**(낙관적 락) |
 
 - 개발용 MySQL을 건드리지 않도록 H2 인메모리 DB(`application-test.yml`, `@ActiveProfiles("test")`)로 실행합니다.
 - 자동화 테스트 외에도 기능 추가 시마다 `bootRun`으로 서버를 띄우고 curl로 정상 케이스와 에러 케이스(권한 없음/중복/유효성 실패 등)를 직접 호출해 검증했습니다.
@@ -566,7 +567,7 @@ cd backend
 
 - **비밀번호 재설정 이메일 미발송**: 재설정 링크를 서버 로그로만 남깁니다. 실사용 전 메일 발송 연동이 필요합니다.
 - **SSE는 단일 서버 인스턴스 기준**: 활성 연결을 메모리(ConcurrentHashMap)에 보관하므로 스케일아웃 시 다른 인스턴스에 붙은 클라이언트에게는 전달되지 않습니다. 필요 시 Redis Pub/Sub 등으로 브로드캐스트를 추가해야 합니다.
-- **Access Token 즉시 무효화 불가**: 로그아웃/이메일 변경/계정 정지 시점에 이미 발급된 토큰은 최대 1시간 뒤 자연 만료됩니다. 정지 여부는 로그인 시점에만 체크합니다.
+- **로그아웃 시 Access Token 즉시 무효화 불가**: 로그아웃 시점에 이미 발급된 Access Token은 stateless 구조상 최대 1시간 뒤 자연 만료됩니다. 계정 정지는 인증 필터가 매 요청마다 확인하므로 즉시 반영됩니다.
 - **리마인더 스케줄러의 단순 매칭**: 정확히 해당 날짜에만 매칭하므로 그 시각에 서버가 꺼져 있으면 누락되고, 중복 방지 플래그가 없어 같은 날 여러 번 실행하면 중복 알림이 생깁니다.
 - **대기자 명단은 1순위 한 명에게만 알림**: 그 사람이 예약하지 않아도 다음 순번으로 자동으로 넘어가지 않습니다.
 - **예약 목록의 병원명/시간은 클라이언트 측 조합**: `ReservationResponse`에 반려동물 스냅샷은 포함되지만 병원/시간은 `slotId`만 있어, 프론트가 슬롯→병원 인덱스를 만들어 조합합니다. 규모가 커지면 DTO에 필드를 추가하는 것이 맞습니다.
