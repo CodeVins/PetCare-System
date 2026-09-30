@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
 
+# 변경(2026-09-30): main push 실행을 한 번에 하나씩 — 연속 push 시 build-push가 병렬로 돌아 latest 태그 경쟁
+# (이전: 동시 실행 가능, 나중 배포가 이전 커밋 이미지를 받을 수 있었음). PR은 ref가 달라 서로 안 막힘
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -74,4 +79,6 @@ jobs:
           mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           OPTS="-i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new"
           scp $OPTS docker-compose.yml "$TARGET:petcare/docker-compose.yml"
-          ssh $OPTS "$TARGET" 'cd petcare && docker compose pull && docker compose up -d --no-build && docker image prune -f'
+          # 변경(2026-09-30): latest 대신 이 커밋의 sha 태그로 배포 — 실행된 커밋과 운영 이미지가 항상 일치
+          # (이전: latest pull이라 태그 경쟁 시 다른 커밋 이미지가 뜰 수 있었음). 셸 TAG가 .env의 TAG보다 우선
+          ssh $OPTS "$TARGET" "cd petcare && export TAG=sha-${{ github.sha }} && docker compose pull && docker compose up -d --no-build && docker image prune -f"

@@ -28,5 +28,8 @@ main에 push(또는 PR 머지) → test 통과 시 자동 배포. 진행 상황�
 ## 5. 운영 명령 (서버에서, `cd ~/petcare`)
 - 로그: `docker compose logs -f backend`
 - 상태/메모리: `docker compose ps`, `docker stats --no-stream`
-- 롤백: `.env`에 `TAG=sha-<이전 커밋 SHA>` 추가 → `docker compose pull && docker compose up -d --no-build` (되돌릴 땐 `TAG=latest`)
+- 배포되는 이미지: 자동 배포는 그 커밋의 `sha-<커밋 SHA>` 태그를 씀(`.env`의 `TAG`는 무시됨). 지금 뜬 버전은 `docker compose images`로 확인
+- 롤백(수동, 다음 main push 때 자동 배포가 최신으로 덮어씀):
+  `TAG=sha-<이전 커밋 SHA 40자리> docker compose pull && TAG=sha-<같은 값> docker compose up -d --no-build`
+  또는 Actions 탭에서 이전 커밋의 run을 열어 "Re-run all jobs"
 - DB 접속: `docker compose exec mysql mysql -u petcare -p petcare`
