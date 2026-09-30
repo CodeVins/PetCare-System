@@ -50,7 +50,7 @@ EC2 t3.micro (Ubuntu, Docker, 2GB swap)  ~/petcare/
 - `.dockerignore`: `build/`, `.gradle/`, `uploads/`, `.env`, `.idea/`
 
 ### 4.2 web 이미지 — `frontend/Dockerfile` + `frontend/Caddyfile`
-- 멀티스테이지: `node:22`에서 `npm ci && npm run build` → `caddy:2`의 `/srv`로 `dist` 복사
+- 멀티스테이지: `node:24-slim`에서 `npm ci && npm run build` → `caddy:2`의 `/srv`로 `dist` 복사
 - Caddyfile (도메인은 env `DOMAIN`):
   ```
   {$DOMAIN} {
@@ -70,11 +70,12 @@ EC2 t3.micro (Ubuntu, Docker, 2GB swap)  ~/petcare/
 - **`application.yml`**: 환경변수 + 로컬 기본값으로 변경 (프로필 파일 추가 안 함)
   - `datasource.url: ${DB_URL:jdbc:mysql://localhost:3306/petcare}`
   - `show-sql: ${SHOW_SQL:true}`, `format_sql`도 동일 — 운영에서 false
+  - `server.forward-headers-strategy: framework` — Caddy의 X-Forwarded-Proto를 신뢰해 HTTPS 뒤에서 Swagger 서버 URL이 https로 생성되게
 - 프론트 `api/CLAUDE.md`, 백엔드/프론트 `CLAUDE.md`에 배포 구조와 `BASE_URL` 변경 반영
 
 ### 4.4 `docker-compose.yml` (레포 루트, 운영용)
 - `mysql`: `mysql:8`, `TZ=Asia/Seoul`, 볼륨 `mysql_data`, 메모리 절약 옵션(`--performance-schema=OFF`, `--innodb-buffer-pool-size=128M`), healthcheck(`mysqladmin ping`)
-- `backend`: `ghcr.io/codevins/petcare-backend:latest`, `env_file: .env`, `DB_URL=jdbc:mysql://mysql:3306/petcare`, `SHOW_SQL=false`, 볼륨 `uploads:/app/uploads`, `depends_on: mysql (service_healthy)`, `restart: unless-stopped`
+- `backend`: `ghcr.io/codevins/petcare-backend:latest`, `env_file: .env`, `DB_URL=jdbc:mysql://mysql:3306/petcare?allowPublicKeyRetrieval=true&useSSL=false`(MySQL 8 컨테이너 첫 접속 에러 방지), `SHOW_SQL=false`, 볼륨 `uploads:/app/uploads`, `depends_on: mysql (service_healthy)`, `restart: unless-stopped`
 - `web`: `ghcr.io/codevins/petcare-web:latest`, 포트 `80:80`, `443:443`, 볼륨 `caddy_data`(인증서 — 날아가면 Let's Encrypt 발급 한도에 걸릴 수 있음), `caddy_config`
 - `backend`/`web`에 `image:`와 `build:`(로컬 빌드용, context `./backend`, `./frontend`)를 같이 지정. 서버는 `pull` 후 `up -d`만 하므로 빌드 안 함
 - 이미지 태그: push 시 `latest` + `sha-<커밋>` 둘 다. compose의 이미지는 `:${TAG:-latest}` — 롤백은 서버 `.env`에 `TAG=sha-xxxx` 넣고 `pull && up -d`(문서에 명령어만 기록, 자동화 안 함)
@@ -83,9 +84,9 @@ EC2 t3.micro (Ubuntu, Docker, 2GB swap)  ~/petcare/
 `DOMAIN`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`. 루트에 `.env.deploy.example`로 키 목록만 커밋.
 
 ### 4.6 GitHub Actions — `.github/workflows/ci-cd.yml`
-- `test` job (PR + main push): JDK 21(`actions/setup-java`, gradle 캐시) → `backend/./gradlew test`; Node 22 → `frontend/npm ci && npm run lint && npm run build`
+- `test` job (PR + main push): JDK 21(`actions/setup-java`, gradle 캐시) → `backend/./gradlew test`; Node 24 → `frontend/npm ci && npm run lint && npm run build`
 - `build-push` job (main push만, `needs: test`): `docker/login-action`(GHCR, `GITHUB_TOKEN`) → `docker/build-push-action`으로 이미지 2개
-- `deploy` job (`needs: build-push`): `docker-compose.yml`을 scp로 서버에 복사 → ssh로 `cd ~/petcare && docker compose pull && docker compose up -d && docker image prune -f`
+- `deploy` job (`needs: build-push`): `docker-compose.yml`을 scp로 서버에 복사 → ssh로 `cd ~/petcare && docker compose pull && docker compose up -d --no-build && docker image prune -f`
 - GitHub Secrets: `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`
 - GHCR 패키지는 public으로 전환 → EC2에서 로그인 없이 pull (레포도 public이라 노출될 비밀 없음 — 비밀값은 전부 서버 `.env`)
 
@@ -117,6 +118,6 @@ EC2 t3.micro (Ubuntu, Docker, 2GB swap)  ~/petcare/
 
 ## 7. 검증 방법
 
-- 로컬: 같은 `docker-compose.yml`로 `docker compose up --build`(각 서비스에 `build:`도 지정돼 있어 로컬 빌드) → `DOMAIN=localhost`면 Caddy가 내부 인증서로 `https://localhost` 제공 → 성공 기준 1~4 확인
+- 로컬: 같은 `docker-compose.yml`로 `docker compose up --build`(각 서비스에 `build:`도 지정돼 있어 로컬 빌드) → `DOMAIN=http://localhost`(로컬은 HTTP만) → 성공 기준 1~4 확인
 - CI: 일부러 실패하는 테스트로 PR 올려 deploy가 안 도는지 확인 후 되돌림
 - 운영: 성공 기준 1~6을 실제 도메인에서 확인, 결과를 PROGRESS/CLAUDE.md에 기록
