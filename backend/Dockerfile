@@ -12,5 +12,9 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 ENV TZ=Asia/Seoul
 COPY --from=build /src/build/libs/*-SNAPSHOT.jar app.jar
+# 변경(2026-09-30): root 대신 전용 사용자(app)로 실행 — 앱이 뚫려도 컨테이너 root 권한은 없게 (이전: root 실행)
+# 새 볼륨은 이미지의 /app/uploads 소유권을 물려받음. 기존 볼륨(root 소유)은 배포 스크립트가 chown으로 맞춤
+RUN useradd --system --no-create-home app && mkdir -p /app/uploads && chown -R app:app /app/uploads
+USER app
 EXPOSE 8080
 ENTRYPOINT ["java", "-Xmx320m", "-Duser.timezone=Asia/Seoul", "-jar", "app.jar"]

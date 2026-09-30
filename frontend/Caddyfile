@@ -1,3 +1,11 @@
+# 변경(2026-09-30): HTTP/3 끔 — UDP 443을 안 열어서(보안그룹·compose) 광고해도 브라우저가 시도 후 TCP로 돌아옴
+# (이전: Alt-Svc h3 광고). 쓰려면 이 블록을 지우고 compose에 443:443/udp, 보안그룹에 UDP 443 추가
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
 {$DOMAIN} {
 	encode gzip
 	@backend path /api/* /uploads/* /swagger-ui* /v3/api-docs*

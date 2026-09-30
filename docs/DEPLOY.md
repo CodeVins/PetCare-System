@@ -18,7 +18,9 @@ mkdir -p ~/petcare && nano ~/petcare/.env   # .env.deploy.example 키 전부 채
 ```
 
 ## 3. GitHub (1회)
-- Settings → Secrets and variables → Actions: `EC2_HOST`(탄력적 IP), `EC2_USER`(`ubuntu`), `EC2_SSH_KEY`(pem 파일 내용 전체)
+- Settings → Secrets and variables → Actions: `EC2_HOST`(탄력적 IP), `EC2_USER`(`ubuntu`), `EC2_SSH_KEY`(pem 파일 내용 전체),
+  `EC2_HOST_KEY`(서버에서 `cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub` 결과 — `ssh-ed25519 AAAA...` 한 줄. 배포가 이 키와 다른 서버엔 접속 거부.
+  인스턴스를 새로 만들면 이 값도 다시 등록)
 - 첫 main push 후 `build-push`가 끝나면: GitHub 프로필 → Packages → `petcare-backend`, `petcare-web` 각각 Package settings → Change visibility → **Public** (서버가 로그인 없이 pull)
 - 그다음 실패한 `deploy` job을 Re-run
 

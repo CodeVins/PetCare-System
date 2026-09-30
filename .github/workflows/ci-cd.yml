@@ -79,11 +79,19 @@ jobs:
       - name: compose 파일 복사 후 pull/up
         env:
           KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          HOST_KEY: ${{ secrets.EC2_HOST_KEY }}
           TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
-          OPTS="-i ~/.ssh/deploy -o StrictHostKeyChecking=accept-new"
+          # 변경(2026-09-30): 서버 호스트 키를 시크릿(EC2_HOST_KEY)으로 고정하고 불일치면 접속 거부
+          # (이전: accept-new — 매번 새 러너라 어떤 서버 키든 그냥 받아들여 사실상 검증 없음)
+          echo "$HOST $HOST_KEY" > ~/.ssh/known_hosts
+          OPTS="-i ~/.ssh/deploy -o StrictHostKeyChecking=yes"
           scp $OPTS docker-compose.yml "$TARGET:petcare/docker-compose.yml"
           # 변경(2026-09-30): latest 대신 이 커밋의 sha 태그로 배포 — 실행된 커밋과 운영 이미지가 항상 일치
           # (이전: latest pull이라 태그 경쟁 시 다른 커밋 이미지가 뜰 수 있었음). 셸 TAG가 .env의 TAG보다 우선
-          ssh $OPTS "$TARGET" "cd petcare && export TAG=sha-${{ github.sha }} && docker compose pull && docker compose up -d --no-build && docker image prune -f"
+          # 변경(2026-09-30): up 전에 업로드 볼륨을 app 사용자 소유로 맞춤 — backend가 root가 아닌 app으로 실행되면서
+          # root 시절 만든 볼륨에 쓰기 실패(500)하는 것 방지 (이전: root 실행이라 불필요). 이미 맞으면 아무 변화 없음
+          # ponytail: `|| true`는 app 사용자가 없는 이전 이미지로 롤백할 때(그땐 root라 chown 불필요) 배포가 멈추지 않게
+          ssh $OPTS "$TARGET" "cd petcare && export TAG=sha-${{ github.sha }} && docker compose pull && (docker compose run --rm --no-deps --user root --entrypoint chown backend -R app:app /app/uploads || true) && docker compose up -d --no-build && docker image prune -f"
