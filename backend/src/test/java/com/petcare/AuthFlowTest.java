@@ -34,7 +34,7 @@ class AuthFlowTest {
 		mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
-				.andExpect(status().isOk());
+				.andExpect(status().isConflict());
 
 		mockMvc.perform(post("/api/auth/login")
 						.contentType(MediaType.APPLICATION_JSON)
