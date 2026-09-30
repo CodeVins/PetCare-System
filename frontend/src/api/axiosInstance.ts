@@ -4,9 +4,10 @@ import type { ApiResponse, TokenResponse } from '../types/api'
 // api 함수들의 공통 반환 타입 — 호출부에서 res.data.data가 T로 추론된다
 export type ApiPromise<T> = Promise<AxiosResponse<ApiResponse<T>>>
 
-// ponytail: hostname mirrors whatever the page was loaded from (localhost in dev,
-// LAN IP when opened from a phone on the same Wi-Fi) instead of a hardcoded host.
-export const BASE_URL = `http://${window.location.hostname}:8080`
+// 변경(2026-09-30): 절대 주소(http://호스트:8080) → 같은 오리진 상대 경로('') — 운영은 Caddy가 /api·/uploads를
+// backend로 프록시하고, 개발은 vite server.proxy가 8080으로 넘김 (이전: HTTPS 도메인에서 http:8080 호출이
+// 혼합 콘텐츠로 차단됨. 휴대폰 LAN 접속은 프록시가 개발 PC에서 돌기 때문에 그대로 동작)
+export const BASE_URL = ''
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
