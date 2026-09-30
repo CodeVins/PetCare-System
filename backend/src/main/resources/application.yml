@@ -3,7 +3,8 @@ spring:
     name: petcare
 
   datasource:
-    url: jdbc:mysql://localhost:3306/petcare
+    # 변경(2026-09-30): URL을 환경변수 DB_URL로(기본값은 기존 로컬 주소) — 컨테이너에선 호스트명이 mysql (이전: localhost 하드코딩)
+    url: ${DB_URL:jdbc:mysql://localhost:3306/petcare}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -14,10 +15,11 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        # 변경(2026-09-30): SHOW_SQL 환경변수로 끌 수 있게 — 운영 로그에 SQL 전부 찍히는 것 방지 (이전: 항상 true)
+        format_sql: ${SHOW_SQL:true}
         # 변경(2026-09-27): 지연 로딩 연관을 IN 쿼리로 묶어서 N+1 완화 (이전: 미설정 — fetch join이 없어 리뷰 답글·예약→펫 등이 건별 조회)
         default_batch_fetch_size: 100
-    show-sql: true
+    show-sql: ${SHOW_SQL:true}
 
   servlet:
     multipart:
@@ -26,6 +28,8 @@ spring:
 
 server:
   port: 8080
+  # Caddy가 붙이는 X-Forwarded-Proto/Host 신뢰 — HTTPS 프록시 뒤에서 Swagger 서버 URL 등이 https로 만들어지게
+  forward-headers-strategy: framework
 
 jwt:
   secret: ${JWT_SECRET}
