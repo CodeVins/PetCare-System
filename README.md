@@ -4,7 +4,7 @@
 
 > 혼자 설계부터 구현까지 진행한 개인 포트폴리오 프로젝트이며, 실서비스가 아닌 학습/데모 목적입니다.
 
-- **데모**: https://petcare-yongbin.duckdns.org
+- **데모**: https://petcare-yongbin.duckdns.org (비용 때문에 서버를 상시 켜두지 않아 접속이 안 될 수 있습니다)
 - **API 문서(Swagger)**: https://petcare-yongbin.duckdns.org/swagger-ui/index.html
 - **배포**: AWS EC2 + Docker Compose(Caddy·Spring Boot·MySQL), GitHub Actions로 테스트 통과 시 자동 배포 — [배포 가이드](docs/DEPLOY.md)
 
@@ -21,6 +21,7 @@
 - [프론트엔드 화면 구성](#프론트엔드-화면-구성)
 - [실행 방법](#실행-방법)
 - [테스트](#테스트)
+- [배포 / CI·CD](#배포--cicd)
 - [개발 과정에서 겪은 문제와 해결](#개발-과정에서-겪은-문제와-해결)
 - [알려진 한계 / 설계상 트레이드오프](#알려진-한계--설계상-트레이드오프)
 - [개발 이력](#개발-이력)
@@ -96,7 +97,7 @@ petcare-project
 - JUnit 5 통합 테스트 (H2 인메모리 DB)
 
 **Frontend**
-- React 19 (Vite 8, JavaScript)
+- React 19 (Vite 8, TypeScript)
 - React Router v7 (SPA 라우팅, 역할 기반 보호 라우트)
 - Axios (요청/응답 인터셉터로 토큰 자동 첨부 및 자동 재발급)
 - Tailwind CSS v4 (`@theme` 디자인 토큰, `@utility` 공통 클래스)
@@ -105,31 +106,38 @@ petcare-project
 - Context API (전역 인증/알림 상태 — 규모상 Redux/Zustand 미사용)
 - Oxlint
 
+**Infra / DevOps**
+- AWS EC2 (t3.micro 1대) + Docker Compose
+- Caddy 2 — 리버스 프록시, Let's Encrypt 자동 HTTPS, SPA 정적 파일 서빙
+- GitHub Actions — PR 테스트 게이트, main push 시 이미지 빌드·배포
+- GitHub Container Registry(GHCR), DuckDNS
+
 ## 아키텍처
 
 ```mermaid
 flowchart LR
     subgraph Client["브라우저 (React SPA)"]
-        UI[소비자 앱 / 병원 대시보드 / 관리자 패널]
-        AX[Axios 인터셉터<br/>토큰 첨부·자동 재발급]
-        ES[EventSource<br/>?token= 쿼리 인증]
+        UI["소비자 앱 / 병원 대시보드 / 관리자 패널"]
+        AX["Axios 인터셉터<br/>토큰 첨부·자동 재발급"]
+        ES["EventSource<br/>?token= 쿼리 인증"]
     end
 
     subgraph Server["Spring Boot"]
-        F[JwtAuthenticationFilter]
-        C[Controllers<br/>@PreAuthorize 역할 게이트]
-        S[Services<br/>소유권/관리권한 재검증]
-        R[Repositories<br/>JPA + Querydsl]
-        SSE[SseEmitterRepository<br/>유저별 emitter 메모리 보관]
-        SCH[ReminderScheduler<br/>매일 09:00]
-        FS[FileStorageService<br/>uploads/]
+        F["JwtAuthenticationFilter"]
+        C["Controllers<br/>@PreAuthorize 역할 게이트"]
+        S["Services<br/>소유권/관리권한 재검증"]
+        R["Repositories<br/>JPA + Querydsl"]
+        SSE["SseEmitterRepository<br/>유저별 emitter 메모리 보관"]
+        SCH["ReminderScheduler<br/>매일 09:00"]
+        FS["FileStorageService<br/>uploads/"]
     end
 
-    DB[(MySQL)]
+    DB[("MySQL")]
 
     UI --> AX --> F --> C --> S --> R --> DB
     ES --> F
-    S -- notify() --> SSE -- push --> ES
+    S -->|"notify()"| SSE
+    SSE -->|push| ES
     SCH --> S
     S --> FS
 ```
@@ -537,6 +545,18 @@ npm run build    # 프로덕션 빌드
 npm run lint     # oxlint
 ```
 
+개발 서버는 `/api`·`/uploads` 요청을 `localhost:8080`으로 프록시합니다(`vite.config.ts`).
+
+### Docker Compose로 전체 실행 (운영과 같은 구성)
+
+```bash
+# 저장소 루트에서
+cp .env.deploy.example .env
+# DOMAIN=http://localhost 로 두면 HTTP로만 뜸(인증서 발급 안 함), 나머지 비밀번호/JWT_SECRET 채우기
+docker compose up --build -d     # http://localhost
+docker compose down              # 종료 (데이터 유지, 완전 초기화는 down -v)
+```
+
 백엔드 CORS는 `localhost:5173`, `localhost:3000`과 사설망 IP(`192.168.*.*`, `10.*.*.*`, `172.*.*.*`)의 `:5173`을 허용합니다 — 같은 Wi-Fi의 휴대폰에서 개발 서버 LAN IP로 접속해 모바일 화면을 확인할 수 있습니다. 다른 오리진은 `SecurityConfig.corsConfigurationSource()`에 추가하세요.
 
 ## 테스트
@@ -554,6 +574,58 @@ cd backend
 
 - 개발용 MySQL을 건드리지 않도록 H2 인메모리 DB(`application-test.yml`, `@ActiveProfiles("test")`)로 실행합니다.
 - 자동화 테스트 외에도 기능 추가 시마다 `bootRun`으로 서버를 띄우고 curl로 정상 케이스와 에러 케이스(권한 없음/중복/유효성 실패 등)를 직접 호출해 검증했습니다.
+- 같은 테스트가 GitHub Actions에서 PR마다 실행되며, 실패하면 배포 단계로 넘어가지 않습니다.
+
+## 배포 / CI·CD
+
+### 구성
+
+```mermaid
+flowchart LR
+    U["사용자 브라우저"]
+
+    subgraph EC2["AWS EC2 t3.micro · Docker Compose"]
+        W["web (Caddy)<br/>HTTPS 종료 · SPA 정적 파일"]
+        B["backend (Spring Boot)<br/>app 사용자로 실행"]
+        M[("mysql 8")]
+        V1[("uploads 볼륨")]
+        V2[("mysql_data 볼륨")]
+    end
+
+    U -->|"https://도메인"| W
+    W -->|"/api, /uploads, /swagger-ui"| B
+    B --> M
+    B --- V1
+    M --- V2
+```
+
+- 공개 포트는 Caddy의 80/443뿐이고 backend·MySQL은 컨테이너 내부망에만 있습니다.
+- 브라우저는 프론트와 API를 **같은 오리진**(`https://도메인`)으로만 호출합니다. 프론트는 상대 경로(`BASE_URL = ''`)를 쓰고, 개발 중에는 Vite 프록시가, 운영에서는 Caddy가 `/api`·`/uploads`를 백엔드로 넘깁니다. 그래서 운영에 CORS 설정이 필요 없고 HTTPS 혼합 콘텐츠 문제도 생기지 않습니다.
+- 인증서는 Caddy가 Let's Encrypt로 자동 발급·갱신하고, DB 데이터·업로드 사진·인증서는 전부 볼륨에 있어 재배포·재시작 후에도 유지됩니다.
+
+### 파이프라인
+
+```mermaid
+flowchart LR
+    PR["Pull Request"] --> T1["test<br/>백엔드 테스트 · 프론트 린트/빌드"]
+    PUSH["main push"] --> T2["test"] --> BP["build-push<br/>이미지 2개 → GHCR<br/>latest + sha 태그"] --> D["deploy<br/>ssh → pull → up -d"]
+```
+
+- PR에서는 테스트만 실행합니다. 일부러 깨뜨린 테스트로 PR을 올려 배포 전에 막히는 것을 확인했습니다.
+- 배포는 그 커밋의 `sha-<커밋>` 태그 이미지를 받아서 띄웁니다. `latest`를 쓰면 연속 push 때 이미지 태그 경쟁으로 다른 커밋이 배포될 수 있어서입니다. main 실행은 한 번에 하나씩만 돕니다.
+- 배포 SSH는 시크릿에 저장한 서버 호스트 키로만 접속하고, 워크플로 기본 토큰 권한은 읽기 전용입니다.
+
+### 설계 결정
+
+| 결정 | 이유 |
+|---|---|
+| EC2 한 대 + Docker Compose | 포트폴리오 트래픽에 충분하고 비용이 가장 낮음. RDS·S3·로드밸런서는 비용 대비 효용이 없어 제외 |
+| 이미지는 CI에서 빌드, 서버는 pull만 | t3.micro는 메모리 1GB라 서버에서 Gradle/npm 빌드를 돌리면 메모리 부족 위험 |
+| Caddy 이미지에 프론트 빌드 결과를 넣음 | nginx 컨테이너를 따로 두지 않고 HTTPS·프록시·정적 서빙을 한 컨테이너로 |
+| 메모리 상한 (JVM `-Xmx320m`, InnoDB 버퍼 128MB, swap 2GB) | 1GB 서버에서 MySQL과 JVM이 함께 뜨도록. 실측 합계 약 640MB |
+| 컨테이너 시간대 `Asia/Seoul` 고정 | 기본 UTC면 09:00 리마인더와 `LocalDateTime.now()` 기반 슬롯 검증이 9시간 어긋남 |
+
+설정 파일: `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `frontend/Caddyfile`, `.github/workflows/ci-cd.yml`. 서버 준비·배포·롤백 절차는 [docs/DEPLOY.md](docs/DEPLOY.md)에 있습니다.
 
 ## 개발 과정에서 겪은 문제와 해결
 
@@ -570,6 +642,14 @@ cd backend
 | 동시성 테스트에서 워커 스레드가 데이터를 못 찾음 | 테스트 클래스 `@Transactional` 때문에 메인 스레드 데이터가 미커밋 상태 | 동시성 테스트 클래스에는 `@Transactional`을 걸지 않음 |
 | 예약 생성이 400으로 실패 | 백엔드에서 `type`이 필수(`@NotNull`)가 됐는데 프론트 미반영 | 예약 폼에 진료 유형 필수 선택 추가, 미선택 시 버튼 비활성화 |
 | Tailwind 클래스가 조용히 무시됨 | Tailwind v4 동적 spacing은 정수만 생성(`h-5.5` 등 미생성), `@layer components` 클래스는 `@apply`로 조합 불가 | 정수 값으로 교체, 공통 클래스를 `@utility`로 정의 |
+| (배포) HTTPS 도메인에서 API 호출이 차단됨 | 프론트가 `http://호스트:8080`을 직접 호출 → 혼합 콘텐츠 | 같은 오리진 상대 경로로 바꾸고 개발은 Vite 프록시, 운영은 Caddy가 백엔드로 전달 |
+| (배포) 컨테이너에서 리마인더·슬롯 시간이 9시간 어긋날 위험 | 컨테이너 기본 시간대가 UTC | backend(`TZ` + JVM `-Duser.timezone`)와 MySQL 모두 `Asia/Seoul` |
+| (배포) MySQL 8 컨테이너 첫 접속 실패 | "Public Key Retrieval is not allowed" | JDBC URL에 `allowPublicKeyRetrieval=true&useSSL=false` |
+| (배포) HTTPS 뒤에서 Swagger "Try it out"이 `http://`로 요청 | 프록시 뒤라 서버가 원래 스킴을 모름 | `server.forward-headers-strategy: framework`로 Caddy의 `X-Forwarded-*` 신뢰 |
+| (배포) 연속 push 시 다른 커밋 이미지가 배포될 수 있음 | 병렬 빌드가 `latest` 태그를 서로 덮어씀 | 커밋 sha 태그로 배포 + main 실행 동시성 1 |
+| (배포) 컨테이너를 root가 아닌 사용자로 바꾸자 사진 업로드 500 | 기존 업로드 볼륨이 root 소유라 쓰기 권한 없음(로컬에서 재현) | 배포 스크립트가 컨테이너 교체 전에 볼륨 소유권을 `app`으로 맞춤 |
+| (배포) 첫 부팅 때 MySQL이 준비되기 전에 healthy | 초기화용 임시 서버에 소켓 ping이 통과(로컬에서 재현) | 헬스체크를 TCP(`127.0.0.1`)로 — 임시 서버는 TCP를 열지 않음 |
+| README 아키텍처 다이어그램이 GitHub에서 깨짐 | Mermaid가 노드 라벨의 `@`(`@PreAuthorize`)를 엣지 ID 문법으로 해석 | 라벨을 따옴표로 감쌈(mermaid-cli로 렌더링 확인) |
 
 ## 알려진 한계 / 설계상 트레이드오프
 
@@ -584,7 +664,7 @@ cd backend
 - **리뷰 숨김은 수동 처리**: 신고가 누적되어도 자동 숨김되지 않고 관리자/병원이 직접 판단합니다(의도적).
 - **공동보호자 초대에 수락 절차 없음**: 가입된 이메일이면 즉시 추가되며 알림도 없습니다.
 - **수정 API는 전체 필드 재입력 방식**: 병원/반려동물/건강기록 PATCH에서 생략한 필드는 null로 덮어써집니다.
-- **프론트 번들 크기**: 라우트 단위 코드 스플리팅 전이라 Vite가 500KB 초과 경고를 띄웁니다.
+- **서버 한 대 구성**: 재배포 때 컨테이너가 교체되는 몇 초 동안 끊기고, DB 자동 백업이 없습니다. 서버를 늘리려면 SSE 연결(메모리)과 업로드 사진(로컬 볼륨)을 Redis·S3 같은 공유 저장소로 옮겨야 합니다.
 
 ## 개발 이력
 
@@ -604,6 +684,7 @@ cd backend
 | 병원 운영 | 리뷰 답글, 노쇼 처리+통계, 병원 사진, 관리자 계정 정지 |
 | 가족 공유 | 다중 보호자 권한 모델 설계 후 구현, 예약 이력 있는 펫 삭제 409 처리 |
 | 프론트엔드 | 인증 플로우 → 핵심 화면 → 전 엔드포인트 연동 → 디자인 업그레이드 |
+| 배포 | EC2 + Docker Compose + Caddy HTTPS, GitHub Actions CI/CD(PR 테스트 게이트, sha 태그 배포), 최종 리뷰 지적사항 반영(호스트 키 고정, 비root 실행, 최소 권한) |
 | 최근 | 디자인 시안 전 화면 이식, **관리자 패널 신설**, 반려동물 성별/중성화, 예약 진료 유형, 유저 상세 통계 API, 리뷰 신고 관리의 HOSPITAL_OWNER 스코핑, 리뷰 답글 작성자 기록, LAN 접속용 CORS 패턴 |
 
 날짜별 상세 이력과 각 결정의 이유는 `frontend/PROGRESS.md`, 백엔드 설계 결정과 겪은 버그는 `backend/CLAUDE.md`, 관리 기능 권한 모델은 `backend/ADMIN.md`에 정리되어 있습니다.
@@ -615,4 +696,4 @@ cd backend
 - 이메일 인증 기반 회원가입 — 소셜 로그인과 함께 인증/가입 플로우를 손대는 것이 효율적이라 순서를 뒤로 미룸
 - 비밀번호 재설정 메일 실제 발송
 - 푸시 알림(FCM)
-- 프론트엔드: 라우트 단위 코드 스플리팅(`React.lazy`), 토스트 알림 시스템, 통계 시각화 확장, 병원 대시보드에 리뷰 신고 관리 화면 추가
+- 프론트엔드: 통계 시각화 확장
