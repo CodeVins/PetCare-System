@@ -116,7 +116,9 @@ com.petcare
 - 기존 테이블에 NOT NULL 컬럼 추가할 때 주의: MySQL이 strict mode가 아니면 DEFAULT 없이 `ALTER TABLE ... ADD COLUMN ... NOT NULL`이 에러 없이 성공하지만, 기존 행은 문자열 빈 값("")으로 채워짐(NULL도 아니고 원하는 기본값도 아님) — `Pet.species` 추가할 때 겪음. 기존 행 백필이 필요하면 컬럼 추가 후 `UPDATE ... SET col = '기본값' WHERE col = '' OR col IS NULL`을 수동으로 돌릴 것
 - enum 컬럼은 전부 `@Column(columnDefinition = "varchar(N)")` 명시해서 VARCHAR로 매핑 (MySQL 네이티브 ENUM 쓰면 `ddl-auto: update`가 기존 컬럼에 새 enum 값을 반영 못 해서, enum에 값 추가할 때마다 "Data truncated" 런타임 에러남 — 겪은 버그). 새 enum 필드 추가할 때도 이 패턴 유지할 것
 - 로컬 개발용 계정: `test-new@petcare.com`/`newpassword123`(USER), `admin@petcare.com`/`adminpass123`(ADMIN), `owner-test@petcare.com`/`ownerpass123`(HOSPITAL_OWNER, 병원 id=2 소유)
-- CORS 허용 오리진: `http://localhost:5173`(Vite), `http://localhost:3000`(CRA) — 프론트 개발 서버 포트가 다르면 `SecurityConfig.corsConfigurationSource()`에 추가
+- CORS 허용 오리진: `http://localhost:5173`(Vite), `http://localhost:3000`(CRA) — 프론트 개발 서버 포트가 다르면 `SecurityConfig.corsConfigurationSource()`에 추가. 운영은 Caddy가 프론트와 API를 같은 오리진으로 서빙해서 CORS 설정 불필요(운영 도메인 추가하지 말 것)
+- 배포 설정: `application.yml`의 `DB_URL`/`SHOW_SQL`은 환경변수(로컬 기본값 있음), `server.forward-headers-strategy: framework`로 Caddy의 X-Forwarded-* 신뢰(Swagger 서버 URL이 https로 생성됨). 운영 비밀값은 EC2 `~/petcare/.env`에만 있음(`../.env.deploy.example`에 키 목록). 컨테이너 시간대는 `Asia/Seoul` 고정(기본 UTC면 리마인더·슬롯 시간 검증이 9시간 어긋남)
+- 운영 DB에 배포 검증용 계정 `deploy-check-1790777642@petcare.com`(펫 "배포검증")이 있음 — 필요 없으면 관리자 패널에서 정지
 - 파일 업로드(반려동물 사진): 로컬 디스크 저장(`uploads/pets/`, `.gitignore` 처리됨), `global/file/FileStorageService`가 담당. 파일명은 클라이언트 값을 쓰지 않고 UUID로 새로 생성(경로 조작 방지), 업로드 시 jpg/png/webp만 허용, 5MB 제한. `/uploads/**`는 SecurityConfig에서 permitAll — 이미지는 공개로 서빙됨
 
 ## 반려동물 생활/건강 관련 API
@@ -195,6 +197,7 @@ com.petcare
 - 대기자 명단(Waitlist), 비밀번호 재설정(이메일 발송은 미구현, 로그로 대체), 건강 기록 통계(체중 그래프/타입별 개수), 리뷰 신고·모더레이션(관리자 숨김/해제), 알림 카테고리별 on/off 설정 추가
 - 리뷰 병원 답글, 예약 노쇼(No-show) 처리+통계 반영, 병원 사진 업로드, 관리자 유저 정지/차단 추가
 - 다중 보호자(가족 공유) 반려동물 계정 추가 — 브레인스토밍으로 권한 모델(최초 등록자 vs 공동보호자) 설계 먼저 확정 후 구현
+- 배포(2026-09-30): https://petcare-yongbin.duckdns.org — EC2 t3.micro 1대 + Docker Compose(web=Caddy+프론트 정적파일, backend, mysql) + GitHub Actions(test → GHCR 이미지 push → ssh `pull && up -d --no-build`), HTTPS는 DuckDNS+Caddy 자동 인증서. PR은 테스트만, main push는 테스트 통과 시에만 배포. 절차·롤백은 `../docs/DEPLOY.md`, 설계는 `../docs/superpowers/specs/2026-09-30-deploy-ci-design.md`
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작

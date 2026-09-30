@@ -33,13 +33,15 @@
   `use(promise)` + Suspense(`pages/home/publicHospitals.ts`), 페이지 제목은 컴포넌트 안 `<title>`
 
 ## 백엔드 API 계약
-- Base URL: http://localhost:8080
+- Base URL: 같은 오리진 상대 경로(`BASE_URL = ''`). 개발은 vite `server.proxy`가 `/api`·`/uploads`를
+  http://localhost:8080으로 넘기고, 운영(https://petcare-yongbin.duckdns.org)은 Caddy가 백엔드로 프록시.
+  `http://호스트:8080` 직접 호출 금지(HTTPS에서 혼합 콘텐츠로 차단됨)
 - 응답 포맷: `{ success: boolean, data: T | null, message: string | null }`
 - 목록 API는 대부분 배열이 아니라 `{ content, page, size, totalElements, totalPages }`로
   내려옴(PageResponse) → `data.data.content`로 꺼내야 함. 예외(그대로 배열): 병원 검색
   GET /api/hospitals, 관리자 통계, 마이페이지 D-day 목록
 - 에러 HTTP 코드: 400 유효성 실패, 401 인증 실패/토큰 만료, 403 권한 없음, 404 없음, 409 충돌
-- Swagger: http://localhost:8080/swagger-ui/index.html
+- Swagger: http://localhost:8080/swagger-ui/index.html (운영: https://petcare-yongbin.duckdns.org/swagger-ui/index.html)
 - 로컬 테스트 계정: test-new@petcare.com/newpassword123(USER),
   admin@petcare.com/adminpass123(ADMIN), owner-test@petcare.com/ownerpass123(HOSPITAL_OWNER)
 

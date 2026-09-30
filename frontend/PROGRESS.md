@@ -385,6 +385,9 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
 - [x] **⑦ 라우트 코드 스플리팅** — 번들 718KB(vite 경고). 특히 `/admin/*`은 일반 사용자에게
       불필요 → `React.lazy` + `Suspense`로 라우트 단위 분리
 - [x] **⑧ 토스트 알림** — 성공/실패 안내가 폼 안 인라인 텍스트뿐(위 2026-09 항목에서도 후보로 언급됨)
+- [x] 2026-09-30 배포 — https://petcare-yongbin.duckdns.org. API 호출을 같은 오리진 상대 경로(`BASE_URL = ''`)로
+      바꾸고 개발은 vite 프록시로 8080에 연결. 프론트는 빌드 결과를 Caddy 이미지에 넣어 서빙(SPA 폴백 `try_files`).
+      절차는 `../docs/DEPLOY.md`
 
 ## 참고
 - 빌드 번들이 500KB를 넘어 vite가 code-splitting 권장 경고를 띄움 (motion

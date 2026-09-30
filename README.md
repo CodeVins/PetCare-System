@@ -4,6 +4,10 @@
 
 > 혼자 설계부터 구현까지 진행한 개인 포트폴리오 프로젝트이며, 실서비스가 아닌 학습/데모 목적입니다.
 
+- **데모**: https://petcare-yongbin.duckdns.org
+- **API 문서(Swagger)**: https://petcare-yongbin.duckdns.org/swagger-ui/index.html
+- **배포**: AWS EC2 + Docker Compose(Caddy·Spring Boot·MySQL), GitHub Actions로 테스트 통과 시 자동 배포 — [배포 가이드](docs/DEPLOY.md)
+
 ## 목차
 
 - [한눈에 보기](#한눈에-보기)
@@ -605,6 +609,8 @@ cd backend
 날짜별 상세 이력과 각 결정의 이유는 `frontend/PROGRESS.md`, 백엔드 설계 결정과 겪은 버그는 `backend/CLAUDE.md`, 관리 기능 권한 모델은 `backend/ADMIN.md`에 정리되어 있습니다.
 
 ## 남은 작업
+
+- 운영 DB 자동 백업(cron + `mysqldump`), 무중단 배포 — 현재는 재배포 시 수 초 끊김
 
 - 소셜 로그인(구글/네이버) — 개발자 콘솔 클라이언트 발급 필요
 - 이메일 인증 기반 회원가입 — 소셜 로그인과 함께 인증/가입 플로우를 손대는 것이 효율적이라 순서를 뒤로 미룸
