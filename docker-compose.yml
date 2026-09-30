@@ -20,8 +20,14 @@ services:
   backend:
     image: ghcr.io/codevins/petcare-backend:${TAG:-latest}
     build: ./backend
-    env_file: .env
+    # 변경(2026-09-30): env_file(.env 전체) → 필요한 키만 전달 — backend에 MySQL root 비밀번호가 넘어가지 않게
+    # (이전: MYSQL_ROOT_PASSWORD·DOMAIN·TAG까지 컨테이너 환경변수로 노출)
     environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DB_URL: jdbc:mysql://mysql:3306/petcare?allowPublicKeyRetrieval=true&useSSL=false
       SHOW_SQL: "false"
     volumes:

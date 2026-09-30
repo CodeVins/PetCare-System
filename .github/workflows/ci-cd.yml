@@ -10,6 +10,11 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
+# 변경(2026-09-30): 기본 토큰 권한을 읽기 전용으로 — test/deploy는 쓰기 권한 불필요, build-push만 job에서 packages: write
+# (이전: 레포 기본 권한을 그대로 받음)
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
