@@ -51,13 +51,14 @@ export default function AdminOverviewPage() {
       getStatsSummary(),
       getHospitalStats(),
       getAdminReservations('PENDING'),
-      getReviewReports(),
+      // 변경(2026-09-30): 노출중 신고 수를 서버 필터(hidden=false)의 totalElements로 (이전: 첫 페이지를 받아 클라이언트에서 셈)
+      getReviewReports({ hidden: false }),
     ])
       .then(([summaryRes, hospitalStatsRes, pendingRes, reportsRes]) => {
         setSummary(summaryRes.data.data)
         setHospitalStats(hospitalStatsRes.data.data)
         setPendingCount(pendingRes.data.data.totalElements)
-        setReportCount(reportsRes.data.data.content.filter((r) => !r.reviewHidden).length)
+        setReportCount(reportsRes.data.data.totalElements)
       })
       .catch((err) => setError(errorMessage(err, '통계를 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
@@ -172,7 +173,7 @@ export default function AdminOverviewPage() {
                 <span className="font-bold text-stone-900">{pendingCount}건</span>
               </Link>
               <Link
-                to="/admin/reviews"
+                to="/admin/reports?hidden=false"
                 className="flex items-center justify-between rounded-lg border border-stone-200 px-3.5 py-3 text-sm transition-colors hover:bg-stone-50"
               >
                 <span className="flex items-center gap-2 text-stone-700">

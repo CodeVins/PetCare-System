@@ -2,6 +2,7 @@ import {
   Bell,
   Buildings,
   CalendarCheck,
+  ChatText,
   Gauge,
   Heart,
   PawPrint,
@@ -26,6 +27,7 @@ const ROLE_LABEL: Record<Role, string> = {
 }
 
 const BASE_MENU = [
+  { to: '/mypage/reviews', label: '내가 쓴 리뷰', icon: ChatText },
   { to: '/favorites', label: '즐겨찾기한 병원', icon: Heart },
   { to: '/mypage/notifications', label: '알림 설정', icon: Bell },
   { to: '/mypage/account', label: '계정 설정', icon: UserCircle },
@@ -33,14 +35,17 @@ const BASE_MENU = [
 
 // DESIGN_SPEC: 병원 소유자·관리자는 하단 탭이 줄어드는 대신
 // 병원 관리 / 관리자 / 내 반려동물 / 내 예약이 여기로 내려온다.
-const OWNER_MENU = [
-  { to: '/dashboard', label: '병원 관리', icon: Gauge },
+// 변경(2026-09-30): 관리 진입점을 역할별로 하나씩 — 병원 소유자는 병원 관리(/dashboard), 관리자는 관리자
+// 패널(/admin)만 (이전: 관리자에게 병원 관리 + 관리자 둘 다 보임)
+const MY_ACTIVITY_MENU = [
   { to: '/pets', label: '내 반려동물', icon: PawPrint },
   { to: '/hospitals', label: '병원 찾기', icon: Buildings },
   { to: '/reservations', label: '내 예약', icon: CalendarCheck },
 ]
 
-const ADMIN_MENU = [{ to: '/admin', label: '관리자', icon: ShieldCheck }]
+const OWNER_MENU = [{ to: '/dashboard', label: '병원 관리', icon: Gauge }, ...MY_ACTIVITY_MENU]
+
+const ADMIN_MENU = [{ to: '/admin', label: '관리자 패널', icon: ShieldCheck }, ...MY_ACTIVITY_MENU]
 
 export default function MyPage() {
   const [email, setEmail] = useState('')
@@ -72,9 +77,8 @@ export default function MyPage() {
     navigate('/login', { replace: true })
   }
 
-  const isOwner = role === 'HOSPITAL_OWNER' || role === 'ADMIN'
   const menu = [
-    ...(isOwner ? OWNER_MENU : []),
+    ...(role === 'HOSPITAL_OWNER' ? OWNER_MENU : []),
     ...(role === 'ADMIN' ? ADMIN_MENU : []),
     ...BASE_MENU,
   ]

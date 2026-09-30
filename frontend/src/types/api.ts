@@ -270,16 +270,61 @@ export interface Review {
   mine: boolean
 }
 
+// 변경(2026-09-30): hospitalName·reviewCreatedAt·작성자/신고자 이메일 추가 — 관리 화면에서 사람·날짜로
+// 확인·필터링하려고 (이전: reporterId만 있고 병원명은 병원 목록을 따로 받아 조인)
 export interface ReviewReport {
   id: number
   reviewId: number
   hospitalId: number
+  hospitalName: string
   reviewContent: string
   reviewRating: number
   reviewHidden: boolean
+  reviewCreatedAt: ISODateTime
+  reviewAuthorId: number
+  reviewAuthorEmail: string
   reporterId: number
+  reporterEmail: string
   reason: string
   createdAt: ISODateTime
+}
+
+// GET /api/admin/reviews — 관리자(전체)/병원 소유자(본인 병원) 리뷰 관리 목록
+export interface ManagedReview {
+  id: number
+  hospitalId: number
+  hospitalName: string
+  authorId: number
+  authorEmail: string
+  rating: number
+  content: string
+  hidden: boolean
+  reportCount: number
+  reply: ReviewReply | null
+  createdAt: ISODateTime
+}
+
+// GET /api/users/me/reviews — 마이페이지 "내가 쓴 리뷰"
+export interface MyReview {
+  id: number
+  hospitalId: number
+  hospitalName: string
+  rating: number
+  content: string
+  hidden: boolean
+  reply: ReviewReply | null
+  createdAt: ISODateTime
+}
+
+// 관리 화면 리뷰/신고 목록 필터 — 빈 값은 보내지 않는다. from/to는 작성일(리뷰)·신고일(신고) 'YYYY-MM-DD'
+export interface ReviewFilter {
+  hospitalId?: number
+  author?: string
+  reporter?: string
+  from?: ISODate
+  to?: ISODate
+  hidden?: boolean
+  sort?: string // 'createdAt,desc' | 'createdAt,asc' | 'rating,desc' | 'rating,asc'
 }
 
 // ── reservation ───────────────────────────────────────

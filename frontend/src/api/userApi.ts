@@ -1,4 +1,4 @@
-import type { UpcomingVaccination, User } from '../types/api'
+import type { Hospital, MyReview, PageResponse, UpcomingVaccination, User } from '../types/api'
 import axiosInstance, { type ApiPromise } from './axiosInstance'
 
 export function getMe(): ApiPromise<User> {
@@ -24,4 +24,13 @@ export function changePassword({
 
 export function getUpcomingVaccinations(): ApiPromise<UpcomingVaccination[]> {
   return axiosInstance.get('/api/users/me/upcoming-vaccinations')
+}
+
+// 병원 관리 콘솔용 — 내가 소유자로 지정된 병원만 (배열 그대로)
+export function getOwnedHospitals(): ApiPromise<Hospital[]> {
+  return axiosInstance.get('/api/users/me/hospitals')
+}
+
+export function getMyReviews(page = 0): ApiPromise<PageResponse<MyReview>> {
+  return axiosInstance.get('/api/users/me/reviews', { params: { page } })
 }

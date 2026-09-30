@@ -7,7 +7,6 @@ import {
   uploadHospitalImage,
 } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
-import Button from '../../components/common/Button'
 import TextField from '../../components/common/TextField'
 import Toggle from '../../components/common/Toggle'
 import { useToast } from '../../hooks/useToast'
@@ -117,9 +116,9 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
   )
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center gap-2">
-        <label className="group relative flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-brand-100 text-brand-600">
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr] lg:items-start">
+      <div className="admin-card flex flex-col items-center gap-2 p-4">
+        <label className="group relative flex h-40 w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-brand-100 text-brand-600">
           {hospital.imageUrl ? (
             <img
               src={`${BASE_URL}${hospital.imageUrl}`}
@@ -153,7 +152,7 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
         )}
       </div>
 
-      <form onSubmit={handleFormSubmit} className="card flex flex-col gap-4 p-5 md:p-6">
+      <form onSubmit={handleFormSubmit} className="admin-card flex flex-col gap-4 p-5">
         <TextField
           label="병원 이름"
           value={form.name}
@@ -213,9 +212,10 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
 
         <Alert tone="error">{formError}</Alert>
 
-        <Button type="submit" loading={saving} className="w-full">
-          병원 정보 저장
-        </Button>
+        {/* 변경(2026-09-30): 병원 관리 콘솔(관리자 톤)로 옮기면서 pill Button·card → admin-btn-primary·admin-card, 사진/폼 2열 (이전: 소비자 앱 톤 1열) */}
+        <button type="submit" disabled={saving} className="admin-btn-primary h-10 w-full">
+          {saving ? '저장 중...' : '병원 정보 저장'}
+        </button>
       </form>
     </div>
   )

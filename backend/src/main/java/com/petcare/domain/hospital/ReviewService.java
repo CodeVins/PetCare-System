@@ -1,5 +1,6 @@
 package com.petcare.domain.hospital;
 
+import com.petcare.domain.hospital.dto.MyReviewResponse;
 import com.petcare.domain.hospital.dto.ReviewCreateRequest;
 import com.petcare.domain.hospital.dto.ReviewReplyRequest;
 import com.petcare.domain.hospital.dto.ReviewReplyResponse;
@@ -14,6 +15,9 @@ import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -62,6 +66,21 @@ public class ReviewService {
 				.map(review -> ReviewResponse.of(review, reviewReplyRepository.findByReviewId(review.getId())
 						.map(ReviewReplyResponse::from)
 						.orElse(null), userId)));
+	}
+
+	public PageResponse<MyReviewResponse> getMyReviews(Long userId, Pageable pageable) {
+		var reviews = reviewRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable);
+		Map<Long, ReviewReplyResponse> replies = repliesOf(reviews.map(Review::getId).toList());
+		return PageResponse.from(reviews.map(review -> MyReviewResponse.of(review, replies.get(review.getId()))));
+	}
+
+	// 리뷰 목록의 답글을 IN 쿼리 한 번으로 — 관리 화면 목록(AdminReviewService)도 같이 씀
+	public Map<Long, ReviewReplyResponse> repliesOf(Collection<Long> reviewIds) {
+		if (reviewIds.isEmpty()) {
+			return Map.of();
+		}
+		return reviewReplyRepository.findAllByReviewIdIn(reviewIds).stream()
+				.collect(Collectors.toMap(reply -> reply.getReview().getId(), ReviewReplyResponse::from));
 	}
 
 	@Transactional

@@ -6,6 +6,7 @@ import {
   Gauge,
   House,
   PawPrint,
+  ShieldCheck,
   SignIn,
   SignOut,
   UserCircle,
@@ -16,7 +17,6 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { logout as logoutRequest } from '../../api/authApi'
 import { useAuth } from '../../hooks/useAuth'
 import { useNotifications } from '../../hooks/useNotifications'
-import { OWNER_ROLES } from '../../lib/roles'
 
 interface NavItem {
   to: string
@@ -35,9 +35,19 @@ const USER_NAV: NavItem[] = [
   { to: '/mypage', label: '마이페이지', icon: UserCircle },
 ]
 
+// 변경(2026-09-30): 병원 소유자 탭 이름 "대시보드" → "병원 관리", ADMIN은 대시보드 대신 관리자 패널(/admin) 탭
+// (이전: 소유자·관리자 공용 OWNER_NAV에 /dashboard — 관리자는 대시보드가 필요 없고 /admin에서 전체 운영)
 const OWNER_NAV: NavItem[] = [
   { to: '/', label: '홈', icon: House },
-  { to: '/dashboard', label: '대시보드', icon: Gauge },
+  { to: '/dashboard', label: '병원 관리', icon: Gauge },
+  { to: '/chats', label: '채팅', icon: ChatCircleDots },
+  { to: '/notifications', label: '알림', icon: Bell },
+  { to: '/mypage', label: '마이페이지', icon: UserCircle },
+]
+
+const ADMIN_NAV: NavItem[] = [
+  { to: '/', label: '홈', icon: House },
+  { to: '/admin', label: '관리자', icon: ShieldCheck },
   { to: '/chats', label: '채팅', icon: ChatCircleDots },
   { to: '/notifications', label: '알림', icon: Bell },
   { to: '/mypage', label: '마이페이지', icon: UserCircle },
@@ -59,7 +69,7 @@ export default function Header() {
   const location = useLocation()
   const reduceMotion = useReducedMotion()
 
-  const navItems = role && OWNER_ROLES.includes(role) ? OWNER_NAV : USER_NAV
+  const navItems = role === 'ADMIN' ? ADMIN_NAV : role === 'HOSPITAL_OWNER' ? OWNER_NAV : USER_NAV
 
   const handleLogout = async () => {
     try {

@@ -9,6 +9,7 @@ interface PagedList<T> {
   error: string
   setError: Dispatch<SetStateAction<string>>
   hasMore: boolean
+  total: number
   loadMore: () => void
   loadingMore: boolean
 }
@@ -26,6 +27,7 @@ export function usePagedList<T extends { id: number }>(
   const [items, setItems] = useState<T[]>([])
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
@@ -40,6 +42,7 @@ export function usePagedList<T extends { id: number }>(
         setItems(data.data.content)
         setPage(0)
         setTotalPages(data.data.totalPages)
+        setTotal(data.data.totalElements)
       })
       .catch((err: unknown) => {
         if (!ignore) setError(errorMessage(err, fallbackMessage))
@@ -63,6 +66,7 @@ export function usePagedList<T extends { id: number }>(
         })
         setPage(page + 1)
         setTotalPages(data.data.totalPages)
+        setTotal(data.data.totalElements)
       })
       .catch((err: unknown) => setError(errorMessage(err, fallbackMessage)))
       .finally(() => setLoadingMore(false))
@@ -75,6 +79,8 @@ export function usePagedList<T extends { id: number }>(
     error,
     setError,
     hasMore: page + 1 < totalPages,
+    // 전체 건수(필터 적용 후) — 관리 화면 "검색 결과 N건" 표시용
+    total,
     loadMore,
     loadingMore,
   }

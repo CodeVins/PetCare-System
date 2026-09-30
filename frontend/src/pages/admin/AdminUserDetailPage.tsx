@@ -175,6 +175,28 @@ export default function AdminUserDetailPage() {
         <StatTile icon={PawPrint} label="등록한 반려동물" value={stats.petCount} />
         <StatTile icon={UsersThree} label="내 펫의 공동보호자 수" value={stats.guardianCount} />
       </div>
+
+      {/* 이 사용자 기준으로 리뷰/신고 관리 화면을 필터해서 연다 */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          to={`/admin/reviews?author=${encodeURIComponent(user.email)}`}
+          className="admin-btn-secondary"
+        >
+          작성한 리뷰 보기
+        </Link>
+        <Link
+          to={`/admin/reports?author=${encodeURIComponent(user.email)}`}
+          className="admin-btn-secondary"
+        >
+          이 사용자 리뷰에 대한 신고
+        </Link>
+        <Link
+          to={`/admin/reports?reporter=${encodeURIComponent(user.email)}`}
+          className="admin-btn-secondary"
+        >
+          이 사용자가 한 신고
+        </Link>
+      </div>
     </div>
   )
 }

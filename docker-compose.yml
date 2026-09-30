@@ -1,0 +1,53 @@
+# 운영(EC2: pull 후 up -d --no-build)과 로컬(up --build) 공용
+services:
+  mysql:
+    image: mysql:8
+    command: --performance-schema=OFF --innodb-buffer-pool-size=128M
+    environment:
+      TZ: Asia/Seoul
+      MYSQL_DATABASE: petcare
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      retries: 30
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/codevins/petcare-backend:${TAG:-latest}
+    build: ./backend
+    env_file: .env
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/petcare?allowPublicKeyRetrieval=true&useSSL=false
+      SHOW_SQL: "false"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/codevins/petcare-web:${TAG:-latest}
+    build: ./frontend
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  uploads:
+  caddy_data:
+  caddy_config:

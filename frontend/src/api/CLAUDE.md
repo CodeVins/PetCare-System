@@ -12,8 +12,8 @@
   Authorization 헤더에 첨부, 401 응답 시 refreshToken으로 자동 reissue(동시 요청은
   하나의 reissue로 묶임) 후 재시도, reissue까지 실패하면 토큰 삭제 + /login 이동 (토큰이 없던 비회원의 401은 이동 없이 reject만).
   이 로직을 개별 api 함수에서 다시 구현하지 말 것.
-- `BASE_URL`을 `axiosInstance.ts`에서 export함 — 이미지 등 정적 리소스 URL 만들 때
-  (`${BASE_URL}${imageUrl}`) 재사용. 하드코딩 금지.
+- `BASE_URL`을 `axiosInstance.ts`에서 export함 — 값은 `''`(같은 오리진 상대 경로). 이미지 등 정적 리소스 URL 만들 때
+  (`${BASE_URL}${imageUrl}`) 재사용. 하드코딩 금지. 개발은 vite 프록시, 운영은 Caddy가 `/api`·`/uploads`를 백엔드로 보냄
 - 목록 API는 대부분 페이지네이션(`{ content, page, size, totalElements, totalPages }`)
   응답이라 호출부에서 `res.data.data.content`로 꺼내야 함. 예외(배열 그대로): 병원
   검색, 관리자 통계, D-day 목록 — 상세는 API_MAP.md 참고.

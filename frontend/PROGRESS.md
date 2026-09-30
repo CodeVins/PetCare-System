@@ -323,6 +323,34 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
     - 같이 고친 것: 예약 취소·대시보드 확정·즐겨찾기 해제·기록 삭제 등이 실패하면 `setError`로 **목록
       전체가 에러 문구로 바뀌던** 곳들 → 목록은 두고 실패 토스트만
     - 남은 것: ⑥ 브라우저 눈 확인(토스트 위치·다이얼로그·홈 포함)
+- [x] 2026-09-30 ⑥ 중 데이터 부분 API로 확인 (슬롯 지난 것 제외·시간순, 리뷰 `mine`, 리뷰 수정 후 답글
+      유지, 예약·대기·관리자 예약 응답의 병원명·시간). 화면 눈 확인은 여전히 남음
+- [x] 2026-09-30 병원 관리 콘솔 분리 + 관리자 역할 정리 + 리뷰/신고 관리 필터 + 내가 쓴 리뷰
+      (백엔드 포함, typecheck·빌드·백엔드 테스트 통과, 브라우저 확인 안 함)
+    - **관리할 병원이 전체 병원으로 뜨던 문제**: 대시보드가 공개 검색 `GET /api/hospitals`로 선택지를
+      채웠음(저장은 서버가 막았지만 목록엔 다 보임). 백엔드에 `GET /api/users/me/hospitals`(Hospital.owner =
+      나) 추가 → OwnerLayout이 이걸로 채움. 병원이 하나면 사이드바에 이름만, 여러 개면 select, 없으면 안내
+    - **병원 관리 = 관리자 패널과 같은 쉘**: AdminLayout에 nav/panelName/sidebarExtra/outletContext/children
+      props를 열어 OwnerLayout이 재사용(어두운 사이드바·admin-card·표). `/dashboard` 한 화면 탭 5개 →
+      현황(/dashboard: StatTile 5개 + 승인 대기 예약 5건 + 7일 슬롯 예약률 막대 + 최근 리뷰), 예약 관리·
+      리뷰·신고(관리자 화면 그대로 재사용 — 서버가 본인 병원으로 스코핑), 예약 슬롯·병원 정보(기존
+      SlotSection/HospitalInfoSection을 admin 톤으로). OwnerDashboardPage·ReservationQueueSection·
+      ReviewReportSection 삭제. 선택한 병원은 `useOwnerHospital()`(Outlet context)
+    - **ADMIN은 /admin만**: OwnerRoute를 HOSPITAL_OWNER 전용으로(ADMIN은 /admin으로 리다이렉트, 비회원은
+      /login), Header 탭은 ADMIN이면 "관리자"(/admin), 마이페이지도 관리 진입점은 역할별 하나. 로그인 시
+      ADMIN은 보던 화면이 /admin/*가 아니면 항상 /admin
+    - **리뷰/신고 관리 필터**: 백엔드 `GET /api/admin/reviews`(신규, Querydsl `ReviewRepositoryImpl`)와
+      `GET /api/admin/reviews/reports`(Querydsl `ReviewReportRepositoryImpl`로 교체)가 병원·작성자 이메일·
+      신고자 이메일·날짜 범위(작성일/신고일)·숨김 필터 + 정렬을 받음. 응답에 작성자/신고자 이메일,
+      리뷰 작성일, 병원명, 신고 수. 프론트 `ReviewFilterBar` + `useReviewFilter()`가 필터를 **URL 쿼리**로
+      관리 — 새로고침·뒤로가기 유지, 사용자 상세의 "작성한 리뷰/받은 신고/한 신고" 링크가 `?author=` 등으로
+      바로 열림. 표에서 이메일 누르면 그 사람으로 필터(`AuthorCell`), 날짜 프리셋 오늘/7일/30일.
+      관리자 메뉴 "리뷰 신고" → "리뷰"(/admin/reviews)·"신고"(/admin/reports) 둘로
+    - **내가 쓴 리뷰**: 백엔드 `GET /api/users/me/reviews`(답글은 IN 쿼리 한 번 — `ReviewService.repliesOf`)
+      → /mypage/reviews. 숨김 처리된 리뷰는 배지+안내, 병원 답글 표시. 수정·삭제는 병원 상세에서
+    - `usePagedList`에 `total`(필터 후 전체 건수) 추가 — "검색 결과 N건"
+    - 한계: 병원 소유자도 리뷰 작성자·신고자 이메일을 봄(채팅 목록이 이미 고객 이메일을 보여주는 것과 같은
+      수준으로 판단). 현황의 "오늘 남은 예약"은 슬롯 기준(취소 후 다시 열린 슬롯은 제외됨)
 
 ## 다음 할 일 (2026-09-27 백엔드 세션에서 정리, 추천 순서: ① → ③ → ② → ④ → ⑦ → ⑧, ⑤⑥은 ① 하면서 브라우저 띄울 때 같이)
 
@@ -348,7 +376,9 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       관리자에게 문의해주세요.", "반려동물 삭제는 최초 등록자만 할 수 있습니다." 등, 이전엔 전부
       "접근 권한이 없습니다."). 대부분 `err.response.data.message`를 그대로 띄워서 코드 수정은
       거의 없을 것 — 로그인/반려동물 삭제 화면에서 잘 보이는지 눈으로만 확인
-- [ ] **⑥ 2026-09-27 변경 화면 브라우저 확인** — 빌드/lint만 통과, 화면 확인 안 함:
+- [ ] **⑥ 2026-09-27 변경 화면 브라우저 확인** — 빌드/lint만 통과, 화면 확인 안 함
+      (2026-09-30: 데이터는 API로 확인 완료, 화면 눈 확인만 남음 + 같은 날 만든 병원 관리 콘솔·리뷰/신고
+      관리·내가 쓴 리뷰 화면도 같이):
       대시보드 슬롯 반복 등록 폼 + 슬롯 X 삭제, 리뷰 `mine` 기반 수정·삭제 버튼(다른 기기에서도),
       리뷰 수정 후 병원 답글 유지, 예약·대기 목록/홈/대시보드/관리자 예약의 병원명·시간 표시.
       슬롯 목록은 이제 백엔드가 지난 슬롯 빼고 시간순으로 줌

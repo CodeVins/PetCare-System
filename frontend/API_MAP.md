@@ -6,6 +6,8 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
 - 내 정보: GET/PATCH /api/users/me, PATCH /api/users/me/password → /mypage/account
   (AccountSettingsPage). /mypage 자체는 메뉴 리스트 + 계정 요약만 보여준다.
   GET /api/users/me/upcoming-vaccinations → HomePage (D-day 목록)
+  GET /api/users/me/reviews(페이지, 병원명·숨김 여부·병원 답글 포함) → /mypage/reviews(MyReviewsPage).
+  GET /api/users/me/hospitals(내가 소유자로 지정된 병원, 배열 그대로) → OwnerLayout "관리할 병원"
 - 반려동물: /api/pets (CRUD, species 필수/size·sex·neutered 선택, 응답에
   role(OWNER/GUARDIAN)) → /pets, /pets/new, /pets/:petId(개요 탭에 성별/중성화
   포함).
@@ -25,17 +27,15 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   체크박스 2개 추가). POST /api/hospitals(등록, ADMIN 전용) → UserManagementSection
   (이름+주소만, 나머지는 등록 후 대시보드에서). GET/PATCH /api/hospitals/{id} →
   상세/대시보드 수정폼(24시간·주차·평균진료비 입력 추가). POST·DELETE
-  /api/hospitals/{id}/image → 대시보드 HospitalManageSection 썸네일 업로드.
+  /api/hospitals/{id}/image → /dashboard/hospital(HospitalInfoSection) 사진 업로드.
   /api/hospitals/{id}/slots → 예약 가능 시간 + 대시보드 슬롯 등록(지난 슬롯 제외,
   시간순으로 옴). .../slots/bulk(반복 등록 → {created, skipped}), DELETE
-  .../slots/{slotId}(예약 가능 슬롯만) → 대시보드 SlotSection.
+  .../slots/{slotId}(예약 가능 슬롯만) → /dashboard/slots(SlotSection).
   /api/hospitals/{id}/favorites, GET /api/favorites → 하트 토글, /favorites.
   /api/hospitals/{id}/reviews (CRUD), .../report, .../reply(CRUD, ADMIN/소유
   HOSPITAL_OWNER 전용) → ReviewSection(병원 상세 하단). "내 리뷰"는 응답의
   `mine`(요청자 본인 작성 여부)으로 판별 — 기기와 무관하게 수정·삭제 버튼 노출.
-  /api/admin/reviews/reports(hospitalId/reviewContent/reviewRating/reason/
-  reporterId/createdAt 포함), .../hide, .../unhide → /admin/reviews(카드
-  목록 — 별점·리뷰 원문·신고 사유를 그대로 보여줘야 판단 가능해서 표 대신 카드)
+  관리용 리뷰/신고는 아래 "관리자" 항목 참고.
 - 예약: PENDING으로 생성 → 병원측이 확정/거절 (CONFIRMED/REJECTED). 상태: PENDING/
   CONFIRMED/REJECTED/CANCELLED/NO_SHOW. 생성 시 type(진료 유형 — CHECKUP/
   VACCINATION/TREATMENT/SURGERY/GROOMING/ETC) 필수 선택 → HospitalDetailPage
@@ -45,7 +45,7 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   (`formatSlot(reservation)`). WaitlistResponse도 petName/hospitalName/startTime/
   endTime 포함. /api/reservations (CRUD + cancel) → /reservations.
   /api/admin/reservations (목록+confirm/reject/no-show, CONFIRMED만 노쇼 전환
-  가능) → /dashboard 예약 대기열, /admin/reservations.
+  가능) → /dashboard/reservations, /admin/reservations.
   /api/waitlists (신청/내목록/취소, RESERVED 슬롯에만 신청 가능) → /waitlist,
   병원 상세에서 마감된 슬롯에 "대기 신청" 버튼으로 진입. 슬롯이 풀리면 대기 1순위
   에게만 WAITLIST_SLOT_AVAILABLE 알림(선착순, 나머지는 못 받음 — 백엔드 의도적 설계)
@@ -64,13 +64,20 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   /api/admin/hospitals/{id}/owner(ADMIN 전용, 대상 USER면 자동 HOSPITAL_OWNER
   승격) + /api/hospitals(POST, 생성) → /admin/hospitals.
   /api/admin/reservations(ADMIN 전체/HOSPITAL_OWNER 본인 병원만 — 서버가
-  스코핑) → /admin/reservations, HOSPITAL_OWNER는 기존처럼 /dashboard.
-  /api/admin/reviews/reports(+hide/unhide, 동일 스코핑) → /admin/reviews,
-  /dashboard "리뷰 신고" 탭(ReviewReportSection, 소비자 앱 톤).
+  스코핑) → /admin/reservations, /dashboard/reservations(같은 AdminReservationsPage).
+  GET /api/admin/reviews(관리용 리뷰 목록 — 숨김 포함, authorEmail·reportCount·reply,
+  필터 hospitalId/author(이메일 부분일치)/from/to(작성일)/hidden, sort=createdAt|rating,asc|desc)
+  → /admin/reviews, /dashboard/reviews(AdminReviewsPage — 표 + 펼치면 답글 작성/수정/삭제).
+  GET /api/admin/reviews/reports(필터 hospitalId/author/reporter/from/to(신고일)/hidden,
+  sort=createdAt,asc|desc, 응답에 hospitalName·reviewCreatedAt·reviewAuthorEmail·reporterEmail)
+  +hide/unhide → /admin/reports, /dashboard/reports(AdminReportsPage). 둘 다 ADMIN 전체 /
+  HOSPITAL_OWNER 본인 병원만(서버 스코핑). 필터는 URL 쿼리(ReviewFilterBar)라 사용자 상세에서
+  `?author=`/`?reporter=` 링크로 바로 열림.
   /api/admin/stats/summary, /api/admin/stats/hospitals(ADMIN 전용) →
   /admin(대시보드 요약) + /admin/stats(상세 표+분포).
   /api/admin/reminders/run(ADMIN 전용) → /admin 대시보드의 퀵액션 카드.
-  ADMIN 로그인 시 LoginPage가 /api/users/me로 role 확인 후 /admin으로 자동 이동.
+  ADMIN 로그인 시 LoginPage가 /api/users/me로 role 확인 후 /admin으로 자동 이동(보던 화면이
+  /admin/*가 아니면 항상). ADMIN은 /dashboard 대신 /admin만 씀(OwnerRoute가 /admin으로 보냄).
 - 비밀번호 재설정: POST /api/auth/password-reset/request { email } (항상 200),
   POST /api/auth/password-reset/confirm { token, newPassword } → /forgot-password,
   /reset-password. 백엔드가 실제 메일 발송 없이 토큰을 로그로만 남김(포트폴리오

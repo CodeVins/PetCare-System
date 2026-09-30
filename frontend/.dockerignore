@@ -1,0 +1,6 @@
+node_modules/
+dist/
+petcare-ui-source/
+.claude/
+.agents/
+*.md

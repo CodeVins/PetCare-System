@@ -3,7 +3,6 @@ import { CalendarBlank, X } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { createSlot, createSlotsBulk, deleteSlot, getSlots } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
-import Button from '../../components/common/Button'
 import ChoiceGroup from '../../components/common/ChoiceGroup'
 import EmptyState from '../../components/common/EmptyState'
 import SelectField from '../../components/common/SelectField'
@@ -139,10 +138,10 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
     <div className="flex flex-col gap-4">
       <form
         onSubmit={handleSubmit}
-        className="card flex flex-col gap-3 p-5 md:p-6"
+        className="admin-card flex flex-col gap-3 p-5"
         aria-labelledby="h-slot-form"
       >
-        <h2 id="h-slot-form" className="h-section">
+        <h2 id="h-slot-form" className="text-sm font-bold text-stone-800">
           슬롯 등록
         </h2>
         <ChoiceGroup
@@ -233,24 +232,25 @@ export default function SlotSection({ hospitalId }: { hospitalId: number }) {
         )}
 
         <Alert tone="error">{formError}</Alert>
-        <Button type="submit" loading={creating} className="w-full">
-          {mode === 'single' ? '슬롯 등록' : '반복 등록'}
-        </Button>
+        {/* 변경(2026-09-30): 병원 관리 콘솔(관리자 톤)로 옮기면서 pill Button → admin-btn-primary, card → admin-card (이전: 소비자 앱 톤) */}
+        <button type="submit" disabled={creating} className="admin-btn-primary h-10 w-full">
+          {creating ? '등록 중...' : mode === 'single' ? '슬롯 등록' : '반복 등록'}
+        </button>
       </form>
 
-      {loading && <div className="h-32 animate-pulse rounded-2xl bg-stone-100" />}
+      {loading && <div className="h-32 animate-pulse rounded-xl bg-stone-200" />}
       {!loading && error && <Alert tone="error">{error}</Alert>}
 
       {/* 변경(2026-09-27): 에러가 있어도 슬롯 목록은 계속 보여줌 — 삭제 실패(409 등) 메시지가 목록을 가리지 않게
           (이전: 에러가 있으면 목록 자체를 숨김, 조회 실패만 있던 시절 기준) */}
       {!loading && slots.length === 0 && !error && (
-        <div className="card">
+        <div className="admin-card">
           <EmptyState icon={CalendarBlank}>등록된 슬롯이 없습니다.</EmptyState>
         </div>
       )}
 
       {!loading && slots.length > 0 && (
-        <div className="card flex flex-col gap-4 p-5 md:p-6">
+        <div className="admin-card flex flex-col gap-4 p-5">
           {groupByDate(slots).map(([dateKey, dateSlots]) => (
             <div key={dateKey}>
               <p className="mb-2 text-[13px] font-bold text-stone-600">

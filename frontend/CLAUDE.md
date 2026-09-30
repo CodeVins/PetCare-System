@@ -66,8 +66,8 @@
 - accessToken/refreshToken 둘 다 axios 인터셉터/훅에서 자동 처리 (localStorage에
   accessToken, refreshToken 키로 저장)
 - User.role: USER / HOSPITAL_OWNER / ADMIN — useAuth가 로그인 시 GET /api/users/me로
-  role/userId까지 가져와 보관. 라우터에서 OwnerRoute(HOSPITAL_OWNER+ADMIN, `/dashboard`)
-  / AdminRoute(ADMIN 전용, `/admin`)로 가드, Header 네비도 role에 따라 항목 추가
+  role/userId까지 가져와 보관. 라우터에서 OwnerRoute(HOSPITAL_OWNER 전용, `/dashboard/*` —
+  ADMIN은 /admin으로 보냄) / AdminRoute(ADMIN 전용, `/admin/*`)로 가드, Header 네비도 role에 따라 항목 추가
 
 ## 주요 엔드포인트
 도메인: 내 정보/반려동물(+건강기록/보호자/급여계산기/자가문진)/병원(+슬롯/즐겨찾기/
@@ -110,7 +110,9 @@ src
 현재: 세팅·인증·핵심 화면·심화 기능(반려동물 확장/리뷰/예약 확장/병원·계정 폴리시)
 전부 완료. **남은 작업은 PROGRESS.md의 "다음 할 일" 섹션** — 2026-09-27에 ①②③④⑦ 처리,
 같은 날 비회원 모드(병원 공개)+TypeScript 전환+React 19 기능 도입, 홈 통일(회원 요약은 /pets로)
-+공지·FAQ·약관·방침+푸터, 건강기록 화면 개편(작성 다이얼로그 분리·종류 필터·월별 묶음). ⑤ 403 문구·⑧ 토스트(`hooks/useToast` — 동작 결과는 토스트, 입력 검증은 인라인)도 완료. 남은 건 ⑥ 브라우저 눈 확인(홈·비회원 흐름·건강기록 다이얼로그·토스트 포함). 새 세션은 여기부터.
++공지·FAQ·약관·방침+푸터, 건강기록 화면 개편(작성 다이얼로그 분리·종류 필터·월별 묶음). ⑤ 403 문구·⑧ 토스트(`hooks/useToast` — 동작 결과는 토스트, 입력 검증은 인라인)도 완료. 2026-09-30 병원 관리 콘솔
+분리(본인 병원만)·ADMIN은 /admin만·리뷰/신고 관리 필터·내가 쓴 리뷰(백엔드 포함). 남은 건 ⑥ 브라우저 눈 확인
+(홈·비회원 흐름·건강기록 다이얼로그·토스트·병원 관리 콘솔·리뷰/신고 관리 포함). 새 세션은 여기부터.
 - 제목 폰트 규칙: Jua는 **h1(PageHeader·홈 배너)과 로고만**. 섹션 제목(h2)은 `h-section`(Noto 700) —
   DESIGN_SPEC 기준. Jua는 index.html에서 `display=block`으로 따로 로드(조각 로딩 중 폰트 섞임 방지)
 - 목록 "더 보기"는 `hooks/usePagedList` 재사용 (PageResponse 목록 새로 붙일 때).
@@ -131,8 +133,11 @@ src
   `AdminLayout`(사이드바/상단 탭, stone-900 어두운 톤, pill 대신 rounded-lg 버튼)
   아래에서 렌더되고 `Layout`(하단 탭바 등)은 안 씀 — 공용 컴포넌트도 재사용 안
   하고 `admin-card` `admin-btn-*` `admin-input` `admin-th/td`(index.css @utility)
-  를 따로 씀. ADMIN 전용(HOSPITAL_OWNER는 기존 `/dashboard` 그대로), 로그인 시
-  role 보고 자동 이동. 상세는 PROGRESS.md, 엔드포인트는 API_MAP.md·ADMIN.md(백엔드).
+  를 따로 씀. ADMIN 전용, 로그인 시 role 보고 자동 이동.
+  **병원 관리 콘솔(`/dashboard/*`, `src/pages/dashboard/`)도 같은 쉘** — `OwnerLayout`이
+  `AdminLayout`에 OWNER_NAV를 넘겨 재사용, 선택 병원은 `useOwnerHospital()`. 예약·리뷰·신고 화면은
+  admin 페이지를 그대로 쓰고 범위는 서버가 역할로 스코핑. 리뷰/신고 필터는 URL 쿼리(`ReviewFilterBar`).
+  상세는 PROGRESS.md, 엔드포인트는 API_MAP.md·ADMIN.md(백엔드).
 
 ## 반응형 정책
 - 모든 화면은 웹(데스크톱)과 모바일 브라우저 양쪽에서 정상 동작해야 함
