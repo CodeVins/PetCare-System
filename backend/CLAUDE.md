@@ -141,7 +141,9 @@ com.petcare
 
 ## 리뷰 신고 / 모더레이션
 - `POST /api/hospitals/{hospitalId}/reviews/{reviewId}/report` — 로그인 유저 아무나 신고 가능(리뷰 작성 자격과 무관), 같은 리뷰 중복 신고는 409
-- `GET /api/admin/reviews/reports`, `PATCH /api/admin/reviews/{reviewId}/hide`, `PATCH /api/admin/reviews/{reviewId}/unhide` (전부 ADMIN 전용, `AdminReviewController`)
+- `GET /api/admin/reviews/reports`, `PATCH /api/admin/reviews/{reviewId}/hide`, `PATCH /api/admin/reviews/{reviewId}/unhide` (`AdminReviewController`, ADMIN 또는 HOSPITAL_OWNER — 소유자는 본인 병원만: 목록은 `ReviewSearchCondition.managerId`, hide/unhide는 `isManagedBy`)
+- `GET /api/admin/reviews` — 관리용 리뷰 목록(숨김 포함, 작성자 이메일·신고 수·답글). 리뷰/신고 목록 둘 다 필터 `hospitalId`, `author`(작성자 이메일 부분일치), `from`/`to`(날짜, 리뷰는 작성일·신고는 신고일, 양끝 포함), `hidden`, 신고는 `reporter`도. 정렬은 리뷰 `createdAt|rating`, 신고 `createdAt`만(화이트리스트). Querydsl `ReviewRepositoryImpl`/`ReviewReportRepositoryImpl` — 신고 쿼리는 `review.hospital.owner`가 Q타입 기본 초기화 깊이(2)를 넘어서 `join(reviewReport.review, review)` 별칭으로 씀(안 그러면 NPE로 500, 겪은 문제)
+- `GET /api/users/me/reviews`(내가 쓴 리뷰, 병원명·숨김 여부·답글), `GET /api/users/me/hospitals`(내가 소유자로 지정된 병원, 병원 관리 콘솔용) — 목록 답글은 `ReviewService.repliesOf()`로 IN 쿼리 한 번
 - `hidden=true`인 리뷰는 병원 리뷰 목록(`GET /api/hospitals/{hospitalId}/reviews`), 평균 평점/리뷰 수 집계(`HospitalService`, `AdminStatsService`, `HospitalRepositoryImpl`의 검색 결과)에서 전부 제외됨 — 신고 누적만으로 자동 숨김되진 않고 관리자가 직접 `hide` 호출해야 함(자동화 없음, 의도적으로 사람이 판단)
 
 ## 알림 카테고리 on/off

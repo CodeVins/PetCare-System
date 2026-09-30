@@ -288,6 +288,73 @@ class BusinessRuleTest {
 		assertThat(firstReviewMine(otherToken)).isFalse();
 	}
 
+	@Test
+	void 소유자는_자기_병원과_그_리뷰_신고만_보고_필터는_작성자_신고자_날짜로_걸린다() throws Exception {
+		String ownerEmail = "owner-review-" + suffix + "@petcare.com";
+		signup(ownerEmail);
+		long ownerId = userRepository.findByEmail(ownerEmail).orElseThrow().getId();
+		long ownHospitalId = createHospital();
+		mockMvc.perform(patch("/api/admin/hospitals/" + ownHospitalId + "/owner")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"ownerId\":" + ownerId + "}"))
+				.andExpect(status().isOk());
+		String ownerToken = login(ownerEmail, "password123");
+
+		long petId = createPet(userToken, "리뷰펫");
+		for (long hid : new long[] {hospitalId, ownHospitalId}) {
+			LocalDateTime start = future(24);
+			long reservationId = createReservation(userToken, petId, createSlot(hid, start, start.plusMinutes(30)));
+			mockMvc.perform(patch("/api/admin/reservations/" + reservationId + "/confirm")
+							.header("Authorization", "Bearer " + adminToken))
+					.andExpect(status().isOk());
+			mockMvc.perform(post("/api/hospitals/" + hid + "/reviews")
+							.header("Authorization", "Bearer " + userToken)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"rating\":4,\"content\":\"리뷰 " + hid + "\"}"))
+					.andExpect(status().isCreated());
+		}
+
+		JsonNode owned = getData("/api/users/me/hospitals", ownerToken);
+		assertThat(owned.size()).isEqualTo(1);
+		assertThat(owned.get(0).get("id").asLong()).isEqualTo(ownHospitalId);
+
+		JsonNode mine = getData("/api/users/me/reviews", userToken);
+		assertThat(mine.get("totalElements").asInt()).isEqualTo(2);
+		assertThat(mine.get("content").get(0).get("hospitalName").asText()).isEqualTo("규칙테스트병원");
+
+		// 소유자는 author 필터 없이도 본인 병원 리뷰만, 관리자는 작성자로 걸러서 둘 다
+		JsonNode ownerReviews = getData("/api/admin/reviews", ownerToken);
+		assertThat(ownerReviews.get("totalElements").asInt()).isEqualTo(1);
+		assertThat(ownerReviews.get("content").get(0).get("authorEmail").asText()).isEqualTo(userEmail);
+		assertThat(getData("/api/admin/reviews?author=" + userEmail, adminToken).get("totalElements").asInt()).isEqualTo(2);
+		assertThat(getData("/api/admin/reviews?author=" + userEmail + "&from=" + LocalDate.now().plusDays(1), adminToken)
+				.get("totalElements").asInt()).isZero();
+
+		String reporterEmail = "reporter-" + suffix + "@petcare.com";
+		String reporterToken = signupAndLogin(reporterEmail);
+		for (long hid : new long[] {hospitalId, ownHospitalId}) {
+			long reviewId = getData("/api/admin/reviews?author=" + userEmail + "&hospitalId=" + hid, adminToken)
+					.get("content").get(0).get("id").asLong();
+			mockMvc.perform(post("/api/hospitals/" + hid + "/reviews/" + reviewId + "/report")
+							.header("Authorization", "Bearer " + reporterToken)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"reason\":\"욕설\"}"))
+					.andExpect(status().isOk());
+		}
+
+		JsonNode ownerReports = getData("/api/admin/reviews/reports", ownerToken);
+		assertThat(ownerReports.get("totalElements").asInt()).isEqualTo(1);
+		assertThat(ownerReports.get("content").get(0).get("reporterEmail").asText()).isEqualTo(reporterEmail);
+		assertThat(ownerReports.get("content").get(0).get("reviewAuthorEmail").asText()).isEqualTo(userEmail);
+		assertThat(getData("/api/admin/reviews/reports?reporter=" + reporterEmail, adminToken)
+				.get("totalElements").asInt()).isEqualTo(2);
+		assertThat(getData("/api/admin/reviews/reports?reporter=" + reporterEmail + "&to=" + LocalDate.now().minusDays(1),
+				adminToken).get("totalElements").asInt()).isZero();
+		assertThat(getData("/api/admin/reviews?author=" + userEmail, adminToken)
+				.get("content").get(0).get("reportCount").asInt()).isEqualTo(1);
+	}
+
 	// ---------- 리마인더 ----------
 
 	@Test
@@ -525,6 +592,12 @@ class BusinessRuleTest {
 
 	private int countOf(String text, String token) {
 		return text.split(token, -1).length - 1;
+	}
+
+	private JsonNode getData(String url, String token) throws Exception {
+		return data(mockMvc.perform(get(url).header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andReturn());
 	}
 
 	private JsonNode data(MvcResult result) throws Exception {

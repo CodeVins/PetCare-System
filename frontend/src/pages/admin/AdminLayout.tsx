@@ -1,15 +1,31 @@
 import { House, PawPrint, SignOut } from '@phosphor-icons/react'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { logout as logoutRequest } from '../../api/authApi'
 import { getMe } from '../../api/userApi'
 import { useAuth } from '../../hooks/useAuth'
-import { ADMIN_NAV } from './adminNav'
+import { ADMIN_NAV, type ConsoleNavItem } from './adminNav'
 
 // 소비자 앱(Header/Layout)과는 완전히 분리된 관리자 전용 쉘 — 하단 탭바 대신
 // 사이드바(데스크톱)/상단 스크롤 탭(모바일), stone-900 어두운 톤으로 "관리 도구"
 // 느낌을 준다. /admin/* 전체가 이 레이아웃 아래에서 렌더된다.
-export default function AdminLayout() {
+// 변경(2026-09-30): 메뉴·패널 이름·사이드바 추가 영역·Outlet context를 props로 — 병원 소유자 콘솔(OwnerLayout)이
+// 같은 쉘을 쓰게 (이전: ADMIN_NAV·"관리자 패널" 고정)
+interface AdminLayoutProps {
+  nav?: ConsoleNavItem[]
+  panelName?: string
+  sidebarExtra?: ReactNode // 사이드바 로고 아래(모바일은 상단 바 아래) — 병원 선택 등
+  outletContext?: unknown
+  children?: ReactNode // 있으면 Outlet 대신 렌더 (예: 관리할 병원이 없을 때 안내)
+}
+
+export default function AdminLayout({
+  nav = ADMIN_NAV,
+  panelName = '관리자 패널',
+  sidebarExtra,
+  outletContext,
+  children,
+}: AdminLayoutProps) {
   const { logout } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -45,12 +61,14 @@ export default function AdminLayout() {
           <PawPrint size={26} className="text-brand-500" />
           <div className="leading-tight">
             <p className="text-base font-bold">펫케어</p>
-            <p className="text-xs font-medium text-stone-400">관리자 패널</p>
+            <p className="text-xs font-medium text-stone-400">{panelName}</p>
           </div>
         </div>
 
-        <nav aria-label="관리자 메뉴" className="flex flex-1 flex-col gap-1 px-3">
-          {ADMIN_NAV.map(({ to, label, icon: Icon, end }) => (
+        {sidebarExtra && <div className="px-3 pb-4">{sidebarExtra}</div>}
+
+        <nav aria-label={`${panelName} 메뉴`} className="flex flex-1 flex-col gap-1 px-3">
+          {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={navLinkClass}>
               <Icon size={20} />
               {label}
@@ -82,7 +100,7 @@ export default function AdminLayout() {
         <div className="flex items-center justify-between px-4 py-3 text-white">
           <div className="flex items-center gap-2">
             <PawPrint size={22} className="text-brand-500" />
-            <span className="text-sm font-bold">관리자 패널</span>
+            <span className="text-sm font-bold">{panelName}</span>
           </div>
           <div className="flex items-center gap-1">
             <NavLink
@@ -102,11 +120,12 @@ export default function AdminLayout() {
             </button>
           </div>
         </div>
+        {sidebarExtra && <div className="px-4 pb-3">{sidebarExtra}</div>}
         <nav
-          aria-label="관리자 메뉴"
+          aria-label={`${panelName} 메뉴`}
           className="flex gap-1 overflow-x-auto border-t border-stone-800 px-3 py-2 no-scrollbar"
         >
-          {ADMIN_NAV.map(({ to, label, icon: Icon, end }) => (
+          {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -128,7 +147,7 @@ export default function AdminLayout() {
         <div className="mx-auto max-w-[1200px]">
           {/* 변경(2026-09-27): 라우트 lazy 로딩 중 사이드바가 사라지지 않게 본문만 Suspense (이전: Outlet 그대로) */}
           <Suspense fallback={null}>
-            <Outlet />
+            {children ?? <Outlet context={outletContext} />}
           </Suspense>
         </div>
       </main>

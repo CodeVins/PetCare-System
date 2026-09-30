@@ -13,6 +13,7 @@ const AdminHospitalsPage = lazy(() => import('../pages/admin/AdminHospitalsPage'
 const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'))
 const AdminOverviewPage = lazy(() => import('../pages/admin/AdminOverviewPage'))
 const AdminReservationsPage = lazy(() => import('../pages/admin/AdminReservationsPage'))
+const AdminReportsPage = lazy(() => import('../pages/admin/AdminReportsPage'))
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'))
 const AdminStatsPage = lazy(() => import('../pages/admin/AdminStatsPage'))
 const AdminUserDetailPage = lazy(() => import('../pages/admin/AdminUserDetailPage'))
@@ -23,12 +24,16 @@ const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'))
 const SignupPage = lazy(() => import('../pages/auth/SignupPage'))
 const ChatRoomListPage = lazy(() => import('../pages/chat/ChatRoomListPage'))
 const ChatRoomPage = lazy(() => import('../pages/chat/ChatRoomPage'))
-const OwnerDashboardPage = lazy(() => import('../pages/dashboard/OwnerDashboardPage'))
+const OwnerLayout = lazy(() => import('../pages/dashboard/OwnerLayout'))
+const OwnerOverviewPage = lazy(() => import('../pages/dashboard/OwnerOverviewPage'))
+const OwnerSlotsPage = lazy(() => import('../pages/dashboard/OwnerSlotsPage'))
+const OwnerHospitalPage = lazy(() => import('../pages/dashboard/OwnerHospitalPage'))
 const FavoriteHospitalListPage = lazy(() => import('../pages/hospital/FavoriteHospitalListPage'))
 const HospitalDetailPage = lazy(() => import('../pages/hospital/HospitalDetailPage'))
 const HospitalListPage = lazy(() => import('../pages/hospital/HospitalListPage'))
 const AccountSettingsPage = lazy(() => import('../pages/mypage/AccountSettingsPage'))
 const MyPage = lazy(() => import('../pages/mypage/MyPage'))
+const MyReviewsPage = lazy(() => import('../pages/mypage/MyReviewsPage'))
 const NotificationSettingsPage = lazy(() => import('../pages/mypage/NotificationSettingsPage'))
 const NotificationListPage = lazy(() => import('../pages/notification/NotificationListPage'))
 const HealthCheckPage = lazy(() => import('../pages/pet/HealthCheckPage'))
@@ -66,6 +71,21 @@ export default function AppRouter() {
               <Route path="/admin/hospitals" element={<AdminHospitalsPage />} />
               <Route path="/admin/reservations" element={<AdminReservationsPage />} />
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+              <Route path="/admin/reports" element={<AdminReportsPage />} />
+            </Route>
+          </Route>
+
+          {/* 변경(2026-09-30): 병원 소유자 대시보드를 소비자 Layout 안의 탭 한 화면에서, 관리자 패널과 같은
+              AdminLayout 쉘(OwnerLayout)의 하위 화면들로 분리. HOSPITAL_OWNER 전용 — ADMIN은 /admin으로
+              (이전: Layout > PrivateRoute > OwnerRoute(OWNER+ADMIN) 아래 /dashboard 하나, 병원 선택지는 전체 병원) */}
+          <Route element={<OwnerRoute />}>
+            <Route element={<OwnerLayout />}>
+              <Route path="/dashboard" element={<OwnerOverviewPage />} />
+              <Route path="/dashboard/reservations" element={<AdminReservationsPage />} />
+              <Route path="/dashboard/slots" element={<OwnerSlotsPage />} />
+              <Route path="/dashboard/reviews" element={<AdminReviewsPage />} />
+              <Route path="/dashboard/reports" element={<AdminReportsPage />} />
+              <Route path="/dashboard/hospital" element={<OwnerHospitalPage />} />
             </Route>
           </Route>
 
@@ -89,15 +109,13 @@ export default function AppRouter() {
               <Route path="/mypage" element={<MyPage />} />
               <Route path="/mypage/notifications" element={<NotificationSettingsPage />} />
               <Route path="/mypage/account" element={<AccountSettingsPage />} />
+              <Route path="/mypage/reviews" element={<MyReviewsPage />} />
               <Route path="/favorites" element={<FavoriteHospitalListPage />} />
               <Route path="/reservations" element={<ReservationListPage />} />
               <Route path="/waitlist" element={<WaitlistPage />} />
               <Route path="/notifications" element={<NotificationListPage />} />
               <Route path="/chats" element={<ChatRoomListPage />} />
               <Route path="/chats/:roomId" element={<ChatRoomPage />} />
-              <Route element={<OwnerRoute />}>
-                <Route path="/dashboard" element={<OwnerDashboardPage />} />
-              </Route>
             </Route>
           </Route>
 

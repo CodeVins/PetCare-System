@@ -40,7 +40,9 @@ export default function LoginPage() {
         let destination = locationState.from ?? '/'
         try {
           const { data: me } = await getMe()
-          if (me.data.role === 'ADMIN' && !locationState.from) destination = '/admin'
+          // 변경(2026-09-30): ADMIN은 보던 화면이 관리자 패널이 아니면 항상 /admin으로 — 관리자는 소비자 화면이
+          // 아니라 패널에서 운영한다 (이전: state.from이 있으면 소비자 화면으로 돌아감)
+          if (me.data.role === 'ADMIN' && !locationState.from?.startsWith('/admin')) destination = '/admin'
         } catch {
           // 조회 실패해도 로그인은 성공 — useAuth가 role을 다시 채운다
         }

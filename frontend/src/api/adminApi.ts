@@ -1,6 +1,8 @@
 import type {
   HospitalStats,
+  ManagedReview,
   PageResponse,
+  ReviewFilter,
   ReviewReport,
   Role,
   StatsSummary,
@@ -45,8 +47,20 @@ export function runReminders(): ApiPromise<null> {
   return axiosInstance.post('/api/admin/reminders/run')
 }
 
-export function getReviewReports(): ApiPromise<PageResponse<ReviewReport>> {
-  return axiosInstance.get('/api/admin/reviews/reports', { params: { size: 100 } })
+// 변경(2026-09-30): 필터·페이지 인자 추가 — 서버가 신고일/신고자/작성자/병원/숨김 필터를 받게 됨
+// (이전: 인자 없이 size 100 한 페이지)
+export function getReviewReports(
+  filter: ReviewFilter = {},
+  page = 0,
+): ApiPromise<PageResponse<ReviewReport>> {
+  return axiosInstance.get('/api/admin/reviews/reports', { params: { ...filter, page } })
+}
+
+export function getManagedReviews(
+  filter: ReviewFilter = {},
+  page = 0,
+): ApiPromise<PageResponse<ManagedReview>> {
+  return axiosInstance.get('/api/admin/reviews', { params: { ...filter, page } })
 }
 
 export function hideReview(reviewId: number): ApiPromise<null> {

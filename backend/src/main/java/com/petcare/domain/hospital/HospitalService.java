@@ -81,6 +81,13 @@ public class HospitalService {
 		return EARTH_RADIUS_KM * c;
 	}
 
+	// 병원 관리 콘솔의 "관리할 병원" — 본인이 소유자로 지정된 병원만
+	public List<HospitalResponse> getOwned(Long userId) {
+		return hospitalRepository.findAllByOwnerIdOrderByNameAsc(userId).stream()
+				.map(this::toResponseWithRating)
+				.toList();
+	}
+
 	public HospitalResponse get(Long hospitalId) {
 		return toResponseWithRating(findHospital(hospitalId));
 	}
