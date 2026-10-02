@@ -25,6 +25,7 @@ public class AuthService {
 	private final RefreshTokenRepository refreshTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final LoginAttemptService loginAttemptService;
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
@@ -43,12 +44,16 @@ public class AuthService {
 
 	@Transactional
 	public TokenResponse login(LoginRequest request) {
-		User user = userRepository.findByEmail(request.email())
-				.orElseThrow(InvalidCredentialsException::new);
+		// 변경(2026-10-02): 이메일별 로그인 실패 5회 시 15분 차단(429), 성공하면 횟수 초기화 — 무차별 대입 방지
+		// (이전: 실패 횟수 제한 없이 비밀번호를 무한 시도 가능). 없는 이메일도 실패로 세서 응답으로 계정 존재 여부가 안 드러나게
+		loginAttemptService.checkBlocked(request.email());
 
-		if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+		User user = userRepository.findByEmail(request.email()).orElse(null);
+		if (user == null || !passwordEncoder.matches(request.password(), user.getPassword())) {
+			loginAttemptService.recordFailure(request.email());
 			throw new InvalidCredentialsException();
 		}
+		loginAttemptService.reset(request.email());
 		if (user.isSuspended()) {
 			throw new ForbiddenException("정지된 계정입니다. 관리자에게 문의해주세요.");
 		}

@@ -91,6 +91,7 @@ com.petcare
 - 공통 예외(`global/exception`): `NotFoundException`(404), `ForbiddenException`(403), `ConflictException`(409) — 도메인별로 새 예외 클래스 만들지 않고 이 3개 재사용. 이메일 중복/로그인 실패만 전용 예외(`DuplicateEmailException`, `InvalidCredentialsException`) 사용
 - 인증: JWT Bearer 토큰, stateless. 토큰의 subject는 이메일이라서 **이메일을 변경하면 기존 토큰이 즉시 무효화됨**(재로그인 필요) — 프론트에서 이메일 변경 후 자동 로그아웃 처리 필요
 - Refresh Token: 로그인 시 accessToken(1시간)+refreshToken(14일, 랜덤 opaque 문자열)을 같이 발급. `RefreshToken` 엔티티는 유저당 1개(멀티 디바이스 미지원, 재로그인/재발급 시 기존 걸 교체). `POST /api/auth/reissue`로 재발급하며, 재발급마다 refreshToken도 회전(재사용 방지). `POST /api/auth/logout`(인증 필요)은 refreshToken을 DB에서 삭제만 함 — accessToken 자체는 stateless라 즉시 무효화 안 되고 최대 1시간 뒤 자연 만료됨(알려진 한계)
+- 로그인 실패 제한(2026-10-02, Redis): `LoginAttemptService`가 이메일(소문자) 기준 실패 횟수를 `login:fail:{email}` 키로 저장, 5회 실패 시 마지막 실패 후 15분간 429(`TooManyRequestsException`, 올바른 비밀번호여도 차단), 성공하면 초기화. 없는 이메일도 실패로 셈(계정 존재 여부 노출 방지). **Redis 장애 시 fail-open**(제한 없이 로그인 허용, 타임아웃 1초) — 부가 보호 기능이 로그인 전체를 막지 않게. 알려진 한계: 키가 이메일만이라 남의 이메일로 실패를 쌓아 15분 잠글 수 있음
 - `/api/auth/**` 전체를 permitAll 하면 안 됨 — `signup`/`login`/`reissue`만 열고 `logout`은 인증 필요(겪은 버그: 전체를 열어놔서 `logout`이 인증 없이 호출되던 문제)
 - 비회원 공개 GET(2026-09-27, 프론트 랜딩·병원 둘러보기용): `SecurityConfig.PUBLIC_GET_PATHS` = `/api/hospitals`, `/api/hospitals/*`, `/api/hospitals/*/reviews`, `/api/hospitals/*/slots` (GET만). `/**`로 열지 않고 경로를 명시 — 같은 경로의 POST/PATCH/DELETE와 즐겨찾기는 계속 인증 필요. 공개 GET 핸들러에서 `@AuthenticationPrincipal`을 쓰면 **null일 수 있음**(ReviewController.getReviews가 처리). `AuthFlowTest`에 비회원 허용/차단 테스트 있음
 - ADMIN 권한: `@PreAuthorize("hasRole('ADMIN')")` (병원 생성 등 플랫폼 전역 작업). 회원가입은 전부 USER로 생성되고 공개 ADMIN 가입 경로는 없음(의도적)
@@ -177,10 +178,12 @@ com.petcare
 ## 검증 방식
 - 컴파일 성공만으로 끝내지 않고, 매 단계마다 실제로 `./gradlew bootRun`으로 띄운 뒤 curl로 정상 케이스 + 에러 케이스(권한 없음/중복/유효성 실패 등)까지 호출해서 확인
 - MySQL은 Docker 컨테이너(`petcare-mysql`)로 로컬 상시 구동, `docker start petcare-mysql`로 재시작
+- Redis도 로컬 컨테이너 `petcare-redis`(`redis:7-alpine`, 6379) — `docker start petcare-redis`. 운영은 compose의 `redis` 서비스(영속화 끔, maxmemory 64mb)
 
 ## 자동화 테스트
 - `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영)
 - 과거 시간 슬롯은 API로 못 만들게 막혀 있어서, 지난 슬롯/지난 예약이 필요한 테스트는 `SlotRepository`/`ReservationRepository`로 직접 저장함
+- Redis는 Testcontainers(`RedisTestConfig`, `@ServiceConnection`)로 테스트 중에만 컨테이너를 띄움 — **모든 `@SpringBootTest` 클래스에 `@Import(RedisTestConfig.class)`** 붙일 것(설정이 같아야 컨텍스트가 캐시돼 컨테이너가 한 번만 뜸). 로컬/CI 모두 Docker 필요. Testcontainers 버전을 `build.gradle`에서 1.21.4로 올려둠(Boot 3.4.1 기본 1.20.x는 Docker 29에서 실행 실패 — 겪은 문제)
 - 테스트는 개발용 MySQL을 안 건드리고 별도 H2 인메모리 DB 사용 (`src/test/resources/application-test.yml`, `@ActiveProfiles("test")` 필요). `NON_KEYWORDS=USER` 빠뜨리면 H2에서 `user` 테이블명이 예약어라 DDL이 깨짐(겪은 문제)
 - `@SpringBootTest` 클래스 내 테스트 메서드들은 스프링 컨텍스트(=DB)를 공유하므로, 유니크 제약 있는 데이터(이메일 등)는 테스트마다 고유한 값 써야 함(`System.nanoTime()` 등으로) — 안 그러면 두 번째 테스트의 `@BeforeEach`에서 충돌남(겪은 문제)
 - 동시성 테스트는 멀티스레드로 같은 슬롯에 동시 요청 보내서 성공 횟수가 1인지 검증. 테스트 클래스에 `@Transactional`을 걸면 워커 스레드가 메인 스레드의 미커밋 데이터를 못 보게 되므로 걸지 말 것

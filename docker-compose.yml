@@ -19,6 +19,12 @@ services:
       retries: 30
     restart: unless-stopped
 
+  # 로그인 실패 횟수 같은 휘발성 TTL 데이터만 — 영속화 끔(재시작 시 비워져도 무방). t3.micro(1GB)라 메모리 상한 고정
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save "" --appendonly no
+    restart: unless-stopped
+
   backend:
     image: ghcr.io/codevins/petcare-backend:${TAG:-latest}
     build: ./backend
@@ -32,11 +38,16 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DB_URL: jdbc:mysql://mysql:3306/petcare?allowPublicKeyRetrieval=true&useSSL=false
       SHOW_SQL: "false"
+      REDIS_HOST: redis
     volumes:
       - uploads:/app/uploads
+    # 변경(2026-10-02): redis 추가 — 시작만 되면 됨(헬스체크 대기 안 함, 연결 실패해도 로그인은 fail-open)
+    # (이전: mysql만 의존)
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
 
   web:

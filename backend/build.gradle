@@ -26,6 +26,8 @@ repositories {
 ext {
 	querydslVersion = '5.1.0'
 	jjwtVersion = '0.12.6'
+	// Boot 3.4.1 기본(1.20.x)은 Docker 29의 최소 API 버전(1.44)을 못 맞춰 컨테이너 실행 실패
+	set('testcontainers.version', '1.21.4')
 }
 
 dependencies {
@@ -33,6 +35,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
 
@@ -54,6 +57,8 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
 	testRuntimeOnly 'com.h2database:h2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
