@@ -21,6 +21,14 @@ spring:
         default_batch_fetch_size: 100
     show-sql: ${SHOW_SQL:true}
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      # Redis 장애 시 로그인 요청이 Lettuce 기본 타임아웃(60초)만큼 묶이지 않게 — LoginAttemptService가 fail-open 처리
+      timeout: 1s
+      connect-timeout: 1s
+
   servlet:
     multipart:
       max-file-size: 5MB
