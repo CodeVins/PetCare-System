@@ -204,11 +204,15 @@ com.petcare
 - 리뷰 병원 답글, 예약 노쇼(No-show) 처리+통계 반영, 병원 사진 업로드, 관리자 유저 정지/차단 추가
 - 다중 보호자(가족 공유) 반려동물 계정 추가 — 브레인스토밍으로 권한 모델(최초 등록자 vs 공동보호자) 설계 먼저 확정 후 구현
 - 배포(2026-09-30): https://petcare-yongbin.duckdns.org — EC2 t3.micro 1대 + Docker Compose(web=Caddy+프론트 정적파일, backend, mysql) + GitHub Actions(test → GHCR 이미지 push → ssh `pull && up -d --no-build`), HTTPS는 DuckDNS+Caddy 자동 인증서. PR은 테스트만, main push는 테스트 통과 시에만 배포. 절차·롤백은 `../docs/DEPLOY.md`, 설계는 `../docs/superpowers/specs/2026-09-30-deploy-ci-design.md`
+- Redis 도입(2026-10-02, PR #2~#4, 운영 배포 완료): 로그인 실패 횟수 제한(#2), 병원 상세 캐시(#3), 병원 거리 검색 위경도 범위 DB 필터(#4 — Redis 미사용, 같은 "병원 수 증가 대비" 묶음). 작업 방식: 기능별 브랜치 → PR(CI 테스트만) → 스쿼시 머지(main push 시 자동 배포). 운영 확인은 로그인 429까지 완료, 운영 DB에 병원 데이터가 없어 캐시는 로컬에서만 검증
+- 배포 장애 기록(2026-10-02): deploy job이 `ssh: connect to host ... port 22: Connection timed out`으로 실패 → 원인은 EC2 인스턴스가 중지돼 있던 것(콘솔에서 안 보인 건 리전을 다르게 보고 있어서). 인스턴스 시작 후 **가장 최근 main 실행의 실패 job만** `gh run rerun <id> --failed`로 재실행해 배포(이전 실패 실행을 재실행하면 옛 커밋 이미지가 배포됨). 탄력적 IP라 재시작해도 `EC2_HOST` 그대로
+- push 전략: 파이프라인은 push 때만 돌므로 문서만 바뀐 건 로컬 커밋으로 두고 다음 코드 PR에 같이 올림(`paths-ignore`는 필요해지면 추가)
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
-- 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단)
+- 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
+- 병원 검색(`GET /api/hospitals`) 페이지네이션 — 응답 형식이 바뀌어 프론트 수정 필요, 병원 수가 수천 단위가 되면 진행
 
 **프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 진행 중 (자체 CLAUDE.md 있음). 회원가입 화면까지 구현됨.
 
