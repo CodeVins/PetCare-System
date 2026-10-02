@@ -379,6 +379,8 @@ export interface ChatRoom {
   hospitalName: string
   customerId: number
   customerEmail: string
+  // 변경(2026-10-02): 내 기준 안 읽은 메시지 수 (이전: 없음)
+  unreadCount: number
 }
 
 export interface ChatMessage {

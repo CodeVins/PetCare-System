@@ -7,6 +7,7 @@ import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
+import { useNotifications } from '../../hooks/useNotifications'
 import type { ChatRoom } from '../../types/api'
 
 const ACCENTS = [
@@ -23,6 +24,9 @@ export default function ChatRoomListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  // 변경(2026-10-02): 알림이 오면 다시 조회해서 방별 안 읽은 수를 갱신 — 채팅방을 안 보고 있을 때 온 메시지는
+  // 채팅 알림(SSE)으로 들어오므로 그걸 신호로 씀 (이전: 처음 한 번만 조회)
+  const { lastNotificationAt } = useNotifications()
   useEffect(() => {
     getMyChatRooms()
       .then(({ data }) => setRooms(data.data.content))
@@ -30,7 +34,7 @@ export default function ChatRoomListPage() {
         setError(errorMessage(err, '채팅 목록을 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
-  }, [])
+  }, [lastNotificationAt])
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -88,6 +92,14 @@ export default function ChatRoomListPage() {
                   </span>
                 )}
               </span>
+              {room.unreadCount > 0 && (
+                <span
+                  aria-label={`안 읽은 메시지 ${room.unreadCount}개`}
+                  className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-red-600 px-2 text-xs font-bold leading-none text-white"
+                >
+                  {room.unreadCount > 99 ? '99+' : room.unreadCount}
+                </span>
+              )}
             </Link>
           ))}
         </div>

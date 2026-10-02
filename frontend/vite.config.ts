@@ -8,7 +8,8 @@ export default defineConfig({
   // 운영(Caddy)과 같은 경로 구조 — 프론트는 상대 경로만 쓰고 개발 서버가 백엔드로 넘긴다
   server: {
     proxy: {
-      '/api': 'http://localhost:8080',
+      // 변경(2026-10-02): ws: true — 채팅 WebSocket(/api/ws)도 백엔드로 넘김 (이전: HTTP만 프록시)
+      '/api': { target: 'http://localhost:8080', ws: true },
       '/uploads': 'http://localhost:8080',
     },
   },

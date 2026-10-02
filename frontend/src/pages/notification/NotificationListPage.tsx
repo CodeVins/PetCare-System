@@ -8,6 +8,7 @@ import {
   type Icon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   getNotifications,
   markAllNotificationsAsRead,
@@ -47,6 +48,7 @@ export default function NotificationListPage() {
     loadingMore,
   } = usePagedList(getNotifications, null, '알림을 불러오지 못했습니다.')
   const toast = useToast()
+  const navigate = useNavigate()
   const [markingAll, setMarkingAll] = useState(false)
   const { decrementUnread, refreshUnreadCount } = useNotifications()
 
@@ -66,6 +68,8 @@ export default function NotificationListPage() {
   }
 
   const handleClick = async (notification: Notification) => {
+    // 변경(2026-10-02): 채팅 알림은 누르면 채팅 목록으로 이동 (이전: 읽음 처리만)
+    if (notification.type === 'CHAT_MESSAGE_RECEIVED') navigate('/chats')
     if (notification.read) return
     setNotifications((prev) =>
       prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
@@ -125,23 +129,32 @@ export default function NotificationListPage() {
         <div className="card divide-y divide-stone-200 overflow-hidden">
           {notifications.map((notification) => {
             const Icon = TYPE_ICON[notification.type] || Bell
+            // 변경(2026-10-02): 채팅 알림은 하늘색으로 구분 + "채팅" 라벨 (이전: 모든 알림이 같은 브랜드색)
+            const isChat = notification.type === 'CHAT_MESSAGE_RECEIVED'
             return (
               <button
                 key={notification.id}
                 type="button"
                 onClick={() => handleClick(notification)}
                 className={`flex w-full items-start gap-3 p-4 text-left transition-colors ${
-                  notification.read ? 'bg-white hover:bg-stone-50' : 'bg-brand-50'
+                  notification.read
+                    ? 'bg-white hover:bg-stone-50'
+                    : isChat
+                      ? 'bg-sky-50'
+                      : 'bg-brand-50'
                 }`}
               >
                 <span
                   className={`icon-badge ${
-                    notification.read ? 'bg-stone-100 text-stone-600' : ''
+                    notification.read ? 'bg-stone-100 text-stone-600' : isChat ? 'icon-badge-sky' : ''
                   }`}
                 >
                   <Icon size={22} />
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                  {isChat && (
+                    <span className="badge bg-sky-100 text-xs text-sky-700">채팅</span>
+                  )}
                   <span className={notification.read ? 'font-medium' : 'font-bold'}>
                     {notification.content}
                   </span>
@@ -153,7 +166,7 @@ export default function NotificationListPage() {
                   {!notification.read && (
                     <span
                       aria-label="읽지 않음"
-                      className="size-2.5 rounded-full bg-brand-600"
+                      className={`size-2.5 rounded-full ${isChat ? 'bg-sky-600' : 'bg-brand-600'}`}
                     />
                   )}
                 </span>

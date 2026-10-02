@@ -113,7 +113,13 @@ com.petcare
 - `ChatRoom`(고객 1명 - 병원 1개, 유니크), `ChatMessage`. `POST /api/chat-rooms`는 get-or-create(같은 고객+병원 조합이면 기존 방 반환)
 - `GET /api/chat-rooms` — USER는 본인이 고객인 방, HOSPITAL_OWNER는 본인 병원 방
 - `GET/POST /api/chat-rooms/{roomId}/messages` — 접근 권한은 `ChatRoom.canAccess()`(고객 본인이거나 `Hospital.isManagedBy()`) 재사용, ADMIN은 모든 방 접근 가능(중재 목적)
-- **새 SSE 채널을 안 만들고 기존 알림 SSE 재사용**: 메시지 보내면 상대방에게 `CHAT_MESSAGE_RECEIVED` 알림을 보내고, 그게 기존 알림 SSE로 실시간 push됨 — 메시지 내용 자체는 SSE로 안 흘려보내고, 프론트가 알림 받으면 메시지 목록을 다시 조회하는 방식(범위를 좁게 유지)
+- **실시간 수신은 STOMP over WebSocket(2026-10-02)**, 알림은 기존 SSE 그대로("양방향 채팅은 WebSocket, 단방향 알림은 SSE"). 엔드포인트 `/api/ws`(운영 Caddy `/api/*`·Vite 프록시 `ws: true`로 그대로 통과, SockJS 없음), 구독 경로 `/topic/chat-rooms/{roomId}`, 인메모리 simple broker(`global/config/WebSocketConfig`, ponytail: 스케일아웃 시 Redis pub/sub로 인스턴스 간 브로드캐스트)
+  - **전송은 REST(`POST .../messages`) 그대로** — 저장·검증·권한·에러 응답 재사용. `ChatService.sendMessage()`가 커밋 후(`afterCommit`) `SimpMessagingTemplate`으로 방 구독자에게 `ChatMessageResponse` push. 보낸 사람도 받으므로 프론트는 id로 중복 제거
+  - 인증·인가는 `ChatStompInterceptor`(핸드셰이크 `/api/ws`는 permitAll): CONNECT 프레임의 `Authorization: Bearer` 검증+정지 계정 거부, SUBSCRIBE는 `/topic/chat-rooms/{id}`만 + `canAccess()` 재검증(`findWithHospitalById` — 트랜잭션 밖이라 hospital 같이 로딩), **SEND 프레임은 전부 거부**(안 막으면 `/topic`에 직접 보내 다른 사람 행세 가능). 인터셉터에서 `ChatService`를 쓰면 SimpMessagingTemplate↔WebSocket 설정 순환 의존이 생겨서 레포지토리 직접 사용
+  - 받는 사람이 그 방을 구독 중이면(`SimpUserRegistry`, 유저 이름=이메일) `CHAT_MESSAGE_RECEIVED` 알림 생략 — 채팅방을 안 보고 있을 때만 알림. 이전엔 메시지마다 알림이 쌓였고, 채팅 알림을 끈 유저는 실시간 갱신이 안 됐음(알림 SSE로 재조회 트리거하던 방식의 버그)
+  - 알려진 한계: 연결 후 accessToken이 만료돼도 기존 WebSocket 연결은 유지됨(재연결 때만 재검증, 정지도 재연결 시점부터 반영). 메시지 목록 조회는 오래된 순 100개까지만 가져옴(기존부터 있던 한계)
+  - 안 읽은 메시지 수(2026-10-02): `ChatRoom.customerLastReadMessageId`/`hospitalLastReadMessageId`(양쪽이 마지막으로 읽은 메시지 id, null=안 읽음). `GET /api/chat-rooms` 응답 `unreadCount`(헤더 채팅 아이콘 배지는 합계 `GET /api/chat-rooms/unread-count`, 같은 기준) = 상대편이 보낸 메시지 중 내 쪽 읽음 id보다 큰 것(`ChatMessageRepository.countUnreadFor*`, 페이지 단위 group by 쿼리 한 번). `PATCH /api/chat-rooms/{roomId}/read`로 최신 메시지까지 읽음 — 프론트가 방 진입 시 + 열어둔 채 상대 메시지 수신 시 호출. 병원 측은 소유자만 읽음 처리, **ADMIN 열람은 읽음 처리 안 함**(중재 목적 열람으로 소유자의 안 읽음이 사라지면 안 됨)
+  - 테스트: `ChatWebSocketTest`(RANDOM_PORT + 실제 STOMP 클라이언트 — 수신/구독 중 알림 생략, 타인 방 구독 거부, 토큰 없는 연결 거부, 안 읽은 수·관리자 열람 시 유지)
 - `HospitalService.findHospital()`을 다른 도메인(chat)에서도 써야 해서 package-private → public으로 변경
 - 관리자 부트스트랩: `AdminBootstrapRunner`(global/config, `ApplicationRunner`)가 앱 시작 시 `.env`의 `ADMIN_EMAIL`/`ADMIN_PASSWORD`로 최초 관리자를 자동 생성(없으면 생성, 있으면 ADMIN으로 승격) — 더 이상 DB 수동 UPDATE 불필요. 이후 관리자 추가는 `GET /api/admin/users` + `PATCH /api/admin/users/{userId}/role`로 기존 관리자가 승격 (본인 권한 변경은 막혀있음)
 - MySQL 예약어 주의: 컬럼명으로 `read`, `order` 같은 예약어 쓰면 DDL이 조용히 깨짐(런타임에 "테이블 없음" 에러로 나타남) — 애매하면 `@Column(name=...)`로 명시적으로 피해갈 것
@@ -204,13 +210,17 @@ com.petcare
 - 리뷰 병원 답글, 예약 노쇼(No-show) 처리+통계 반영, 병원 사진 업로드, 관리자 유저 정지/차단 추가
 - 다중 보호자(가족 공유) 반려동물 계정 추가 — 브레인스토밍으로 권한 모델(최초 등록자 vs 공동보호자) 설계 먼저 확정 후 구현
 - 배포(2026-09-30): https://petcare-yongbin.duckdns.org — EC2 t3.micro 1대 + Docker Compose(web=Caddy+프론트 정적파일, backend, mysql) + GitHub Actions(test → GHCR 이미지 push → ssh `pull && up -d --no-build`), HTTPS는 DuckDNS+Caddy 자동 인증서. PR은 테스트만, main push는 테스트 통과 시에만 배포. 절차·롤백은 `../docs/DEPLOY.md`, 설계는 `../docs/superpowers/specs/2026-09-30-deploy-ci-design.md`
+- Redis 도입(2026-10-02, PR #2~#4, 운영 배포 완료): 로그인 실패 횟수 제한(#2), 병원 상세 캐시(#3), 병원 거리 검색 위경도 범위 DB 필터(#4 — Redis 미사용, 같은 "병원 수 증가 대비" 묶음). 작업 방식: 기능별 브랜치 → PR(CI 테스트만) → 스쿼시 머지(main push 시 자동 배포). 운영 확인은 로그인 429까지 완료, 운영 DB에 병원 데이터가 없어 캐시는 로컬에서만 검증
+- 배포 장애 기록(2026-10-02): deploy job이 `ssh: connect to host ... port 22: Connection timed out`으로 실패 → 원인은 EC2 인스턴스가 중지돼 있던 것(콘솔에서 안 보인 건 리전을 다르게 보고 있어서). 인스턴스 시작 후 **가장 최근 main 실행의 실패 job만** `gh run rerun <id> --failed`로 재실행해 배포(이전 실패 실행을 재실행하면 옛 커밋 이미지가 배포됨). 탄력적 IP라 재시작해도 `EC2_HOST` 그대로
+- push 전략: 파이프라인은 push 때만 돌므로 문서만 바뀐 건 로컬 커밋으로 두고 다음 코드 PR에 같이 올림(`paths-ignore`는 필요해지면 추가)
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
-- 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단)
+- 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
+- 병원 검색(`GET /api/hospitals`) 페이지네이션 — 응답 형식이 바뀌어 프론트 수정 필요, 병원 수가 수천 단위가 되면 진행
 
-**프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 진행 중 (자체 CLAUDE.md 있음). 회원가입 화면까지 구현됨.
+**프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 (자체 CLAUDE.md 있음). 인증·병원 탐색/상세·예약/대기·반려동물/건강기록·채팅·알림·마이페이지·병원 소유자 대시보드·관리자 화면·고객지원(FAQ/공지/약관)까지 구현됨.
 
 **저장소**: `petcare-project`(backend+frontend 상위 폴더)를 모노레포로 GitHub(`CodeVins/PetCare-System`)에 push 완료.
 
