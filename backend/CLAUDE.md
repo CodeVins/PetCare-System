@@ -214,7 +214,7 @@ com.petcare
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
 - 병원 검색(`GET /api/hospitals`) 페이지네이션 — 응답 형식이 바뀌어 프론트 수정 필요, 병원 수가 수천 단위가 되면 진행
 
-**프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 진행 중 (자체 CLAUDE.md 있음). 회원가입 화면까지 구현됨.
+**프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 (자체 CLAUDE.md 있음). 인증·병원 탐색/상세·예약/대기·반려동물/건강기록·채팅·알림·마이페이지·병원 소유자 대시보드·관리자 화면·고객지원(FAQ/공지/약관)까지 구현됨.
 
 **저장소**: `petcare-project`(backend+frontend 상위 폴더)를 모노레포로 GitHub(`CodeVins/PetCare-System`)에 push 완료.
 
