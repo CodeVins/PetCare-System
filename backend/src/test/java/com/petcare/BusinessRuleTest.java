@@ -473,7 +473,36 @@ class BusinessRuleTest {
 		assertThat(getData(detailUrl, userToken).get("reviewCount").asLong()).isEqualTo(1);
 	}
 
+	// ---------- 거리 검색 ----------
+
+	@Test
+	void 거리_검색은_반경_안의_좌표_있는_병원만_가까운_순으로_돌려준다() throws Exception {
+		// 위도 60도(cos=0.5)라 경도 1도가 위도 1도의 절반 거리 — 사각형 경도 폭 계산이 틀리면 동쪽 병원이 빠짐
+		double lat = 60.0, lng = 10.0, kmPerDegree = 111.32;
+		long east = createHospitalAt("동쪽4.9km", lat, lng + 4.9 / (kmPerDegree * 0.5));
+		long center = createHospitalAt("중심", lat, lng);
+		createHospitalAt("사각형모서리6.4km", lat + 4.5 / kmPerDegree, lng + 4.5 / (kmPerDegree * 0.5));
+		createHospitalAt("북쪽55km", lat + 0.5, lng);
+
+		JsonNode results = getData("/api/hospitals?lat=" + lat + "&lng=" + lng + "&radiusKm=5", userToken);
+
+		assertThat(results).hasSize(2);
+		assertThat(results.get(0).get("id").asLong()).isEqualTo(center);
+		assertThat(results.get(1).get("id").asLong()).isEqualTo(east);
+		assertThat(results.get(1).get("distanceKm").asDouble()).isBetween(4.8, 5.0);
+	}
+
 	// ---------- helpers ----------
+
+	private long createHospitalAt(String name, double latitude, double longitude) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/hospitals")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"" + name + "\",\"latitude\":" + latitude + ",\"longitude\":" + longitude + "}"))
+				.andExpect(status().isCreated())
+				.andReturn();
+		return data(result).get("id").asLong();
+	}
 
 	private LocalDateTime future(int hours) {
 		return LocalDateTime.now().plusHours(hours).truncatedTo(ChronoUnit.MINUTES);

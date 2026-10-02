@@ -17,12 +17,15 @@ public class HospitalRepositoryImpl implements HospitalRepositoryCustom {
 
 	@Override
 	public List<HospitalSearchResult> search(
-			String keyword, Double minRating, HospitalSortType sort, Boolean is24Hours, Boolean hasParking) {
+			String keyword, Double minRating, HospitalSortType sort, Boolean is24Hours, Boolean hasParking,
+			GeoBox box) {
 		List<Tuple> results = queryFactory
 				.select(hospital, review.rating.avg(), review.id.count())
 				.from(hospital)
 				.leftJoin(review).on(review.hospital.eq(hospital), review.hidden.eq(false))
-				.where(keywordContains(keyword), is24HoursCondition(is24Hours), hasParkingCondition(hasParking))
+				// 변경(2026-10-02): 거리 검색이면 반경을 감싸는 위경도 사각형으로 DB에서 먼저 거름 (이전: 전체 병원을 불러와 메모리에서 거리 계산)
+				.where(keywordContains(keyword), is24HoursCondition(is24Hours), hasParkingCondition(hasParking),
+						within(box))
 				.groupBy(hospital.id)
 				.having(minRatingCondition(minRating))
 				.orderBy(orderSpecifier(sort))
@@ -39,6 +42,15 @@ public class HospitalRepositoryImpl implements HospitalRepositoryCustom {
 			return null;
 		}
 		return hospital.name.containsIgnoreCase(keyword).or(hospital.address.containsIgnoreCase(keyword));
+	}
+
+	// 좌표 null인 병원도 between에서 자연히 빠짐
+	private BooleanExpression within(GeoBox box) {
+		if (box == null) {
+			return null;
+		}
+		return hospital.latitude.between(box.minLat(), box.maxLat())
+				.and(hospital.longitude.between(box.minLng(), box.maxLng()));
 	}
 
 	private BooleanExpression is24HoursCondition(Boolean is24Hours) {

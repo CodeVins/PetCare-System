@@ -9,8 +9,10 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,6 +20,8 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
+// 거리 검색의 위도 범위 조건용 (위도 범위로 인덱스 스캔 후 경도는 인덱스 안에서 거름)
+@Table(indexes = @Index(name = "idx_hospital_lat_lng", columnList = "latitude, longitude"))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Hospital extends BaseEntity {
 
