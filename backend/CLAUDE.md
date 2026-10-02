@@ -113,7 +113,12 @@ com.petcare
 - `ChatRoom`(고객 1명 - 병원 1개, 유니크), `ChatMessage`. `POST /api/chat-rooms`는 get-or-create(같은 고객+병원 조합이면 기존 방 반환)
 - `GET /api/chat-rooms` — USER는 본인이 고객인 방, HOSPITAL_OWNER는 본인 병원 방
 - `GET/POST /api/chat-rooms/{roomId}/messages` — 접근 권한은 `ChatRoom.canAccess()`(고객 본인이거나 `Hospital.isManagedBy()`) 재사용, ADMIN은 모든 방 접근 가능(중재 목적)
-- **새 SSE 채널을 안 만들고 기존 알림 SSE 재사용**: 메시지 보내면 상대방에게 `CHAT_MESSAGE_RECEIVED` 알림을 보내고, 그게 기존 알림 SSE로 실시간 push됨 — 메시지 내용 자체는 SSE로 안 흘려보내고, 프론트가 알림 받으면 메시지 목록을 다시 조회하는 방식(범위를 좁게 유지)
+- **실시간 수신은 STOMP over WebSocket(2026-10-02)**, 알림은 기존 SSE 그대로("양방향 채팅은 WebSocket, 단방향 알림은 SSE"). 엔드포인트 `/api/ws`(운영 Caddy `/api/*`·Vite 프록시 `ws: true`로 그대로 통과, SockJS 없음), 구독 경로 `/topic/chat-rooms/{roomId}`, 인메모리 simple broker(`global/config/WebSocketConfig`, ponytail: 스케일아웃 시 Redis pub/sub로 인스턴스 간 브로드캐스트)
+  - **전송은 REST(`POST .../messages`) 그대로** — 저장·검증·권한·에러 응답 재사용. `ChatService.sendMessage()`가 커밋 후(`afterCommit`) `SimpMessagingTemplate`으로 방 구독자에게 `ChatMessageResponse` push. 보낸 사람도 받으므로 프론트는 id로 중복 제거
+  - 인증·인가는 `ChatStompInterceptor`(핸드셰이크 `/api/ws`는 permitAll): CONNECT 프레임의 `Authorization: Bearer` 검증+정지 계정 거부, SUBSCRIBE는 `/topic/chat-rooms/{id}`만 + `canAccess()` 재검증(`findWithHospitalById` — 트랜잭션 밖이라 hospital 같이 로딩), **SEND 프레임은 전부 거부**(안 막으면 `/topic`에 직접 보내 다른 사람 행세 가능). 인터셉터에서 `ChatService`를 쓰면 SimpMessagingTemplate↔WebSocket 설정 순환 의존이 생겨서 레포지토리 직접 사용
+  - 받는 사람이 그 방을 구독 중이면(`SimpUserRegistry`, 유저 이름=이메일) `CHAT_MESSAGE_RECEIVED` 알림 생략 — 채팅방을 안 보고 있을 때만 알림. 이전엔 메시지마다 알림이 쌓였고, 채팅 알림을 끈 유저는 실시간 갱신이 안 됐음(알림 SSE로 재조회 트리거하던 방식의 버그)
+  - 알려진 한계: 연결 후 accessToken이 만료돼도 기존 WebSocket 연결은 유지됨(재연결 때만 재검증, 정지도 재연결 시점부터 반영). 메시지 목록 조회는 오래된 순 100개까지만 가져옴(기존부터 있던 한계)
+  - 테스트: `ChatWebSocketTest`(RANDOM_PORT + 실제 STOMP 클라이언트 — 수신/구독 중 알림 생략, 타인 방 구독 거부, 토큰 없는 연결 거부)
 - `HospitalService.findHospital()`을 다른 도메인(chat)에서도 써야 해서 package-private → public으로 변경
 - 관리자 부트스트랩: `AdminBootstrapRunner`(global/config, `ApplicationRunner`)가 앱 시작 시 `.env`의 `ADMIN_EMAIL`/`ADMIN_PASSWORD`로 최초 관리자를 자동 생성(없으면 생성, 있으면 ADMIN으로 승격) — 더 이상 DB 수동 UPDATE 불필요. 이후 관리자 추가는 `GET /api/admin/users` + `PATCH /api/admin/users/{userId}/role`로 기존 관리자가 승격 (본인 권한 변경은 막혀있음)
 - MySQL 예약어 주의: 컬럼명으로 `read`, `order` 같은 예약어 쓰면 DDL이 조용히 깨짐(런타임에 "테이블 없음" 에러로 나타남) — 애매하면 `@Column(name=...)`로 명시적으로 피해갈 것

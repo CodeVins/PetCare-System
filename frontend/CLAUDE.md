@@ -88,6 +88,8 @@ src
 │               api 함수: authApi, userApi, petApi, petGuardianApi, healthCheckApi,
 │               healthRecordApi, hospitalApi, reviewApi, reservationApi,
 │               reservationAdminApi, waitlistApi, notificationApi, chatApi, adminApi)
+│               chatApi.subscribeChatRoom — 채팅방 실시간 수신(@stomp/stompjs, /api/ws). 전송은 REST,
+│               재연결·인증 실패 때 목록 재조회(그 401이 토큰 재발급을 일으켜 다음 재연결은 새 토큰)
 ├── types       (api.ts — 백엔드 DTO/enum 타입)
 ├── lib         (format.ts 포맷터, roles.ts OWNER_ROLES)
 ├── hooks       (useAuth — 인증상태+role+userId, useNotifications — SSE 안읽음뱃지,

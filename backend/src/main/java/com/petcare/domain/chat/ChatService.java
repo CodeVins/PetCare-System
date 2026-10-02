@@ -16,8 +16,13 @@ import com.petcare.global.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUser;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,8 @@ public class ChatService {
 	private final HospitalService hospitalService;
 	private final UserRepository userRepository;
 	private final NotificationService notificationService;
+	private final SimpMessagingTemplate messagingTemplate;
+	private final SimpUserRegistry simpUserRegistry;
 
 	@Transactional
 	public ChatRoomResponse getOrCreateRoom(Long userId, Long hospitalId) {
@@ -62,20 +69,39 @@ public class ChatService {
 		ChatMessage message = ChatMessage.builder().chatRoom(room).sender(sender).content(request.content()).build();
 		ChatMessageResponse response = ChatMessageResponse.from(chatMessageRepository.save(message));
 
-		Long recipientId = resolveRecipient(sender, room);
-		if (recipientId != null) {
+		// 변경(2026-10-02): 커밋 후 채팅방 구독자에게 WebSocket으로 메시지 자체를 push
+		// (이전: 메시지는 안 보내고 알림 SSE만 → 프론트가 알림을 받으면 목록 전체 재조회, 채팅 알림을 끈 유저는 실시간 갱신이 안 됐음)
+		String destination = ChatStompInterceptor.ROOM_TOPIC_PREFIX + room.getId();
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				messagingTemplate.convertAndSend(destination, response);
+			}
+		});
+
+		// 변경(2026-10-02): 받는 사람이 지금 그 채팅방을 보고 있으면(구독 중) 알림 생략 (이전: 메시지마다 알림이 쌓임)
+		User recipient = resolveRecipient(sender, room);
+		if (recipient != null && !isWatching(recipient.getEmail(), destination)) {
 			notificationService.notify(
-					recipientId, NotificationType.CHAT_MESSAGE_RECEIVED, sender.getEmail() + "님이 메시지를 보냈습니다.");
+					recipient.getId(), NotificationType.CHAT_MESSAGE_RECEIVED, sender.getEmail() + "님이 메시지를 보냈습니다.");
 		}
 		return response;
 	}
 
-	private Long resolveRecipient(User sender, ChatRoom room) {
+	// SimpUserRegistry는 STOMP 연결 유저 이름(=이메일, CONNECT 때 세팅한 인증 객체)별 구독 목록을 메모리에 들고 있음
+	private boolean isWatching(String email, String destination) {
+		SimpUser user = simpUserRegistry.getUser(email);
+		return user != null && user.getSessions().stream()
+				.flatMap(session -> session.getSubscriptions().stream())
+				.anyMatch(subscription -> destination.equals(subscription.getDestination()));
+	}
+
+	// 변경(2026-10-02): id 대신 User 반환 — 구독 여부 확인에 이메일도 필요 (이전: Long recipientId)
+	private User resolveRecipient(User sender, ChatRoom room) {
 		if (sender.getId().equals(room.getCustomer().getId())) {
-			User owner = room.getHospital().getOwner();
-			return owner != null ? owner.getId() : null;
+			return room.getHospital().getOwner();
 		}
-		return room.getCustomer().getId();
+		return room.getCustomer();
 	}
 
 	private ChatRoom findRoom(Long roomId, User currentUser) {

@@ -2,11 +2,10 @@ import { errorMessage } from '../../api/axiosInstance'
 import { PaperPlaneTilt } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { getChatMessages, sendChatMessage } from '../../api/chatApi'
+import { getChatMessages, sendChatMessage, subscribeChatRoom } from '../../api/chatApi'
 import Alert from '../../components/common/Alert'
 import PageHeader from '../../components/common/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
-import { useNotifications } from '../../hooks/useNotifications'
 import type { ChatMessage } from '../../types/api'
 
 const dayLabel = (value: string) =>
@@ -19,10 +18,12 @@ const dayLabel = (value: string) =>
 const timeLabel = (value: string) =>
   new Date(value).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
 
+const appendUnique = (messages: ChatMessage[], message: ChatMessage) =>
+  messages.some((m) => m.id === message.id) ? messages : [...messages, message]
+
 export default function ChatRoomPage() {
   const { roomId = '' } = useParams()
   const { userId } = useAuth()
-  const { lastNotificationAt } = useNotifications()
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,11 +45,17 @@ export default function ChatRoomPage() {
     loadMessages()
   }, [loadMessages])
 
-  useEffect(() => {
-    // Notification payload doesn't carry roomId, so any SSE "notification"
-    // while this page is open just triggers a refetch (harmless over-fetch).
-    if (lastNotificationAt) loadMessages()
-  }, [lastNotificationAt, loadMessages])
+  // 변경(2026-10-02): 알림 SSE를 받을 때마다 목록 전체 재조회 → 채팅방 WebSocket 구독으로 새 메시지만 붙임
+  // (이전: 아무 알림에나 재조회했고, 채팅 알림을 끈 유저는 실시간 갱신이 안 됐음)
+  useEffect(
+    () =>
+      subscribeChatRoom(
+        roomId,
+        (message) => setMessages((prev) => appendUnique(prev, message)),
+        loadMessages,
+      ),
+    [roomId, loadMessages],
+  )
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'nearest' })
@@ -62,7 +69,9 @@ export default function ChatRoomPage() {
     setError('')
     try {
       const { data } = await sendChatMessage(roomId, content)
-      setMessages((prev) => [...prev, data.data])
+      // 변경(2026-10-02): 중복 없이 추가 — 내 메시지도 WebSocket으로 다시 오고, REST 응답보다 먼저 올 수 있음
+      // (이전: 그냥 append)
+      setMessages((prev) => appendUnique(prev, data.data))
       setDraft('')
     } catch (err) {
       setError(errorMessage(err, '전송에 실패했습니다.'))
