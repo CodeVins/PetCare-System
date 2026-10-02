@@ -53,7 +53,9 @@ com.petcare
 
 ## 동적 쿼리 (Querydsl)
 - `GET /api/hospitals?keyword=&minRating=&sort=NAME_ASC|RATING_DESC|REVIEW_COUNT_DESC` — Hospital-Review left join + groupBy로 평점 집계/필터/정렬을 쿼리 하나로 처리 (`HospitalRepositoryImpl`)
-- 같은 엔드포인트에 `&lat=&lng=&radiusKm=` 추가하면 거리 기반 필터링(Haversine, `HospitalService` 내 순수 자바 계산 — 병원 수가 적어서 DB 함수 안 씀). 셋 다 줘야 동작, 좌표 없는 병원(latitude/longitude null)은 결과에서 제외. 응답의 `distanceKm`은 이 파라미터를 줬을 때만 채워짐
+- 같은 엔드포인트에 `&lat=&lng=&radiusKm=` 추가하면 거리 기반 필터링. 셋 다 줘야 동작, 좌표 없는 병원(latitude/longitude null)은 결과에서 제외. 응답의 `distanceKm`은 이 파라미터를 줬을 때만 채워짐
+  - 2단계(2026-10-02, 병원 수 증가 대비): ① `GeoBox.around()`로 반경을 감싸는 위경도 사각형을 만들어 Querydsl where절 `between`으로 DB에서 후보만 조회(`idx_hospital_lat_lng(latitude, longitude)` 인덱스) ② 후보만 `HospitalService`에서 Haversine으로 정확한 원 필터+거리순 정렬. 이전엔 전체 병원을 불러와 메모리에서 계산. MySQL 공간 함수/공간 인덱스는 안 씀(ponytail: 병원 수가 수십만 단위가 되면 `POINT` + `SPATIAL INDEX` 검토). 날짜변경선·극지방 미고려(국내 전용)
+  - 여전히 페이지네이션 없음 — 좌표 없이 검색하면 조건에 맞는 병원 전체를 반환
 - Querydsl 커스텀 레포지토리 패턴: `XxxRepositoryCustom` 인터페이스 + `XxxRepositoryImpl`(반드시 이 이름, Spring Data가 자동 인식) + `XxxRepository extends JpaRepository<...>, XxxRepositoryCustom`
 - `JPAQueryFactory` 빈은 `global/config/QuerydslConfig`에 등록
 - `GET /api/admin/stats/summary`, `GET /api/admin/stats/hospitals` (ADMIN 전용) — 병원별/전체 예약·리뷰 집계

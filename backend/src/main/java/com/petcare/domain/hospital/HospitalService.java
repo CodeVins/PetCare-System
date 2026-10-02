@@ -62,11 +62,14 @@ public class HospitalService {
 	public List<HospitalResponse> search(
 			String keyword, Double minRating, HospitalSortType sort, Double lat, Double lng, Double radiusKm,
 			Boolean is24Hours, Boolean hasParking) {
-		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort, is24Hours, hasParking).stream()
+		boolean nearby = lat != null && lng != null && radiusKm != null;
+		// 변경(2026-10-02): 거리 검색이면 사각형 범위로 DB에서 1차 필터 후 아래에서 정확한 원으로 재필터 (이전: 전체 병원 조회 후 메모리 필터)
+		GeoBox box = nearby ? GeoBox.around(lat, lng, radiusKm) : null;
+		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort, is24Hours, hasParking, box).stream()
 				.map(result -> HospitalResponse.of(result.hospital(), result.averageRating(), result.reviewCount()))
 				.toList();
 
-		if (lat == null || lng == null || radiusKm == null) {
+		if (!nearby) {
 			return results;
 		}
 
