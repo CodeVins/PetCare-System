@@ -444,6 +444,35 @@ class BusinessRuleTest {
 				.andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의해주세요."));
 	}
 
+	// ---------- 병원 상세 캐시 ----------
+
+	@Test
+	void 병원_상세_캐시는_리뷰_작성과_숨김_해제_때_갱신된다() throws Exception {
+		savePastConfirmedReservation(createPet(userToken, "캐시펫"));
+		String detailUrl = "/api/hospitals/" + hospitalId;
+		assertThat(getData(detailUrl, userToken).get("reviewCount").asLong()).isZero(); // 여기서 캐시됨
+
+		MvcResult created = mockMvc.perform(post(detailUrl + "/reviews")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"rating\":4,\"content\":\"친절해요\"}"))
+				.andExpect(status().isCreated())
+				.andReturn();
+		long reviewId = data(created).get("id").asLong();
+
+		JsonNode detail = getData(detailUrl, userToken);
+		assertThat(detail.get("reviewCount").asLong()).isEqualTo(1);
+		assertThat(detail.get("averageRating").asDouble()).isEqualTo(4.0);
+
+		mockMvc.perform(patch("/api/admin/reviews/" + reviewId + "/hide").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		assertThat(getData(detailUrl, userToken).get("reviewCount").asLong()).isZero();
+
+		mockMvc.perform(patch("/api/admin/reviews/" + reviewId + "/unhide").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		assertThat(getData(detailUrl, userToken).get("reviewCount").asLong()).isEqualTo(1);
+	}
+
 	// ---------- helpers ----------
 
 	private LocalDateTime future(int hours) {

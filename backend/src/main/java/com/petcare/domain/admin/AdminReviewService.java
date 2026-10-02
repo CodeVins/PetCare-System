@@ -1,6 +1,7 @@
 package com.petcare.domain.admin;
 
 import com.petcare.domain.hospital.Review;
+import com.petcare.domain.hospital.HospitalService;
 import com.petcare.domain.hospital.ReviewRepository;
 import com.petcare.domain.hospital.ReviewReportRepository;
 import com.petcare.domain.hospital.ReviewSearchCondition;
@@ -28,6 +29,7 @@ public class AdminReviewService {
 	private final ReviewRepository reviewRepository;
 	private final ReviewReportRepository reviewReportRepository;
 	private final ReviewService reviewService;
+	private final HospitalService hospitalService;
 
 	public PageResponse<ManagedReviewResponse> getReviews(
 			User currentUser, ReviewSearchCondition condition, Pageable pageable) {
@@ -52,12 +54,18 @@ public class AdminReviewService {
 
 	@Transactional
 	public void hide(User currentUser, Long reviewId) {
-		findManagedReview(currentUser, reviewId).hide();
+		Review review = findManagedReview(currentUser, reviewId);
+		review.hide();
+		// 변경(2026-10-02): 숨김은 병원 평점 집계에서 빠지므로 병원 상세 캐시 무효화 (이전: 캐시 없음)
+		hospitalService.evictCache(review.getHospital().getId());
 	}
 
 	@Transactional
 	public void unhide(User currentUser, Long reviewId) {
-		findManagedReview(currentUser, reviewId).unhide();
+		Review review = findManagedReview(currentUser, reviewId);
+		review.unhide();
+		// 변경(2026-10-02): 숨김 해제도 평점 집계가 바뀌므로 병원 상세 캐시 무효화 (이전: 캐시 없음)
+		hospitalService.evictCache(review.getHospital().getId());
 	}
 
 	// ADMIN은 전체, HOSPITAL_OWNER는 요청 값과 무관하게 본인 병원으로 강제
