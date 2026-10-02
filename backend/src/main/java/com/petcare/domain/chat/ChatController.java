@@ -49,6 +49,11 @@ public class ChatController {
 		return ResponseEntity.ok(ApiResponse.success(chatService.getMessages(userDetails.getUser(), roomId, pageable)));
 	}
 
+	@GetMapping("/unread-count")
+	public ResponseEntity<ApiResponse<Long>> getUnreadCount(@AuthenticationPrincipal CustomUserDetails userDetails) {
+		return ResponseEntity.ok(ApiResponse.success(chatService.countUnread(userDetails.getUser())));
+	}
+
 	@PatchMapping("/{roomId}/read")
 	public ResponseEntity<ApiResponse<Void>> markRead(
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long roomId) {

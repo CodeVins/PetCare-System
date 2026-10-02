@@ -13,8 +13,10 @@ import {
   type Icon,
 } from '@phosphor-icons/react'
 import { motion, useReducedMotion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { logout as logoutRequest } from '../../api/authApi'
+import { getChatUnreadCount } from '../../api/chatApi'
 import { useAuth } from '../../hooks/useAuth'
 import { useNotifications } from '../../hooks/useNotifications'
 
@@ -64,10 +66,20 @@ function UnreadDot({ count }: { count: number }) {
 
 export default function Header() {
   const { isAuthenticated, logout, role } = useAuth()
-  const { unreadCount } = useNotifications()
+  const { unreadCount, lastNotificationAt } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
   const reduceMotion = useReducedMotion()
+
+  // 채팅 안 읽은 메시지 합계 — 알림이 오거나(채팅방 밖에서 받은 메시지는 채팅 알림으로 옴) 페이지를 옮길 때
+  // (채팅방에서 나오면 읽음 처리된 상태) 다시 조회. ponytail: 채팅 알림을 끈 유저는 페이지 이동 때만 갱신됨
+  const [chatUnreadCount, setChatUnreadCount] = useState(0)
+  useEffect(() => {
+    if (!isAuthenticated) return
+    getChatUnreadCount()
+      .then(({ data }) => setChatUnreadCount(data.data))
+      .catch(() => {})
+  }, [isAuthenticated, lastNotificationAt, location.pathname])
 
   const navItems = role === 'ADMIN' ? ADMIN_NAV : role === 'HOSPITAL_OWNER' ? OWNER_NAV : USER_NAV
 
@@ -137,8 +149,16 @@ export default function Header() {
           <div className="flex items-center justify-end gap-1 md:w-60">
             {isAuthenticated ? (
               <>
-                <NavLink to="/chats" className={iconBtn} aria-label="채팅">
+                {/* 변경(2026-10-02): 안 읽은 채팅 수 배지 추가 — 알림 아이콘과 같은 스타일 (이전: 아이콘만) */}
+                <NavLink
+                  to="/chats"
+                  className={iconBtn}
+                  aria-label={
+                    chatUnreadCount > 0 ? `채팅, 안 읽은 메시지 ${chatUnreadCount}개` : '채팅'
+                  }
+                >
                   <ChatCircleDots size={24} />
+                  <UnreadDot count={chatUnreadCount} />
                 </NavLink>
 
                 <NavLink

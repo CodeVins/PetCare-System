@@ -163,6 +163,11 @@ class ChatWebSocketTest {
 
 		sendMessage("세 번째");
 		assertThat(unreadCount(ownerToken)).isEqualTo(1);
+		// 헤더 배지용 전체 합계도 같은 기준
+		assertThat(data(mockMvc.perform(get("/api/chat-rooms/unread-count")
+				.header("Authorization", "Bearer " + ownerToken))).asLong()).isEqualTo(1);
+		assertThat(data(mockMvc.perform(get("/api/chat-rooms/unread-count")
+				.header("Authorization", "Bearer " + customerToken))).asLong()).isZero();
 	}
 
 	@Test

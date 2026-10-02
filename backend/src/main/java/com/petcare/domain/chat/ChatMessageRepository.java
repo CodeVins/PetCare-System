@@ -25,4 +25,15 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 			+ " and m.sender.id = m.chatRoom.customer.id"
 			+ " and m.id > coalesce(m.chatRoom.hospitalLastReadMessageId, 0) group by m.chatRoom.id")
 	List<Object[]> countUnreadForHospital(@Param("roomIds") Collection<Long> roomIds);
+
+	// 헤더 채팅 배지용 전체 합계 — 위 두 쿼리와 같은 조건을 방 목록 대신 "내 방 전체"로
+	@Query("select count(m) from ChatMessage m where m.chatRoom.customer.id = :userId"
+			+ " and m.sender.id <> m.chatRoom.customer.id"
+			+ " and m.id > coalesce(m.chatRoom.customerLastReadMessageId, 0)")
+	long countAllUnreadForCustomer(@Param("userId") Long userId);
+
+	@Query("select count(m) from ChatMessage m where m.chatRoom.hospital.owner.id = :userId"
+			+ " and m.sender.id = m.chatRoom.customer.id"
+			+ " and m.id > coalesce(m.chatRoom.hospitalLastReadMessageId, 0)")
+	long countAllUnreadForHospital(@Param("userId") Long userId);
 }

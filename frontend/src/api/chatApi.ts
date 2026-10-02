@@ -18,6 +18,11 @@ export function sendChatMessage(roomId: number | string, content: string): ApiPr
   return axiosInstance.post(`/api/chat-rooms/${roomId}/messages`, { content })
 }
 
+// 헤더 채팅 아이콘 배지 — 내 모든 채팅방의 안 읽은 메시지 합계
+export function getChatUnreadCount(): ApiPromise<number> {
+  return axiosInstance.get('/api/chat-rooms/unread-count')
+}
+
 // 지금까지 온 메시지를 전부 읽음으로 — 채팅방 진입·열어둔 채 새 메시지 수신 때 호출
 export function markChatRoomRead(roomId: number | string): ApiPromise<void> {
   return axiosInstance.patch(`/api/chat-rooms/${roomId}/read`)

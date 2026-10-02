@@ -67,6 +67,13 @@ public class ChatService {
 		return PageResponse.from(rooms.map(room -> ChatRoomResponse.of(room, unread.getOrDefault(room.getId(), 0L))));
 	}
 
+	// 헤더 채팅 아이콘 배지 — getMyRooms와 같은 기준(HOSPITAL_OWNER는 병원 측, 그 외는 고객 측)
+	public long countUnread(User currentUser) {
+		return currentUser.getRole() == Role.HOSPITAL_OWNER
+				? chatMessageRepository.countAllUnreadForHospital(currentUser.getId())
+				: chatMessageRepository.countAllUnreadForCustomer(currentUser.getId());
+	}
+
 	// 채팅방을 열었거나 열어둔 채 새 메시지를 받았을 때 프론트가 호출 — 지금까지의 메시지를 전부 읽음으로
 	@Transactional
 	public void markRead(User currentUser, Long roomId) {
