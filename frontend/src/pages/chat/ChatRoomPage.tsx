@@ -2,7 +2,12 @@ import { errorMessage } from '../../api/axiosInstance'
 import { PaperPlaneTilt } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { getChatMessages, sendChatMessage, subscribeChatRoom } from '../../api/chatApi'
+import {
+  getChatMessages,
+  markChatRoomRead,
+  sendChatMessage,
+  subscribeChatRoom,
+} from '../../api/chatApi'
 import Alert from '../../components/common/Alert'
 import PageHeader from '../../components/common/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
@@ -32,14 +37,23 @@ export default function ChatRoomPage() {
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // 채팅 목록의 안 읽은 수를 0으로 — 실패해도 화면엔 영향 없어서 무시(다음 진입 때 다시 처리됨)
+  const markRead = useCallback(() => {
+    markChatRoomRead(roomId).catch(() => {})
+  }, [roomId])
+
+  // 변경(2026-10-02): 불러온 뒤 읽음 처리 추가 (이전: 읽음 개념 없음)
   const loadMessages = useCallback(() => {
     getChatMessages(roomId)
-      .then(({ data }) => setMessages(data.data.content))
+      .then(({ data }) => {
+        setMessages(data.data.content)
+        markRead()
+      })
       .catch((err) =>
         setError(errorMessage(err, '메시지를 불러오지 못했습니다.')),
       )
       .finally(() => setLoading(false))
-  }, [roomId])
+  }, [roomId, markRead])
 
   useEffect(() => {
     loadMessages()
@@ -51,10 +65,14 @@ export default function ChatRoomPage() {
     () =>
       subscribeChatRoom(
         roomId,
-        (message) => setMessages((prev) => appendUnique(prev, message)),
+        (message) => {
+          setMessages((prev) => appendUnique(prev, message))
+          // 보고 있는 중에 온 상대 메시지는 바로 읽음 — 안 하면 나갔을 때 목록에 안 읽음으로 남음
+          if (message.senderId !== userId) markRead()
+        },
         loadMessages,
       ),
-    [roomId, loadMessages],
+    [roomId, loadMessages, markRead, userId],
   )
 
   useEffect(() => {

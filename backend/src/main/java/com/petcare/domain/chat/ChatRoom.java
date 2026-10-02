@@ -35,6 +35,11 @@ public class ChatRoom extends BaseEntity {
 	@JoinColumn(name = "hospital_id", nullable = false)
 	private Hospital hospital;
 
+	// 양쪽(고객 / 병원 측)이 마지막으로 읽은 메시지 id — 안 읽은 메시지 수 계산용, null이면 아직 하나도 안 읽음
+	private Long customerLastReadMessageId;
+
+	private Long hospitalLastReadMessageId;
+
 	@Builder
 	private ChatRoom(User customer, Hospital hospital) {
 		this.customer = customer;
@@ -43,5 +48,14 @@ public class ChatRoom extends BaseEntity {
 
 	public boolean canAccess(User user) {
 		return customer.getId().equals(user.getId()) || hospital.isManagedBy(user);
+	}
+
+	// ADMIN은 중재 목적 열람이라 읽음 처리 안 함 — 관리자가 열어봤다고 병원 소유자의 안 읽음 표시가 사라지면 안 됨
+	public void markReadBy(User user, Long messageId) {
+		if (customer.getId().equals(user.getId())) {
+			customerLastReadMessageId = messageId;
+		} else if (hospital.getOwner() != null && hospital.getOwner().getId().equals(user.getId())) {
+			hospitalLastReadMessageId = messageId;
+		}
 	}
 }

@@ -13,6 +13,9 @@ import com.petcare.domain.user.UserRepository;
 import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,10 +53,28 @@ public class ChatService {
 	}
 
 	public PageResponse<ChatRoomResponse> getMyRooms(User currentUser, Pageable pageable) {
-		Page<ChatRoom> rooms = currentUser.getRole() == Role.HOSPITAL_OWNER
+		boolean hospitalSide = currentUser.getRole() == Role.HOSPITAL_OWNER;
+		Page<ChatRoom> rooms = hospitalSide
 				? chatRoomRepository.findAllByHospital_OwnerId(currentUser.getId(), pageable)
 				: chatRoomRepository.findAllByCustomerId(currentUser.getId(), pageable);
-		return PageResponse.from(rooms.map(ChatRoomResponse::from));
+		// 변경(2026-10-02): 방마다 안 읽은 메시지 수 포함 — 페이지 단위로 쿼리 한 번 (이전: 방 정보만)
+		List<Long> roomIds = rooms.map(ChatRoom::getId).toList();
+		Map<Long, Long> unread = roomIds.isEmpty() ? Map.of()
+				: (hospitalSide
+						? chatMessageRepository.countUnreadForHospital(roomIds)
+						: chatMessageRepository.countUnreadForCustomer(roomIds)).stream()
+						.collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+		return PageResponse.from(rooms.map(room -> ChatRoomResponse.of(room, unread.getOrDefault(room.getId(), 0L))));
+	}
+
+	// 채팅방을 열었거나 열어둔 채 새 메시지를 받았을 때 프론트가 호출 — 지금까지의 메시지를 전부 읽음으로
+	@Transactional
+	public void markRead(User currentUser, Long roomId) {
+		ChatRoom room = findRoom(roomId, currentUser);
+		Long latestId = chatMessageRepository.findLatestId(room.getId());
+		if (latestId != null) {
+			room.markReadBy(currentUser, latestId);
+		}
 	}
 
 	public PageResponse<ChatMessageResponse> getMessages(User currentUser, Long roomId, Pageable pageable) {

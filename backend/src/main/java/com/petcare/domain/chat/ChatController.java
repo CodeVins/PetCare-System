@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,6 +47,13 @@ public class ChatController {
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long roomId,
 			@PageableDefault(size = 50) Pageable pageable) {
 		return ResponseEntity.ok(ApiResponse.success(chatService.getMessages(userDetails.getUser(), roomId, pageable)));
+	}
+
+	@PatchMapping("/{roomId}/read")
+	public ResponseEntity<ApiResponse<Void>> markRead(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long roomId) {
+		chatService.markRead(userDetails.getUser(), roomId);
+		return ResponseEntity.ok(ApiResponse.success());
 	}
 
 	@PostMapping("/{roomId}/messages")

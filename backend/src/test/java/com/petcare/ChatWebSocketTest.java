@@ -56,6 +56,7 @@ class ChatWebSocketTest {
 	@Autowired private SimpUserRegistry simpUserRegistry;
 
 	private String suffix;
+	private String adminToken;
 	private String customerToken;
 	private String ownerEmail;
 	private String ownerToken;
@@ -67,7 +68,7 @@ class ChatWebSocketTest {
 		String adminEmail = "admin-ws-" + suffix + "@petcare.com";
 		userRepository.save(User.builder()
 				.email(adminEmail).password(passwordEncoder.encode("adminpass123")).role(Role.ADMIN).build());
-		String adminToken = login(adminEmail, "adminpass123");
+		adminToken = login(adminEmail, "adminpass123");
 
 		long hospitalId = data(mockMvc.perform(post("/api/hospitals")
 				.header("Authorization", "Bearer " + adminToken)
@@ -145,6 +146,26 @@ class ChatWebSocketTest {
 	}
 
 	@Test
+	void 채팅_목록에_안_읽은_메시지_수가_나오고_읽으면_0이_된다() throws Exception {
+		sendMessage("첫 번째");
+		sendMessage("두 번째");
+		assertThat(unreadCount(ownerToken)).isEqualTo(2);
+		assertThat(unreadCount(customerToken)).isZero(); // 내가 보낸 메시지는 안 셈
+
+		// 관리자 열람(중재)은 소유자의 안 읽음을 지우지 않음
+		mockMvc.perform(patch("/api/chat-rooms/" + roomId + "/read").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		assertThat(unreadCount(ownerToken)).isEqualTo(2);
+
+		mockMvc.perform(patch("/api/chat-rooms/" + roomId + "/read").header("Authorization", "Bearer " + ownerToken))
+				.andExpect(status().isOk());
+		assertThat(unreadCount(ownerToken)).isZero();
+
+		sendMessage("세 번째");
+		assertThat(unreadCount(ownerToken)).isEqualTo(1);
+	}
+
+	@Test
 	void 토큰_없이는_연결할_수_없다() {
 		assertThatThrownBy(() -> connect(null, new StompSessionHandlerAdapter() {}))
 				.isInstanceOf(ExecutionException.class);
@@ -185,6 +206,17 @@ class ChatWebSocketTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"content\":\"" + content + "\"}"))
 				.andExpect(status().isCreated());
+	}
+
+	private long unreadCount(String token) throws Exception {
+		JsonNode rooms = data(mockMvc.perform(get("/api/chat-rooms").header("Authorization", "Bearer " + token)))
+				.get("content");
+		for (JsonNode room : rooms) {
+			if (room.get("id").asLong() == roomId) {
+				return room.get("unreadCount").asLong();
+			}
+		}
+		throw new AssertionError("채팅방이 목록에 없음");
 	}
 
 	private long chatNotificationCount() throws Exception {

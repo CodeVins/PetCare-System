@@ -90,6 +90,7 @@ src
 │               reservationAdminApi, waitlistApi, notificationApi, chatApi, adminApi)
 │               chatApi.subscribeChatRoom — 채팅방 실시간 수신(@stomp/stompjs, /api/ws). 전송은 REST,
 │               재연결·인증 실패 때 목록 재조회(그 401이 토큰 재발급을 일으켜 다음 재연결은 새 토큰)
+│               chatApi.markChatRoomRead — 방 진입·열어둔 채 상대 메시지 수신 시 호출(목록 안 읽은 수 0으로)
 ├── types       (api.ts — 백엔드 DTO/enum 타입)
 ├── lib         (format.ts 포맷터, roles.ts OWNER_ROLES)
 ├── hooks       (useAuth — 인증상태+role+userId, useNotifications — SSE 안읽음뱃지,
@@ -120,6 +121,7 @@ src
 - 제목 폰트 규칙: Jua는 **h1(PageHeader·홈 배너)과 로고만**. 섹션 제목(h2)은 `h-section`(Noto 700) —
   DESIGN_SPEC 기준. Jua는 index.html에서 `display=block`으로 따로 로드(조각 로딩 중 폰트 섞임 방지)
 - 목록 "더 보기"는 `hooks/usePagedList` 재사용 (PageResponse 목록 새로 붙일 때).
+- 채팅 UI(2026-10-02): 채팅방은 WebSocket 구독으로 새 메시지만 붙임(id로 중복 제거 — 내 메시지는 REST 응답과 WebSocket으로 두 번 옴). 채팅 목록은 방 칸마다 빨간 안 읽은 수 배지(헤더 알림 배지와 같은 스타일), 알림 SSE가 오면 목록 재조회로 갱신. 알림 목록에서 `CHAT_MESSAGE_RECEIVED`는 하늘색(`bg-sky-50`, `icon-badge-sky`, 점 `bg-sky-600`) + "채팅" 라벨로 구분하고 누르면 `/chats`로 이동 — 다른 알림은 브랜드색 유지
 **날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
 - 디자인: **DESIGN_SPEC.md**가 단일 기준(색·폰트·형태·레이아웃). `petcare-ui-source/`
   는 화면별 HTML 시안 원본. 2026-09-22에 전 화면 이식 완료 — teal `#0F766E` accent,
