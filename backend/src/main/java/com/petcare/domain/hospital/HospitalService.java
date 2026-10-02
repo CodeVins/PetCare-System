@@ -10,6 +10,8 @@ import com.petcare.global.file.FileStorageService;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +20,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class HospitalService {
+
+	// 병원 상세(평점 집계 포함) 캐시 — 병원 정보·리뷰가 바뀌는 곳마다 hospitalId로 무효화
+	public static final String CACHE = "hospital";
 
 	private final HospitalRepository hospitalRepository;
 	private final ReviewRepository reviewRepository;
@@ -41,6 +46,8 @@ public class HospitalService {
 	}
 
 	@Transactional
+	// 변경(2026-10-02): 병원 상세 캐시 무효화 (이전: 캐시 없음)
+	@CacheEvict(cacheNames = CACHE, key = "#hospitalId")
 	public HospitalResponse update(User currentUser, Long hospitalId, HospitalUpdateRequest request) {
 		Hospital hospital = findManagedHospital(currentUser, hospitalId);
 
@@ -88,8 +95,15 @@ public class HospitalService {
 				.toList();
 	}
 
+	// 변경(2026-10-02): Redis 캐시(TTL 10분) — 병원 상세는 조회마다 평점 집계 쿼리 2번 (이전: 매번 DB 조회)
+	@Cacheable(cacheNames = CACHE, key = "#hospitalId")
 	public HospitalResponse get(Long hospitalId) {
 		return toResponseWithRating(findHospital(hospitalId));
+	}
+
+	// 메서드 파라미터에 hospitalId가 없는 곳(리뷰 숨김 등)에서 캐시를 지울 때 사용
+	@CacheEvict(cacheNames = CACHE, key = "#hospitalId")
+	public void evictCache(Long hospitalId) {
 	}
 
 	private HospitalResponse toResponseWithRating(Hospital hospital) {
@@ -104,6 +118,8 @@ public class HospitalService {
 	}
 
 	@Transactional
+	// 변경(2026-10-02): 병원 상세 캐시 무효화 (이전: 캐시 없음)
+	@CacheEvict(cacheNames = CACHE, key = "#hospitalId")
 	public HospitalResponse uploadImage(User currentUser, Long hospitalId, MultipartFile file) {
 		Hospital hospital = findManagedHospital(currentUser, hospitalId);
 		String previousImageUrl = hospital.getImageUrl();
@@ -116,6 +132,8 @@ public class HospitalService {
 	}
 
 	@Transactional
+	// 변경(2026-10-02): 병원 상세 캐시 무효화 (이전: 캐시 없음)
+	@CacheEvict(cacheNames = CACHE, key = "#hospitalId")
 	public void deleteImage(User currentUser, Long hospitalId) {
 		Hospital hospital = findManagedHospital(currentUser, hospitalId);
 		fileStorageService.deleteHospitalImage(hospital.getImageUrl());

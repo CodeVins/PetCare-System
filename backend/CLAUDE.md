@@ -105,6 +105,7 @@ com.petcare
 - `PATCH /api/notifications/read-all` — 내 안읽은 알림 전체 읽음(벌크 update 쿼리, 처리 건수 반환)
 - `application.yml`에 `hibernate.default_batch_fetch_size: 100` — fetch join 없이 지연 로딩 연관(리뷰 답글, 예약→펫 등)을 IN 쿼리로 묶어 N+1 완화
 - `GET /api/hospitals`에 `&is24Hours=&hasParking=` 필터 추가 (Querydsl where절, null이면 무시)
+- 병원 상세 캐시(2026-10-02, Redis): `HospitalService.get()`에 `@Cacheable("hospital", key=hospitalId)`, TTL 10분(무효화 누락 대비 안전망). `global/config/CacheConfig` — JSON 직렬화(Boot ObjectMapper라 DTO 필드 변경돼도 기존 캐시 안 깨짐), `transactionAware`(커밋 후 무효화), `LoggingCacheErrorHandler`(Redis 장애 시 DB로 fail-open). **`HospitalResponse`에 들어가는 값(병원 필드, 평점/리뷰 수)을 바꾸는 코드를 새로 만들면 반드시 무효화 추가** — 현재 무효화 지점: 병원 수정/사진 업로드·삭제, 리뷰 작성·수정·삭제(`@CacheEvict`), 관리자 리뷰 숨김·해제(`hospitalService.evictCache()` — 파라미터에 hospitalId가 없어서). 소유자 지정·답글은 응답에 없어서 무효화 안 함. 검색(`GET /api/hospitals`)은 파라미터 조합이 많아 캐시 안 함
 
 ## 실시간 채팅 (1:1 문의)
 - `ChatRoom`(고객 1명 - 병원 1개, 유니크), `ChatMessage`. `POST /api/chat-rooms`는 get-or-create(같은 고객+병원 조합이면 기존 방 반환)

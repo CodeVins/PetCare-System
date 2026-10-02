@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,8 @@ public class ReviewService {
 	private final HospitalService hospitalService;
 
 	@Transactional
+	// 변경(2026-10-02): 리뷰가 바뀌면 병원 평점 집계가 바뀌므로 병원 상세 캐시 무효화 (이전: 캐시 없음)
+	@CacheEvict(cacheNames = HospitalService.CACHE, key = "#hospitalId")
 	public ReviewResponse create(Long userId, Long hospitalId, ReviewCreateRequest request) {
 		Hospital hospital = hospitalService.findHospital(hospitalId);
 
@@ -84,6 +87,8 @@ public class ReviewService {
 	}
 
 	@Transactional
+	// 변경(2026-10-02): 리뷰가 바뀌면 병원 평점 집계가 바뀌므로 병원 상세 캐시 무효화 (이전: 캐시 없음)
+	@CacheEvict(cacheNames = HospitalService.CACHE, key = "#hospitalId")
 	public ReviewResponse update(Long userId, Long hospitalId, Long reviewId, ReviewUpdateRequest request) {
 		Review review = getOwnedReview(userId, hospitalId, reviewId);
 		review.update(request.rating(), request.content());
@@ -91,6 +96,8 @@ public class ReviewService {
 	}
 
 	@Transactional
+	// 변경(2026-10-02): 리뷰가 바뀌면 병원 평점 집계가 바뀌므로 병원 상세 캐시 무효화 (이전: 캐시 없음)
+	@CacheEvict(cacheNames = HospitalService.CACHE, key = "#hospitalId")
 	public void delete(Long userId, Long hospitalId, Long reviewId) {
 		Review review = getOwnedReview(userId, hospitalId, reviewId);
 		reviewRepository.delete(review);
