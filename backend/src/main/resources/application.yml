@@ -52,3 +52,18 @@ app:
   admin:
     bootstrap-email: ${ADMIN_EMAIL:}
     bootstrap-password: ${ADMIN_PASSWORD:}
+
+# 장애 감시용 헬스체크 — /api 아래에 둬서 운영 Caddy(/api/*)·Vite 프록시를 그대로 탐. health만 공개, 상세(DB 정보 등)는 숨김
+# Redis는 장애 시 fail-open(로그인 제한·캐시만 꺼짐)이라 서비스 가용성과 무관 → 헬스 판정에서 제외해 오탐 방지
+management:
+  endpoints:
+    web:
+      base-path: /api
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    redis:
+      enabled: false

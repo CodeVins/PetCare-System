@@ -25,6 +25,38 @@ services:
     command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save "" --appendonly no
     restart: unless-stopped
 
+  # 하루 한 번 DB 덤프 + 업로드 사진 묶음을 서버 ~/petcare/backups에 7일치 보관 (시작할 때 한 번, 이후 24시간마다).
+  # 이미 받아둔 mysql:8 이미지를 재사용해서 추가 다운로드 없음. 덤프 실패 시 임시 파일을 지워 깨진 백업이 남지 않게
+  # ponytail: 같은 디스크라 인스턴스·디스크 자체를 잃으면 백업도 같이 잃음 — 그 경우는 EBS 스냅샷(docs/DEPLOY.md)으로 대비
+  db-backup:
+    image: mysql:8
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -o pipefail
+        while true; do
+          stamp=$$(date +%F)
+          if mysqldump -h mysql -u "$$DB_USERNAME" --single-transaction --no-tablespaces petcare | gzip > /backups/db-$$stamp.sql.gz.tmp; then
+            mv /backups/db-$$stamp.sql.gz.tmp /backups/db-$$stamp.sql.gz && echo "[backup] db-$$stamp.sql.gz ok"
+          else
+            rm -f /backups/db-$$stamp.sql.gz.tmp && echo "[backup] db dump FAILED"
+          fi
+          tar czf /backups/uploads-$$stamp.tar.gz -C /uploads . && echo "[backup] uploads-$$stamp.tar.gz ok"
+          find /backups -name '*.gz' -mtime +6 -delete
+          sleep 86400
+        done
+    environment:
+      TZ: Asia/Seoul
+      DB_USERNAME: ${DB_USERNAME}
+      MYSQL_PWD: ${DB_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - uploads:/uploads:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
   backend:
     image: ghcr.io/codevins/petcare-backend:${TAG:-latest}
     build: ./backend

@@ -33,7 +33,9 @@ public class SecurityConfig {
 			"/uploads/**",
 			// 변경(2026-10-02): 채팅 WebSocket 핸드셰이크 — 브라우저 WebSocket은 커스텀 헤더를 못 보내서 HTTP 단계는 열고
 			// STOMP CONNECT 프레임에서 JWT 검증(ChatStompInterceptor) (이전: 없음)
-			"/api/ws"
+			"/api/ws",
+			// 변경(2026-10-05): 외부 장애 감시용 헬스체크 공개 — 상태(UP/DOWN)만 응답하고 상세는 숨김 (이전: 없음)
+			"/api/health"
 	};
 
 	// 변경(2026-09-27): 비회원도 병원 목록/상세/리뷰/예약 가능 슬롯을 볼 수 있게 GET만 공개 — 프론트 랜딩·병원 둘러보기용
