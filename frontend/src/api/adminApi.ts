@@ -1,4 +1,5 @@
 import type {
+  HospitalPeriodStats,
   HospitalStats,
   ManagedReview,
   PageResponse,
@@ -69,4 +70,12 @@ export function hideReview(reviewId: number): ApiPromise<null> {
 
 export function unhideReview(reviewId: number): ApiPromise<null> {
   return axiosInstance.patch(`/api/admin/reviews/${reviewId}/unhide`)
+}
+
+// 병원 하나의 최근 N일(7/30/90) 운영 통계 — 관리자·해당 병원 소유자
+export function getHospitalPeriodStats(
+  hospitalId: number,
+  days: 7 | 30 | 90,
+): ApiPromise<HospitalPeriodStats> {
+  return axiosInstance.get(`/api/admin/stats/hospitals/${hospitalId}`, { params: { days } })
 }

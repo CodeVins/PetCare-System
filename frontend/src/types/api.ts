@@ -421,3 +421,21 @@ export interface HospitalStats {
   reviewCount: number
   averageRating: number | null
 }
+
+// GET /api/admin/stats/hospitals/{id}?days= — 병원 하나의 최근 N일 통계(예약 시작 시간 기준).
+// 비율은 0~1, 분모가 0이면 null
+export interface HospitalPeriodStats {
+  hospitalId: number
+  hospitalName: string
+  from: ISODate
+  to: ISODate
+  totalReservations: number
+  countByStatus: Record<ReservationStatus, number>
+  countByType: Partial<Record<ReservationType, number>>
+  noShowRate: number | null
+  cancelRate: number | null
+  slotCount: number
+  reservedSlotCount: number
+  // booked: 대기·확정·노쇼, cancelled: 취소·거절
+  daily: { date: ISODate; booked: number; cancelled: number }[]
+}

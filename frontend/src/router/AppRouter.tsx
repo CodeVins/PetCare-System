@@ -27,6 +27,7 @@ const ChatRoomPage = lazy(() => import('../pages/chat/ChatRoomPage'))
 const OwnerLayout = lazy(() => import('../pages/dashboard/OwnerLayout'))
 const OwnerOverviewPage = lazy(() => import('../pages/dashboard/OwnerOverviewPage'))
 const OwnerSlotsPage = lazy(() => import('../pages/dashboard/OwnerSlotsPage'))
+const OwnerStatsPage = lazy(() => import('../pages/dashboard/OwnerStatsPage'))
 const OwnerHospitalPage = lazy(() => import('../pages/dashboard/OwnerHospitalPage'))
 const FavoriteHospitalListPage = lazy(() => import('../pages/hospital/FavoriteHospitalListPage'))
 const HospitalDetailPage = lazy(() => import('../pages/hospital/HospitalDetailPage'))
@@ -83,6 +84,7 @@ export default function AppRouter() {
               <Route path="/dashboard" element={<OwnerOverviewPage />} />
               <Route path="/dashboard/reservations" element={<AdminReservationsPage />} />
               <Route path="/dashboard/slots" element={<OwnerSlotsPage />} />
+              <Route path="/dashboard/stats" element={<OwnerStatsPage />} />
               <Route path="/dashboard/reviews" element={<AdminReviewsPage />} />
               <Route path="/dashboard/reports" element={<AdminReportsPage />} />
               <Route path="/dashboard/hospital" element={<OwnerHospitalPage />} />
