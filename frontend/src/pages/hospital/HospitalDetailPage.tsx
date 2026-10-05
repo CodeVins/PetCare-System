@@ -7,6 +7,8 @@ import { getHospital, getSlots } from '../../api/hospitalApi'
 import { getMyPets } from '../../api/petApi'
 import { createReservation } from '../../api/reservationApi'
 import ReservationNoteFields from './ReservationNoteFields'
+import WeeklyHoursTable from './WeeklyHoursTable'
+import { openStatus } from '../../lib/openingHours'
 import { joinWaitlist } from '../../api/waitlistApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
@@ -278,6 +280,13 @@ export default function HospitalDetailPage() {
             )}
 
             <div className="flex flex-wrap gap-1.5">
+              {/* 변경(2026-10-05): 요일별 진료 시간 기준 진료 중/종료 (이전: 없음) */}
+              {openStatus(hospital) === 'open' && (
+                <span className="badge h-6 bg-brand-600 px-2.5 text-xs font-bold text-white">진료 중</span>
+              )}
+              {openStatus(hospital) === 'closed' && (
+                <span className="badge badge-neutral h-6 px-2.5 text-xs text-stone-500">진료 종료</span>
+              )}
               {hospital.hasParking && (
                 <span className="badge badge-neutral h-6 px-2.5 text-xs">주차 가능</span>
               )}
@@ -304,7 +313,13 @@ export default function HospitalDetailPage() {
           {tab === 'info' && (
             <dl className="card m-0 px-4 py-1">
               <InfoRow term="진료과목">{hospital.specialty}</InfoRow>
-              <InfoRow term="운영시간">{hospital.openingHours}</InfoRow>
+              {/* 변경(2026-10-05): 요일별 진료 시간 표 + 기존 자유 텍스트는 "운영 안내"로 (이전: 자유 텍스트 "운영시간"만) */}
+              {hospital.weeklyHours.length > 0 && (
+                <InfoRow term="진료 시간">
+                  <WeeklyHoursTable hours={hospital.weeklyHours} />
+                </InfoRow>
+              )}
+              <InfoRow term="운영 안내">{hospital.openingHours}</InfoRow>
               <InfoRow term="평균 진료비">
                 {hospital.avgTreatmentPrice != null
                   ? `약 ${hospital.avgTreatmentPrice.toLocaleString()}원`

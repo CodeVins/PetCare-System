@@ -181,10 +181,11 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
           />
         </div>
         <TextField
-          label="운영시간"
+          label="운영 안내"
+          hint="점심시간·공휴일 휴무 같은 안내 문구 — 요일별 진료 시간은 아래에서 설정해요."
           value={form.openingHours}
           onChange={(event) => setForm((f) => ({ ...f, openingHours: event.target.value }))}
-          placeholder="예: 평일 09:00-18:00"
+          placeholder="예: 점심시간 13:00~14:00, 공휴일 휴무"
         />
         <TextField
           label="진료과목"

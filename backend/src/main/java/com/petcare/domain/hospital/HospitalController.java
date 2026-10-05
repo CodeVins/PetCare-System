@@ -3,6 +3,7 @@ package com.petcare.domain.hospital;
 import com.petcare.domain.hospital.dto.HospitalCreateRequest;
 import com.petcare.domain.hospital.dto.HospitalResponse;
 import com.petcare.domain.hospital.dto.HospitalUpdateRequest;
+import com.petcare.domain.hospital.dto.OpeningHoursUpdateRequest;
 import com.petcare.global.common.ApiResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -46,9 +48,10 @@ public class HospitalController {
 			@RequestParam(required = false) Double lng,
 			@RequestParam(required = false) Double radiusKm,
 			@RequestParam(required = false) Boolean is24Hours,
-			@RequestParam(required = false) Boolean hasParking) {
+			@RequestParam(required = false) Boolean hasParking,
+			@RequestParam(required = false) Boolean openNow) {
 		return ResponseEntity.ok(ApiResponse.success(
-				hospitalService.search(keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking)));
+				hospitalService.search(keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow)));
 	}
 
 	@GetMapping("/{hospitalId}")
@@ -63,6 +66,16 @@ public class HospitalController {
 			@Valid @RequestBody HospitalUpdateRequest request) {
 		HospitalResponse response = hospitalService.update(userDetails.getUser(), hospitalId, request);
 		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	// 요일별 진료 시간 전체 교체 — 기존 병원 정보 수정(PATCH)과 분리: 목록 편집이라 같이 보내면 실수로 지워지기 쉬움
+	@PutMapping("/{hospitalId}/opening-hours")
+	@PreAuthorize("hasRole('ADMIN') or hasRole('HOSPITAL_OWNER')")
+	public ResponseEntity<ApiResponse<HospitalResponse>> updateOpeningHours(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
+			@Valid @RequestBody OpeningHoursUpdateRequest request) {
+		return ResponseEntity.ok(ApiResponse.success(
+				hospitalService.updateWeeklyHours(userDetails.getUser(), hospitalId, request)));
 	}
 
 	@PostMapping("/{hospitalId}/image")

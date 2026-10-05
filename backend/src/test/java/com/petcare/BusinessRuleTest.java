@@ -752,6 +752,66 @@ class BusinessRuleTest {
 				.andExpect(status().isForbidden()); // 전체 통계는 여전히 ADMIN 전용
 	}
 
+	// ---------- 요일별 진료 시간 ----------
+
+	@Test
+	void 진료_시간을_등록하면_지금_진료_중_필터와_상세에_반영되고_잘못된_시간은_거부된다() throws Exception {
+		String tag = "영업" + suffix;
+		long allDay = createNamedHospital(tag + "-종일", false);
+		long otherDay = createNamedHospital(tag + "-다른요일", false);
+		createNamedHospital(tag + "-미등록", false);
+		long always = createNamedHospital(tag + "-24시", true);
+		String today = LocalDate.now().getDayOfWeek().name();
+		String notToday = LocalDate.now().getDayOfWeek().plus(1).name();
+
+		// 상세를 먼저 조회해 캐시에 올려둔 뒤 등록 → 수정이 캐시를 지우는지도 확인
+		assertThat(getData("/api/hospitals/" + allDay, userToken).get("weeklyHours")).isEmpty();
+		StringBuilder everyDay = new StringBuilder();
+		for (java.time.DayOfWeek day : java.time.DayOfWeek.values()) {
+			everyDay.append(everyDay.isEmpty() ? "" : ",")
+					.append("{\"dayOfWeek\":\"").append(day).append("\",\"openTime\":\"00:00\",\"closeTime\":\"23:59:59\"}");
+		}
+		mockMvc.perform(hoursRequest(allDay, everyDay.toString())).andExpect(status().isOk());
+		mockMvc.perform(hoursRequest(otherDay, hour(notToday, "09:00", "18:00"))).andExpect(status().isOk());
+		assertThat(getData("/api/hospitals/" + allDay, userToken).get("weeklyHours")).hasSize(7);
+
+		JsonNode open = getData("/api/hospitals?keyword=" + tag + "&openNow=true", userToken);
+		assertThat(open.findValuesAsText("id")).containsExactlyInAnyOrder(String.valueOf(allDay), String.valueOf(always));
+		assertThat(getData("/api/hospitals?keyword=" + tag, userToken)).hasSize(4); // 필터 없으면 전부
+
+		mockMvc.perform(hoursRequest(otherDay, hour(today, "18:00", "09:00"))).andExpect(status().isBadRequest());
+		mockMvc.perform(hoursRequest(otherDay, hour(today, "09:00", "13:00") + "," + hour(today, "12:00", "18:00")))
+				.andExpect(status().isBadRequest()); // 겹침
+		mockMvc.perform(hoursRequest(otherDay, hour(today, "08:00", "09:00") + "," + hour(today, "10:00", "11:00") + ","
+						+ hour(today, "12:00", "13:00") + "," + hour(today, "14:00", "15:00")))
+				.andExpect(status().isBadRequest()); // 요일당 3개 초과
+		mockMvc.perform(put("/api/hospitals/" + otherDay + "/opening-hours")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"hours\":[]}"))
+				.andExpect(status().isForbidden()); // 일반 유저
+	}
+
+	private long createNamedHospital(String name, boolean is24Hours) throws Exception {
+		return data(mockMvc.perform(post("/api/hospitals")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"" + name + "\",\"is24Hours\":" + is24Hours + "}"))
+				.andExpect(status().isCreated())
+				.andReturn()).get("id").asLong();
+	}
+
+	private String hour(String day, String open, String close) {
+		return "{\"dayOfWeek\":\"" + day + "\",\"openTime\":\"" + open + "\",\"closeTime\":\"" + close + "\"}";
+	}
+
+	private MockHttpServletRequestBuilder hoursRequest(long hospitalId, String hoursJson) {
+		return put("/api/hospitals/" + hospitalId + "/opening-hours")
+				.header("Authorization", "Bearer " + adminToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"hours\":[" + hoursJson + "]}");
+	}
+
 	// ---------- 병원 상세 캐시 ----------
 
 	@Test

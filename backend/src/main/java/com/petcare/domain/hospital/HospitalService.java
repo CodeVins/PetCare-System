@@ -3,10 +3,14 @@ package com.petcare.domain.hospital;
 import com.petcare.domain.hospital.dto.HospitalCreateRequest;
 import com.petcare.domain.hospital.dto.HospitalResponse;
 import com.petcare.domain.hospital.dto.HospitalUpdateRequest;
+import com.petcare.domain.hospital.dto.OpeningHoursUpdateRequest;
 import com.petcare.domain.user.User;
+import com.petcare.global.exception.BadRequestException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
 import com.petcare.global.file.FileStorageService;
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -57,15 +61,50 @@ public class HospitalService {
 		return toResponseWithRating(hospital);
 	}
 
+	private static final int MAX_HOURS_PER_DAY = 3;
+
+	@Transactional
+	@CacheEvict(cacheNames = CACHE, key = "#hospitalId")
+	public HospitalResponse updateWeeklyHours(User currentUser, Long hospitalId, OpeningHoursUpdateRequest request) {
+		Hospital hospital = findManagedHospital(currentUser, hospitalId);
+		List<OpeningHour> hours = request.hours().stream()
+				.map(hour -> new OpeningHour(hour.dayOfWeek(), hour.openTime(), hour.closeTime()))
+				.toList();
+		for (OpeningHour hour : hours) {
+			if (!hour.getOpenTime().isBefore(hour.getCloseTime())) {
+				throw new BadRequestException("종료 시간은 시작 시간보다 늦어야 합니다. 자정을 넘겨 운영하면 24시간 운영으로 설정해주세요.");
+			}
+		}
+		for (DayOfWeek day : DayOfWeek.values()) {
+			List<OpeningHour> sameDay = hours.stream().filter(hour -> hour.getDayOfWeek() == day).toList();
+			if (sameDay.size() > MAX_HOURS_PER_DAY) {
+				throw new BadRequestException("진료 시간은 요일당 " + MAX_HOURS_PER_DAY + "개까지 등록할 수 있습니다.");
+			}
+			for (int i = 0; i < sameDay.size(); i++) {
+				for (int j = i + 1; j < sameDay.size(); j++) {
+					if (sameDay.get(i).overlaps(sameDay.get(j))) {
+						throw new BadRequestException("같은 요일의 진료 시간이 서로 겹칩니다.");
+					}
+				}
+			}
+		}
+		hospital.replaceWeeklyHours(hours);
+		return toResponseWithRating(hospital);
+	}
+
 	private static final double EARTH_RADIUS_KM = 6371;
 
+	// 변경(2026-10-05): openNow(지금 진료 중만) 파라미터 추가 — 진료 시간이 요일별 구간 목록이라 DB 조건 대신 조회 후 자바로 거름
+	// (병원 수가 수천 단위까지는 문제없음, 진료 시간 미등록 병원은 제외) (이전: 없음)
 	public List<HospitalResponse> search(
 			String keyword, Double minRating, HospitalSortType sort, Double lat, Double lng, Double radiusKm,
-			Boolean is24Hours, Boolean hasParking) {
+			Boolean is24Hours, Boolean hasParking, Boolean openNow) {
 		boolean nearby = lat != null && lng != null && radiusKm != null;
 		// 변경(2026-10-02): 거리 검색이면 사각형 범위로 DB에서 1차 필터 후 아래에서 정확한 원으로 재필터 (이전: 전체 병원 조회 후 메모리 필터)
 		GeoBox box = nearby ? GeoBox.around(lat, lng, radiusKm) : null;
+		LocalDateTime now = LocalDateTime.now();
 		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort, is24Hours, hasParking, box).stream()
+				.filter(result -> !Boolean.TRUE.equals(openNow) || Boolean.TRUE.equals(result.hospital().isOpenAt(now)))
 				.map(result -> HospitalResponse.of(result.hospital(), result.averageRating(), result.reviewCount()))
 				.toList();
 
