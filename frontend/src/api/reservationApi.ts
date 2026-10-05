@@ -1,16 +1,15 @@
 import type { PageResponse, Reservation, ReservationType } from '../types/api'
 import axiosInstance, { type ApiPromise } from './axiosInstance'
 
-export function createReservation({
-  petId,
-  slotId,
-  type,
-}: {
+// 변경(2026-10-05): memo·healthCheckRecordId(선택) 추가 — 병원에 증상 메모와 최근 자가 문진 전달 (이전: 펫·슬롯·유형만)
+export function createReservation(payload: {
   petId: number
   slotId: number
   type: ReservationType
+  memo?: string | null
+  healthCheckRecordId?: number | null
 }): ApiPromise<Reservation> {
-  return axiosInstance.post('/api/reservations', { petId, slotId, type })
+  return axiosInstance.post('/api/reservations', payload)
 }
 
 export function getMyReservations(page = 0): ApiPromise<PageResponse<Reservation>> {

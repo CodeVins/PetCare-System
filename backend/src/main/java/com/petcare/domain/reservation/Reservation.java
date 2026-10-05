@@ -14,6 +14,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -52,13 +53,30 @@ public class Reservation extends BaseEntity {
 	@Column(name = "reminder_sent", nullable = false)
 	private boolean reminderSent;
 
+	// 보호자가 예약하면서 남긴 증상·요청 메모
+	@Column(length = 500)
+	private String memo;
+
+	// 예약 때 첨부한 자가 문진 결과의 복사본(요약 문구·작성일) — 원본 건강 기록을 나중에 지워도 병원은 예약 당시 내용을 그대로 봄
+	@Column(name = "health_check_summary")
+	private String healthCheckSummary;
+
+	@Column(name = "health_check_date")
+	private LocalDate healthCheckDate;
+
+	// 변경(2026-10-05): memo·자가 문진 복사본 파라미터 추가 (이전: 슬롯·펫·유저·상태·진료 종류만)
 	@Builder
-	private Reservation(Slot slot, Pet pet, User user, ReservationStatus status, ReservationType type) {
+	private Reservation(
+			Slot slot, Pet pet, User user, ReservationStatus status, ReservationType type, String memo,
+			String healthCheckSummary, LocalDate healthCheckDate) {
 		this.slot = slot;
 		this.pet = pet;
 		this.user = user;
 		this.status = status;
 		this.type = type;
+		this.memo = memo;
+		this.healthCheckSummary = healthCheckSummary;
+		this.healthCheckDate = healthCheckDate;
 	}
 
 	public boolean isOwnedBy(Long userId) {

@@ -493,6 +493,63 @@ class BusinessRuleTest {
 						+ (nextDueDate == null ? "" : ",\"nextDueDate\":\"" + nextDueDate + "\"") + "}");
 	}
 
+	// ---------- 예약에 자가 문진 첨부 ----------
+
+	@Test
+	void 예약에_최근_자가_문진과_메모를_첨부하면_병원이_예약_목록에서_본다() throws Exception {
+		long petId = createPet(userToken, "문진펫");
+		long otherPetId = createPet(userToken, "다른펫");
+		long recordId = submitHealthCheck(petId);
+		long otherPetRecordId = submitHealthCheck(otherPetId);
+		long oldRecordId = data(mockMvc.perform(post("/api/pets/" + petId + "/health-records")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"type\":\"HEALTH_CHECK\",\"recordedAt\":\"" + LocalDate.now().minusDays(20)
+								+ "\",\"content\":\"예전 문진\"}"))
+				.andExpect(status().isCreated())
+				.andReturn()).get("id").asLong();
+
+		LocalDateTime start = future(24);
+		long slotId = createSlot(hospitalId, start, start.plusMinutes(30));
+		// 다른 펫의 문진, 오래된 문진은 400 — 그리고 슬롯이 묶이지 않아야 함(바로 다음 요청이 성공)
+		mockMvc.perform(reservationWithAttachment(petId, slotId, otherPetRecordId, "메모"))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(reservationWithAttachment(petId, slotId, oldRecordId, "메모"))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(reservationWithAttachment(petId, slotId, recordId, "어제부터 귀를 긁어요"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.memo").value("어제부터 귀를 긁어요"))
+				.andExpect(jsonPath("$.data.healthCheckDate").value(LocalDate.now().toString()));
+
+		JsonNode reservation = getData("/api/admin/reservations?status=PENDING&size=100", adminToken).get("content")
+				.findParents("slotId").stream()
+				.filter(r -> r.get("slotId").asLong() == slotId)
+				.findFirst().orElseThrow();
+		assertThat(reservation.get("memo").asText()).isEqualTo("어제부터 귀를 긁어요");
+		assertThat(reservation.get("healthCheckSummary").asText())
+				.contains("식욕: 약간 줄었다").contains("구토: 1~2회").doesNotContain("배변");
+	}
+
+	private long submitHealthCheck(long petId) throws Exception {
+		return data(mockMvc.perform(post("/api/health-check/submit")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"petId\":" + petId + ",\"saveRecord\":true,\"answers\":["
+								+ "{\"questionId\":\"appetite\",\"optionId\":\"reduced\"},"
+								+ "{\"questionId\":\"stool\",\"optionId\":\"normal\"},"
+								+ "{\"questionId\":\"vomit\",\"optionId\":\"once\"}]}"))
+				.andExpect(status().isOk())
+				.andReturn()).get("savedHealthRecordId").asLong();
+	}
+
+	private MockHttpServletRequestBuilder reservationWithAttachment(long petId, long slotId, long recordId, String memo) {
+		return post("/api/reservations")
+				.header("Authorization", "Bearer " + userToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"petId\":" + petId + ",\"slotId\":" + slotId + ",\"type\":\"CHECKUP\",\"memo\":\"" + memo
+						+ "\",\"healthCheckRecordId\":" + recordId + "}");
+	}
+
 	// ---------- 병원 상세 캐시 ----------
 
 	@Test

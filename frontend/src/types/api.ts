@@ -349,6 +349,10 @@ export interface Reservation {
   hospitalName: string
   startTime: ISODateTime
   endTime: ISODateTime
+  // 예약 때 보호자가 남긴 증상·요청 메모, 첨부한 자가 문진(예약 당시 복사본)
+  memo: string | null
+  healthCheckSummary: string | null
+  healthCheckDate: ISODate | null
 }
 
 export interface Waitlist {

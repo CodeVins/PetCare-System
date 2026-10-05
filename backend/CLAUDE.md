@@ -38,7 +38,7 @@ com.petcare
 - PetGuardian: id, pet_id(FK), user_id(FK) — (pet_id, user_id) 유니크, 공동 보호자(가족 공유) 전용. 최초 등록자는 `Pet.user`로 이미 표현되므로 여기 포함 안 됨
 - Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), image_url(nullable), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
-- Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리
+- Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리, memo(nullable, 500자 — 보호자 증상·요청 메모), health_check_summary/health_check_date(nullable — 예약 때 첨부한 자가 문진의 복사본)
 - HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일), reservation_id(FK, nullable, unique — 병원이 진료 후 작성한 기록이면 해당 예약, 보호자 작성이면 null)
 - Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE, TREATMENT_RECORDED), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
 - NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
@@ -147,6 +147,14 @@ com.petcare
 - `POST /api/auth/password-reset/request`(이메일만 받음), `POST /api/auth/password-reset/confirm`(토큰+새 비밀번호) — 둘 다 `SecurityConfig` permitAll
 - ponytail: 실제 이메일 발송 미구현. `PasswordResetService`가 재설정 링크를 SLF4J 로그로만 남김(`[비밀번호 재설정] ...`) — 실사용 전 이메일 발송 연동 필요
 - 존재하지 않는 이메일로 요청해도 항상 200(계정 존재 여부 노출 방지), 토큰은 30분 유효 + 1회용(`isUsable()`), 만료/재사용 시 409
+
+## 예약에 증상 메모·자가 문진 첨부
+- 2026-10-05: `POST /api/reservations`에 `memo`(선택, 500자), `healthCheckRecordId`(선택) 추가 → `ReservationResponse.memo/healthCheckSummary/healthCheckDate`로 병원 예약 관리 화면과 내 예약에 표시
+- **첨부는 링크(FK)가 아니라 복사본**: 예약 생성 시점의 문진 기록 `content`·`recordedAt`을 `Reservation.healthCheckSummary/healthCheckDate`에 복사 — 병원은 예약 당시 내용을 그대로 보고, 보호자가 원본 건강 기록을 지워도 FK 위반(500) 없음
+- 첨부 조건: 같은 반려동물의 `HEALTH_CHECK` 기록 + 최근 14일 이내(`ReservationService.HEALTH_CHECK_ATTACH_DAYS`, 프론트 `ReservationNoteFields.ATTACH_DAYS`와 같은 값) — 아니면 400. 슬롯 `reserve()` 전에 검증
+- 자가 문진 저장 내용에 이상 소견(점수 > 0인 답변)을 같이 기록: `"자가 문진 결과: 총점 5점 (위험도: MEDIUM) — 식욕: 거의 먹지 않는다, 배변: 무르거나 설사한다"`(없으면 "특이 소견 없음"). `HealthRecord.content`가 varchar(255)라 넘치면 자름(`ddl-auto: update`는 기존 컬럼 길이를 안 바꿔서 늘릴 수 없음)
+- 프론트: 병원 상세 예약 폼의 `pages/hospital/ReservationNoteFields`(반려동물을 고르면 최근 14일 문진을 찾아 기본 체크, 없으면 "자가 문진 하기" 링크), 예약 관리 화면은 반려동물 칸 아래에 메모·문진 표시
+- 테스트: `BusinessRuleTest`(다른 펫 문진 400, 오래된 문진 400, 정상 첨부 시 메모·이상 소견 요약이 병원 목록에 나옴)
 
 ## 진료 기록 (병원 작성)
 - 2026-10-05: 진료 후 병원이 남기는 기록. **별도 테이블 없이 `HealthRecord`에 `reservation`을 연결해서 저장** — 보호자의 건강 기록 타임라인에 그대로 나오고, `nextDueDate`를 주면 기존 D-day 리마인더(`ReminderScheduler`)가 그대로 동작(새 스케줄러 없음)

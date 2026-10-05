@@ -153,6 +153,20 @@ export default function AdminReservationsPage() {
                         ) : (
                           <span className="text-stone-400">ID {reservation.petId}</span>
                         )}
+                        {/* 변경(2026-10-05): 보호자 증상 메모·첨부한 자가 문진을 반려동물 칸 아래에 표시 (이전: 펫 정보만) */}
+                        {reservation.memo && (
+                          <p className="mt-1 max-w-xs whitespace-pre-wrap text-xs text-stone-700">
+                            <span className="font-bold">메모</span> {reservation.memo}
+                          </p>
+                        )}
+                        {reservation.healthCheckSummary && (
+                          <p className="mt-1 max-w-xs text-xs text-sky-800">
+                            <span className="font-bold">
+                              자가 문진({reservation.healthCheckDate?.slice(5).replace('-', '/')})
+                            </span>{' '}
+                            {reservation.healthCheckSummary}
+                          </p>
+                        )}
                       </td>
                       <td className="admin-td text-stone-600">
                         {reservation.type ? (
