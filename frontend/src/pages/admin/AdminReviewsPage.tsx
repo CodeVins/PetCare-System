@@ -14,6 +14,7 @@ import type { ManagedReview } from '../../types/api'
 import AdminPageHeader from './AdminPageHeader'
 import AuthorCell from './AuthorCell'
 import ReviewFilterBar, { useReviewFilter } from './ReviewFilterBar'
+import ReviewImages from '../hospital/ReviewImages'
 
 // 리뷰 관리 — 관리자는 전체 병원, 병원 소유자는 본인 병원 리뷰만(서버 스코핑).
 // 공개 목록과 달리 숨긴 리뷰도 보이고, 작성자·신고 수·답글 여부를 한 줄에서 본다.
@@ -142,6 +143,17 @@ export default function AdminReviewsPage() {
                             <ChatText size={13} />
                             {review.reply ? '답글 있음' : '답글 없음'}
                           </span>
+                          {/* 변경(2026-10-05): 리뷰 사진 — 접힌 상태는 장수만, 펼치면 썸네일(부적절한 사진 확인용) (이전: 사진 없음) */}
+                          {review.imageUrls.length > 0 &&
+                            (expanded ? (
+                              <div className="mt-2">
+                                <ReviewImages imageUrls={review.imageUrls} />
+                              </div>
+                            ) : (
+                              <span className="ml-2 mt-1 inline-block text-xs text-stone-500">
+                                사진 {review.imageUrls.length}장
+                              </span>
+                            ))}
                         </td>
                         <td className="admin-td text-center">
                           {review.reportCount > 0 ? (

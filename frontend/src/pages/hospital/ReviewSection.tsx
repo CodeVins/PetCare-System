@@ -6,11 +6,15 @@ import {
   createReview,
   deleteReply,
   deleteReview,
+  deleteReviewImage,
   getReviews,
   reportReview,
   updateReply,
   updateReview,
+  uploadReviewImage,
+  MAX_REVIEW_IMAGES,
 } from '../../api/reviewApi'
+import ReviewImages from './ReviewImages'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
@@ -68,6 +72,9 @@ export default function ReviewSection({
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  // 새 리뷰와 함께 올릴 사진 — 리뷰를 만든 뒤 한 장씩 업로드
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const [reportingId, setReportingId] = useState<number | null>(null)
   const [reportReason, setReportReason] = useState('')
@@ -122,8 +129,20 @@ export default function ReviewSection({
         toast('리뷰를 수정했어요.')
       } else {
         const { data } = await createReview(hospitalId, { rating, content })
-        setReviews((prev) => [data.data, ...prev])
-        toast('리뷰를 등록했어요.')
+        // 변경(2026-10-05): 리뷰 생성 후 고른 사진을 한 장씩 업로드 — 사진 실패는 리뷰를 되돌리지 않고 안내만
+        // (이전: 사진 없음)
+        let created = data.data
+        let failed = 0
+        for (const file of newImages) {
+          try {
+            created = (await uploadReviewImage(hospitalId, created.id, file)).data.data
+          } catch {
+            failed += 1
+          }
+        }
+        setReviews((prev) => [created, ...prev])
+        setNewImages([])
+        toast(failed > 0 ? `리뷰를 등록했어요. 사진 ${failed}장은 올리지 못했어요.` : '리뷰를 등록했어요.')
       }
       cancelEdit()
     } catch (err) {
@@ -144,6 +163,39 @@ export default function ReviewSection({
     } catch (err) {
       // 변경(2026-09-27): 동작 실패는 토스트로 (이전: setError로 리뷰 목록 전체가 에러 문구로 바뀜)
       toast(errorMessage(err, '삭제에 실패했습니다.'), 'error')
+    }
+  }
+
+  // 내 리뷰에 사진 추가(남은 장수만큼) / 삭제 — 응답의 imageUrls로 교체(답글은 유지)
+  const replaceMyImages = (imageUrls: string[]) =>
+    setReviews((prev) =>
+      prev.map((review) => (review.id === myReviewId ? { ...review, imageUrls } : review)),
+    )
+
+  const handleImageAdd = async (files: FileList | null) => {
+    if (!myReview || !files) return
+    const room = MAX_REVIEW_IMAGES - myReview.imageUrls.length
+    setUploadingImage(true)
+    try {
+      for (const file of Array.from(files).slice(0, room)) {
+        const { data } = await uploadReviewImage(hospitalId, myReview.id, file)
+        replaceMyImages(data.data.imageUrls)
+      }
+      if (files.length > room) toast(`사진은 최대 ${MAX_REVIEW_IMAGES}장까지 올릴 수 있어요.`)
+    } catch (err) {
+      toast(errorMessage(err, '사진을 올리지 못했습니다.'), 'error')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handleImageDelete = async (imageUrl: string) => {
+    if (!myReview || !window.confirm('이 사진을 삭제할까요?')) return
+    try {
+      const { data } = await deleteReviewImage(hospitalId, myReview.id, imageUrl)
+      replaceMyImages(data.data.imageUrls)
+    } catch (err) {
+      toast(errorMessage(err, '사진을 삭제하지 못했습니다.'), 'error')
     }
   }
 
@@ -247,6 +299,31 @@ export default function ReviewSection({
             placeholder="진료 경험을 남겨 주세요"
             className="input resize-none"
           />
+          {/* 변경(2026-10-05): 새 리뷰에 사진 첨부(최대 3장) — 수정 때는 목록의 내 리뷰에서 사진을 추가/삭제 (이전: 사진 없음) */}
+          {!editing && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="review-images" className="text-sm font-medium text-stone-700">
+                사진 <span className="font-normal text-stone-500">(선택, 최대 {MAX_REVIEW_IMAGES}장 · jpg/png/webp 5MB)</span>
+              </label>
+              <input
+                id="review-images"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? [])
+                  if (files.length > MAX_REVIEW_IMAGES) {
+                    toast(`사진은 최대 ${MAX_REVIEW_IMAGES}장까지 올릴 수 있어요.`)
+                  }
+                  setNewImages(files.slice(0, MAX_REVIEW_IMAGES))
+                }}
+                className="text-sm text-stone-700 file:mr-3 file:rounded-full file:border-0 file:bg-stone-100 file:px-4 file:py-2 file:text-sm file:font-medium"
+              />
+              {newImages.length > 0 && (
+                <p className="text-xs text-stone-600">{newImages.map((file) => file.name).join(', ')}</p>
+              )}
+            </div>
+          )}
           <Alert tone="error">{formError}</Alert>
           <div className="flex gap-2">
             <Button type="submit" loading={saving} className="flex-1">
@@ -289,6 +366,27 @@ export default function ReviewSection({
                 </div>
 
                 <p className="whitespace-pre-wrap text-[15px]">{review.content}</p>
+
+                <ReviewImages
+                  imageUrls={review.imageUrls}
+                  onDelete={isMine ? handleImageDelete : undefined}
+                />
+                {isMine && review.imageUrls.length < MAX_REVIEW_IMAGES && (
+                  <label className={`${linkBtn} w-fit cursor-pointer text-brand-700`}>
+                    {uploadingImage ? '사진 올리는 중...' : `사진 추가 (${review.imageUrls.length}/${MAX_REVIEW_IMAGES})`}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      disabled={uploadingImage}
+                      onChange={(event) => {
+                        handleImageAdd(event.target.files)
+                        event.target.value = ''
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                )}
 
                 {review.reply && (
                   <div className="flex flex-col gap-0.5 rounded-xl bg-stone-100 px-3.5 py-3">

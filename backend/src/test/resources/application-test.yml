@@ -19,6 +19,7 @@ app:
   upload:
     pet-image-dir: build/test-uploads
     hospital-image-dir: build/test-uploads-hospitals
+    review-image-dir: build/test-uploads-reviews
   admin:
     bootstrap-email:
     bootstrap-password:

@@ -22,12 +22,16 @@ public class FileStorageService {
 
 	private final Path petImageDir;
 	private final Path hospitalImageDir;
+	private final Path reviewImageDir;
 
+	// 변경(2026-10-05): 리뷰 사진 디렉터리 추가 (이전: 반려동물·병원 사진만)
 	public FileStorageService(
 			@Value("${app.upload.pet-image-dir}") String petImageDir,
-			@Value("${app.upload.hospital-image-dir}") String hospitalImageDir) {
+			@Value("${app.upload.hospital-image-dir}") String hospitalImageDir,
+			@Value("${app.upload.review-image-dir}") String reviewImageDir) {
 		this.petImageDir = createDir(petImageDir);
 		this.hospitalImageDir = createDir(hospitalImageDir);
+		this.reviewImageDir = createDir(reviewImageDir);
 	}
 
 	private Path createDir(String dir) {
@@ -54,6 +58,14 @@ public class FileStorageService {
 
 	public void deleteHospitalImage(String imageUrl) {
 		delete(imageUrl, hospitalImageDir);
+	}
+
+	public String storeReviewImage(MultipartFile file) {
+		return store(file, reviewImageDir, "/uploads/reviews/");
+	}
+
+	public void deleteReviewImage(String imageUrl) {
+		delete(imageUrl, reviewImageDir);
 	}
 
 	private String store(MultipartFile file, Path dir, String urlPrefix) {
