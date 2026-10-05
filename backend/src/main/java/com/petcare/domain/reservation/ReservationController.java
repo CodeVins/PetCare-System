@@ -1,6 +1,7 @@
 package com.petcare.domain.reservation;
 
 import com.petcare.domain.reservation.dto.ReservationCreateRequest;
+import com.petcare.domain.reservation.dto.ReservationRescheduleRequest;
 import com.petcare.domain.reservation.dto.ReservationResponse;
 import com.petcare.global.common.ApiResponse;
 import com.petcare.global.common.PageResponse;
@@ -52,5 +53,13 @@ public class ReservationController {
 			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long reservationId) {
 		reservationService.cancel(userDetails.getUser().getId(), reservationId);
 		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	@PatchMapping("/{reservationId}/reschedule")
+	public ResponseEntity<ApiResponse<ReservationResponse>> reschedule(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long reservationId,
+			@Valid @RequestBody ReservationRescheduleRequest request) {
+		return ResponseEntity.ok(ApiResponse.success(
+				reservationService.reschedule(userDetails.getUser().getId(), reservationId, request.slotId())));
 	}
 }

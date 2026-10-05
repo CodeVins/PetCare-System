@@ -99,6 +99,13 @@ public class Reservation extends BaseEntity {
 		this.status = ReservationStatus.NO_SHOW;
 	}
 
+	// 같은 병원의 다른 시간으로 이동 — 병원이 새 시간을 다시 확인해야 하므로 PENDING으로, 리마인더도 새 시간 기준으로 다시
+	public void reschedule(Slot newSlot) {
+		this.slot = newSlot;
+		this.status = ReservationStatus.PENDING;
+		this.reminderSent = false;
+	}
+
 	public void markReminderSent() {
 		this.reminderSent = true;
 	}

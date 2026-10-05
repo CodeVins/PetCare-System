@@ -12,8 +12,9 @@ import StatusBadge from '../../components/common/StatusBadge'
 import { usePagedList } from '../../hooks/usePagedList'
 import { useToast } from '../../hooks/useToast'
 import { formatSlot, RESERVATION_TYPE_LABEL } from '../../lib/format'
+import RescheduleDialog from './RescheduleDialog'
 import ReservationTabs from './ReservationTabs'
-import type { ReservationStatus } from '../../types/api'
+import type { Reservation, ReservationStatus } from '../../types/api'
 
 const CANCELLABLE_STATUSES: ReservationStatus[] = ['PENDING', 'CONFIRMED']
 
@@ -43,6 +44,7 @@ export default function ReservationListPage() {
     loadingMore,
   } = usePagedList(getMyReservations, null, '예약 목록을 불러오지 못했습니다.')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [rescheduleTarget, setRescheduleTarget] = useState<Reservation | null>(null)
   const toast = useToast()
   const [statusFilter, setStatusFilter] = useState('ALL')
 
@@ -77,6 +79,18 @@ export default function ReservationListPage() {
     <div>
       <PageHeader title="예약" />
       <ReservationTabs />
+
+      {rescheduleTarget && (
+        <RescheduleDialog
+          key={rescheduleTarget.id}
+          reservation={rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          onRescheduled={(updated) => {
+            setReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
+            toast('예약 시간을 변경했어요. 병원이 확정하면 알려드릴게요.')
+          }}
+        />
+      )}
 
       {!loading && !error && reservations.length > 0 && (
         <div
@@ -169,7 +183,17 @@ export default function ReservationListPage() {
                   </p>
                 </div>
                 {CANCELLABLE_STATUSES.includes(reservation.status) && (
-                  <div className="mt-auto flex justify-end">
+                  <div className="mt-auto flex justify-end gap-2">
+                    {/* 변경(2026-10-05): 아직 시작 전인 예약은 같은 병원 다른 시간으로 변경 가능 (이전: 취소만) */}
+                    {new Date(reservation.startTime) > new Date() && (
+                      <button
+                        type="button"
+                        onClick={() => setRescheduleTarget(reservation)}
+                        className="chip h-11 px-4 font-bold"
+                      >
+                        시간 변경
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleCancel(reservation.id)}

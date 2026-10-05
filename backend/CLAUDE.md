@@ -65,6 +65,7 @@ com.petcare
 - `GET /api/admin/reservations?status=`, `PATCH /api/admin/reservations/{id}/confirm`, `PATCH /api/admin/reservations/{id}/reject` (전부 ADMIN 전용) — PENDING만 확정/거절 가능
 - 거절(REJECTED)과 취소(CANCELLED)는 의미가 달라서 별도 상태로 분리. 리뷰 작성 자격은 여전히 CONFIRMED 기준(PENDING/REJECTED 상태로는 리뷰 불가)
 - 유저는 PENDING이든 CONFIRMED든 취소 가능(`PATCH /api/reservations/{id}/cancel`), REJECTED/CANCELLED는 재취소 불가(409)
+- 예약 시간 변경(2026-10-05): `PATCH /api/reservations/{id}/reschedule` `{slotId}` — 예약한 본인만, PENDING/CONFIRMED + 아직 시작 전, 새 슬롯은 **같은 병원**(다른 병원은 취소 후 재예약, 400)·미래·AVAILABLE(아니면 409), 같은 슬롯이면 400. 한 트랜잭션에서 `newSlot.reserve()` + `oldSlot.release()` + `Reservation.reschedule()`(상태 PENDING으로 — 병원이 새 시간을 다시 확정, `reminderSent` 초기화). 취소 후 재예약하면 그 사이에 원래 자리를 뺏길 수 있어서 맞바꿈으로 처리. 새 슬롯을 동시에 노리는 예약·변경끼리는 Slot `@Version`으로 하나만 성공, 진 쪽은 409 + 롤백이라 기존 예약은 원래 슬롯 그대로. 병원 소유자에게 `RESERVATION_REQUESTED`("예약 시간 변경 요청"), 비워진 원래 슬롯은 `WaitlistService.notifyNextInLine()`. 테스트: `BusinessRuleTest`(규칙), `ReservationFlowTest`(변경 1 + 새 예약 4가 같은 슬롯 동시 요청 → 성공 1, 진 경우 원래 슬롯 유지)
 
 ## 리마인더/스케줄러
 - `ReminderScheduler`(domain/notification, `@Scheduled(cron="0 0 9 * * *")`): 접종 예정일이 오늘~D-3 사이인 기록, 지금~내일 끝 사이에 시작하는 CONFIRMED 예약에 알림 생성(남은 일수/오늘·내일 문구는 실제 계산). `@Transactional` 필수(지연 로딩 엔티티를 세션 밖에서 접근하면 `LazyInitializationException` 남)
