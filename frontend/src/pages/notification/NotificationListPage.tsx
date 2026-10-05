@@ -5,6 +5,7 @@ import {
   ChatCircleDots,
   Clock,
   Syringe,
+  Stethoscope,
   type Icon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
@@ -34,6 +35,7 @@ const TYPE_ICON: Partial<Record<NotificationType, Icon>> = {
   FAVORITE_HOSPITAL_NEW_SLOT: CalendarCheck,
   CHAT_MESSAGE_RECEIVED: ChatCircleDots,
   WAITLIST_SLOT_AVAILABLE: Clock,
+  TREATMENT_RECORDED: Stethoscope,
 }
 
 export default function NotificationListPage() {

@@ -122,6 +122,7 @@ src
   DESIGN_SPEC 기준. Jua는 index.html에서 `display=block`으로 따로 로드(조각 로딩 중 폰트 섞임 방지)
 - 목록 "더 보기"는 `hooks/usePagedList` 재사용 (PageResponse 목록 새로 붙일 때).
 - 채팅 UI(2026-10-02): 채팅방은 WebSocket 구독으로 새 메시지만 붙임(id로 중복 제거 — 내 메시지는 REST 응답과 WebSocket으로 두 번 옴). 채팅 목록은 방 칸마다 빨간 안 읽은 수 배지(헤더 알림 배지와 같은 스타일), 알림 SSE가 오면 목록 재조회로 갱신. 헤더 채팅 아이콘도 `UnreadDot`으로 전체 합계 표시(`Header`에서 알림 수신·페이지 이동 때 재조회 — 채팅 알림을 끈 유저는 페이지 이동 때만 갱신). 알림 목록에서 `CHAT_MESSAGE_RECEIVED`는 하늘색(`bg-sky-50`, `icon-badge-sky`, 점 `bg-sky-600`) + "채팅" 라벨로 구분하고 누르면 `/chats`로 이동 — 다른 알림은 브랜드색 유지
+- 진료 기록(2026-10-05): 예약 관리 화면(`AdminReservationsPage` — 관리자·병원 소유자 공용)에서 진료 시간이 지난 CONFIRMED 예약에 "진료 기록" 버튼 → `pages/admin/TreatmentRecordDialog`(열 때 기존 기록을 불러와 수정, 종류 진료/접종, 다음 예정일은 진료일 다음 날부터). 반려동물 건강 기록 목록은 `hospitalName`이 있으면 "OO병원 작성" 하늘색 배지 + 수정/삭제 버튼 숨김, 다음 예정일 문구는 접종만 "다음 접종", 나머지는 "다음 내원". 알림 아이콘 `TREATMENT_RECORDED: Stethoscope`
 **날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
 - 디자인: **DESIGN_SPEC.md**가 단일 기준(색·폰트·형태·레이아웃). `petcare-ui-source/`
   는 화면별 HTML 시안 원본. 2026-09-22에 전 화면 이식 완료 — teal `#0F766E` accent,

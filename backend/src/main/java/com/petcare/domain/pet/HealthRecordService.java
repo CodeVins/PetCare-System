@@ -83,6 +83,11 @@ public class HealthRecordService {
 		if (!record.getPet().getId().equals(petId)) {
 			throw new NotFoundException("건강 기록을 찾을 수 없습니다.");
 		}
+		// 변경(2026-10-05): 병원이 작성한 진료 기록은 보호자가 수정·삭제 불가 — 진료 기록의 신뢰성 유지
+		// (이전: 모든 기록이 보호자 작성이라 구분 없음). 수정·삭제 경로만 이 메서드를 씀
+		if (record.isWrittenByHospital()) {
+			throw new ForbiddenException("병원이 작성한 진료 기록은 수정하거나 삭제할 수 없습니다.");
+		}
 		return record;
 	}
 

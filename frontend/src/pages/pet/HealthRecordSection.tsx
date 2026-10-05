@@ -218,6 +218,12 @@ export default function HealthRecordSection({ petId }: { petId: number | string 
                     <p className="text-[13px] font-bold text-stone-500">
                       {label}
                       <span className="sr-only"> · {formatDateLabel(record.recordedAt)}</span>
+                      {/* 변경(2026-10-05): 병원이 작성한 진료 기록 표시 (이전: 작성 주체 구분 없음) */}
+                      {record.hospitalName && (
+                        <span className="badge ml-2 h-5 bg-sky-100 px-1.5 text-[11px] font-bold text-sky-700">
+                          {record.hospitalName} 작성
+                        </span>
+                      )}
                     </p>
                     {record.type === 'WEIGHT' && record.weight != null && (
                       <p className="text-lg font-bold leading-snug">
@@ -239,12 +245,16 @@ export default function HealthRecordSection({ petId }: { petId: number | string 
                     {record.nextDueDate && (
                       <p className="mt-1.5">
                         <span className="badge badge-wait h-6 px-2 text-xs">
-                          다음 접종 {formatDateLabel(record.nextDueDate)}
+                          {/* 변경(2026-10-05): 접종 외 기록은 "다음 내원" — 병원 진료 기록의 다음 내원일 (이전: 항상 "다음 접종") */}
+                          다음 {record.type === 'VACCINATION' ? '접종' : '내원'}{' '}
+                          {formatDateLabel(record.nextDueDate)}
                         </span>
                       </p>
                     )}
                   </div>
 
+                  {/* 변경(2026-10-05): 병원 작성 기록은 수정·삭제 버튼 숨김 — 서버도 403 (이전: 모든 기록에 버튼) */}
+                  {!record.hospitalName && (
                   <div className="-mr-2 flex shrink-0 items-start">
                     <button
                       type="button"
@@ -263,6 +273,7 @@ export default function HealthRecordSection({ petId }: { petId: number | string 
                       <Trash size={17} />
                     </button>
                   </div>
+                  )}
                 </li>
               )
             })}
