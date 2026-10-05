@@ -550,6 +550,45 @@ class BusinessRuleTest {
 						+ "\",\"healthCheckRecordId\":" + recordId + "}");
 	}
 
+	// ---------- 예약 시간 변경 ----------
+
+	@Test
+	void 예약_시간을_같은_병원_다른_시간으로_바꾸면_다시_확정_대기가_되고_원래_자리가_열린다() throws Exception {
+		long petId = createPet(userToken, "변경펫");
+		LocalDateTime start = future(48);
+		long oldSlotId = createSlot(hospitalId, start, start.plusMinutes(30));
+		long newSlotId = createSlot(hospitalId, start.plusHours(1), start.plusHours(1).plusMinutes(30));
+		long takenSlotId = createSlot(hospitalId, start.plusHours(2), start.plusHours(2).plusMinutes(30));
+		long otherHospitalSlot = createSlot(createHospital(), start, start.plusMinutes(30));
+		long reservationId = createReservation(userToken, petId, oldSlotId);
+		mockMvc.perform(patch("/api/admin/reservations/" + reservationId + "/confirm")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+
+		String otherToken = signupAndLogin("other-resch-" + suffix + "@petcare.com");
+		createReservation(otherToken, createPet(otherToken, "남의펫"), takenSlotId);
+
+		mockMvc.perform(rescheduleRequest(userToken, reservationId, oldSlotId)).andExpect(status().isBadRequest());
+		mockMvc.perform(rescheduleRequest(userToken, reservationId, otherHospitalSlot)).andExpect(status().isBadRequest());
+		mockMvc.perform(rescheduleRequest(userToken, reservationId, takenSlotId)).andExpect(status().isConflict());
+		mockMvc.perform(rescheduleRequest(otherToken, reservationId, newSlotId)).andExpect(status().isForbidden());
+
+		mockMvc.perform(rescheduleRequest(userToken, reservationId, newSlotId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.slotId").value(newSlotId))
+				.andExpect(jsonPath("$.data.status").value("PENDING")); // 병원이 새 시간을 다시 확정해야 함
+
+		// 원래 자리는 다시 열려서 다른 사람이 예약 가능
+		createReservation(otherToken, createPet(otherToken, "남의펫2"), oldSlotId);
+	}
+
+	private MockHttpServletRequestBuilder rescheduleRequest(String token, long reservationId, long slotId) {
+		return patch("/api/reservations/" + reservationId + "/reschedule")
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"slotId\":" + slotId + "}");
+	}
+
 	// ---------- 병원 상세 캐시 ----------
 
 	@Test

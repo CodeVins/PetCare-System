@@ -124,6 +124,46 @@ public class ReservationService {
 		waitlistService.notifyNextInLine(reservation.getSlot());
 	}
 
+	// 취소 후 재예약 대신 한 트랜잭션에서 슬롯을 맞바꿈 — 그 사이에 다른 사람이 원래 자리를 가져가는 일이 없음.
+	// 새 슬롯을 동시에 잡으려는 요청끼리는 Slot @Version 낙관적 락으로 하나만 성공(나머지 409)
+	@Transactional
+	public ReservationResponse reschedule(Long userId, Long reservationId, Long newSlotId) {
+		Reservation reservation = getOwnedReservation(userId, reservationId);
+		if (!isCancellable(reservation.getStatus())) {
+			throw new ConflictException("변경할 수 없는 예약 상태입니다.");
+		}
+		Slot oldSlot = reservation.getSlot();
+		if (oldSlot.hasStarted()) {
+			throw new ConflictException("이미 지난 예약은 변경할 수 없습니다.");
+		}
+		Slot newSlot = slotRepository.findById(newSlotId)
+				.orElseThrow(() -> new NotFoundException("예약 가능 시간을 찾을 수 없습니다."));
+		if (newSlot.getId().equals(oldSlot.getId())) {
+			throw new BadRequestException("지금과 다른 시간을 선택해주세요.");
+		}
+		if (!newSlot.getHospital().getId().equals(oldSlot.getHospital().getId())) {
+			throw new BadRequestException("같은 병원의 시간으로만 변경할 수 있습니다. 다른 병원은 취소 후 새로 예약해주세요.");
+		}
+		if (newSlot.hasStarted()) {
+			throw new ConflictException("이미 지난 시간으로는 변경할 수 없습니다.");
+		}
+		if (!newSlot.isAvailable()) {
+			throw new ConflictException("이미 예약된 시간입니다.");
+		}
+
+		newSlot.reserve();
+		oldSlot.release();
+		reservation.reschedule(newSlot);
+
+		User owner = newSlot.getHospital().getOwner();
+		if (owner != null) {
+			notificationService.notify(owner.getId(), NotificationType.RESERVATION_REQUESTED,
+					"예약 시간 변경 요청이 들어왔습니다. 확정 또는 거절해주세요.");
+		}
+		waitlistService.notifyNextInLine(oldSlot);
+		return ReservationResponse.from(reservation);
+	}
+
 	public PageResponse<ReservationResponse> getAllForAdmin(User currentUser, ReservationStatus status, Pageable pageable) {
 		Page<Reservation> reservations;
 		if (currentUser.getRole() == Role.ADMIN) {

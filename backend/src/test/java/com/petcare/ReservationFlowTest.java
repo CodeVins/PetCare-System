@@ -122,6 +122,71 @@ class ReservationFlowTest {
 		assertThat(successCount.get()).isEqualTo(1);
 	}
 
+	@Test
+	void 시간_변경과_새_예약이_같은_슬롯을_동시에_노리면_하나만_성공한다() throws Exception {
+		long petId = createPet("변경펫");
+		long oldSlotId = createSlot(hospitalId, "2027-03-01T10:00:00", "2027-03-01T10:30:00");
+		long targetSlotId = createSlot(hospitalId, "2027-03-01T11:00:00", "2027-03-01T11:30:00");
+		MvcResult created = mockMvc.perform(post("/api/reservations")
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"petId\":" + petId + ",\"slotId\":" + oldSlotId + ",\"type\":\"CHECKUP\"}"))
+				.andExpect(status().isCreated())
+				.andReturn();
+		long reservationId = extractId(created);
+
+		// 1개 스레드는 기존 예약을 targetSlot으로 변경, 나머지는 targetSlot에 새로 예약
+		int threadCount = 5;
+		ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+		CountDownLatch ready = new CountDownLatch(threadCount);
+		CountDownLatch start = new CountDownLatch(1);
+		CountDownLatch done = new CountDownLatch(threadCount);
+		AtomicInteger successCount = new AtomicInteger();
+		AtomicInteger rescheduleStatus = new AtomicInteger();
+
+		for (int i = 0; i < threadCount; i++) {
+			boolean isReschedule = i == 0;
+			executor.submit(() -> {
+				try {
+					ready.countDown();
+					start.await();
+					MvcResult result = mockMvc.perform(isReschedule
+									? patch("/api/reservations/" + reservationId + "/reschedule")
+											.header("Authorization", "Bearer " + userToken)
+											.contentType(MediaType.APPLICATION_JSON)
+											.content("{\"slotId\":" + targetSlotId + "}")
+									: post("/api/reservations")
+											.header("Authorization", "Bearer " + userToken)
+											.contentType(MediaType.APPLICATION_JSON)
+											.content("{\"petId\":" + petId + ",\"slotId\":" + targetSlotId
+													+ ",\"type\":\"CHECKUP\"}"))
+							.andReturn();
+					int code = result.getResponse().getStatus();
+					if (isReschedule) {
+						rescheduleStatus.set(code);
+					}
+					if (code == 200 || code == 201) {
+						successCount.incrementAndGet();
+					}
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				} finally {
+					done.countDown();
+				}
+			});
+		}
+		ready.await(5, TimeUnit.SECONDS);
+		start.countDown();
+		done.await(10, TimeUnit.SECONDS);
+		executor.shutdown();
+
+		assertThat(successCount.get()).isEqualTo(1);
+		// 변경이 졌다면 기존 예약은 원래 슬롯 그대로여야 함(반쯤 옮겨진 상태 없음)
+		long expectedSlot = rescheduleStatus.get() == 200 ? targetSlotId : oldSlotId;
+		mockMvc.perform(get("/api/reservations/" + reservationId).header("Authorization", "Bearer " + userToken))
+				.andExpect(jsonPath("$.data.slotId").value(expectedSlot));
+	}
+
 	private void signup(String email, String password) throws Exception {
 		mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
