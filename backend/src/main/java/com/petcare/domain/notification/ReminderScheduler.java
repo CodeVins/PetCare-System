@@ -1,6 +1,7 @@
 package com.petcare.domain.notification;
 
 import com.petcare.domain.pet.HealthRecord;
+import com.petcare.domain.pet.HealthRecordType;
 import com.petcare.domain.pet.HealthRecordRepository;
 import com.petcare.domain.pet.PetGuardian;
 import com.petcare.domain.pet.PetGuardianRepository;
@@ -36,7 +37,10 @@ public class ReminderScheduler {
 				today, today.plusDays(VACCINATION_REMIND_DAYS));
 		for (HealthRecord record : dueSoon) {
 			long daysLeft = ChronoUnit.DAYS.between(today, record.getNextDueDate());
-			String content = record.getPet().getName() + "의 다음 접종 예정일이 "
+			// 변경(2026-10-05): 접종 기록만 "접종", 그 외(병원 진료 기록의 다음 내원일 등)는 "내원" 예정일로 안내
+			// (이전: 종류와 상관없이 "접종 예정일" — 병원이 진료 기록에 다음 내원일을 넣으면 문구가 틀림)
+			String label = record.getType() == HealthRecordType.VACCINATION ? "접종" : "내원";
+			String content = record.getPet().getName() + "의 다음 " + label + " 예정일이 "
 					+ (daysLeft == 0 ? "오늘입니다." : daysLeft + "일 남았습니다.");
 			// 변경(2026-09-27): 최초 등록자 + 공동보호자 전원에게 발송 — 일상 관리 권한이 동등한데 알림만 등록자에게 가던 불일치
 			// (이전: record.getPet().getUser()에게만)

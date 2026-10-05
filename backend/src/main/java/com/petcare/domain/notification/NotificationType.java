@@ -10,7 +10,8 @@ public enum NotificationType {
 	VACCINATION_DUE_SOON(NotificationCategory.VACCINATION),
 	FAVORITE_HOSPITAL_NEW_SLOT(NotificationCategory.FAVORITE),
 	CHAT_MESSAGE_RECEIVED(NotificationCategory.CHAT),
-	WAITLIST_SLOT_AVAILABLE(NotificationCategory.WAITLIST);
+	WAITLIST_SLOT_AVAILABLE(NotificationCategory.WAITLIST),
+	TREATMENT_RECORDED(NotificationCategory.RESERVATION);
 
 	private final NotificationCategory category;
 

@@ -39,8 +39,8 @@ com.petcare
 - Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), image_url(nullable), owner_id(FK, nullable) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님)
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
 - Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리
-- HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일)
-- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
+- HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일), reservation_id(FK, nullable, unique — 병원이 진료 후 작성한 기록이면 해당 예약, 보호자 작성이면 null)
+- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE, TREATMENT_RECORDED), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
 - NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
 - Favorite: id, user_id(FK), hospital_id(FK), (user_id, hospital_id) 유니크
 - Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, hidden(boolean, 기본 false) — (user_id, hospital_id) 유니크(병원당 리뷰 1개), 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
@@ -147,6 +147,15 @@ com.petcare
 - `POST /api/auth/password-reset/request`(이메일만 받음), `POST /api/auth/password-reset/confirm`(토큰+새 비밀번호) — 둘 다 `SecurityConfig` permitAll
 - ponytail: 실제 이메일 발송 미구현. `PasswordResetService`가 재설정 링크를 SLF4J 로그로만 남김(`[비밀번호 재설정] ...`) — 실사용 전 이메일 발송 연동 필요
 - 존재하지 않는 이메일로 요청해도 항상 200(계정 존재 여부 노출 방지), 토큰은 30분 유효 + 1회용(`isUsable()`), 만료/재사용 시 409
+
+## 진료 기록 (병원 작성)
+- 2026-10-05: 진료 후 병원이 남기는 기록. **별도 테이블 없이 `HealthRecord`에 `reservation`을 연결해서 저장** — 보호자의 건강 기록 타임라인에 그대로 나오고, `nextDueDate`를 주면 기존 D-day 리마인더(`ReminderScheduler`)가 그대로 동작(새 스케줄러 없음)
+- `GET/PUT /api/admin/reservations/{reservationId}/treatment` (`AdminReservationController`, ADMIN 또는 해당 병원 HOSPITAL_OWNER — `isManagedBy` 재검증). PUT은 작성/수정 겸용(예약당 1개, `reservation_id` 유니크), GET은 없으면 data null. `TreatmentRecordService`(domain/reservation)
+- 규칙: CONFIRMED + 진료 시작 시간이 지난 예약만(노쇼와 같은 `hasStarted()` 기준, 아니면 409), type은 TREATMENT/VACCINATION만(400), `nextDueDate`는 진료일 다음 날부터(400), recordedAt은 진료일(슬롯 시작일) 고정. 처음 작성할 때만 예약자에게 `TREATMENT_RECORDED` 알림(카테고리 RESERVATION)
+- 보호자는 조회만 — `HealthRecordService.getOwnedRecord()`(수정·삭제 경로)에서 `isWrittenByHospital()`이면 403. `HealthRecordResponse.hospitalName`(병원 작성이면 병원명, 아니면 null)으로 프론트가 "OO병원 작성" 배지 + 수정/삭제 버튼 숨김
+- 리마인더 문구: VACCINATION만 "다음 접종 예정일", 그 외는 "다음 내원 예정일"
+- 예약 상태는 진료 후에도 CONFIRMED 그대로(COMPLETED 상태를 추가하면 리뷰 작성 자격 등 CONFIRMED 기준 로직을 전부 손봐야 해서 의도적으로 안 함 — 진료 기록 존재 여부로 진료 완료를 판단)
+- 테스트: `BusinessRuleTest`의 진료 기록 테스트(시간 전 409, 타입 400, 재저장 시 수정, 알림 1회, 보호자 수정·삭제 403)
 
 ## 건강 기록 통계
 - `GET /api/pets/{petId}/health-records/summary` — 체중 기록(`WEIGHT` 타입)을 시간순으로 모은 `weightHistory`(그래프용), `latestWeight`, 타입별 기록 개수(`countByType`)를 한 번에 반환

@@ -44,6 +44,7 @@ export type NotificationType =
   | 'FAVORITE_HOSPITAL_NEW_SLOT'
   | 'CHAT_MESSAGE_RECEIVED'
   | 'WAITLIST_SLOT_AVAILABLE'
+  | 'TREATMENT_RECORDED'
 export type NotificationCategory = 'RESERVATION' | 'VACCINATION' | 'FAVORITE' | 'CHAT' | 'WAITLIST'
 export type HealthRecordType =
   | 'WEIGHT'
@@ -137,6 +138,8 @@ export interface HealthRecord {
   content: string
   weight: number | null
   nextDueDate: ISODate | null
+  // 병원이 진료 후 작성한 기록이면 병원 이름 (보호자는 수정·삭제 불가), 직접 쓴 기록이면 null
+  hospitalName: string | null
 }
 
 export interface HealthRecordPayload {

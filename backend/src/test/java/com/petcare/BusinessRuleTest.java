@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -442,6 +443,54 @@ class BusinessRuleTest {
 						.content("{\"refreshToken\":\"" + refreshToken + "\"}"))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.message").value("정지된 계정입니다. 관리자에게 문의해주세요."));
+	}
+
+	// ---------- 진료 기록 ----------
+
+	@Test
+	void 병원은_지난_확정_예약에만_진료_기록을_남기고_보호자는_수정할_수_없다() throws Exception {
+		long petId = createPet(userToken, "진료펫");
+		LocalDateTime start = future(24);
+		long futureReservation = createReservation(userToken, petId, createSlot(hospitalId, start, start.plusMinutes(30)));
+		mockMvc.perform(patch("/api/admin/reservations/" + futureReservation + "/confirm")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		mockMvc.perform(treatmentRequest(futureReservation, "TREATMENT", "피부염 진료", null))
+				.andExpect(status().isConflict()); // 진료 시간 전
+
+		long pastReservation = savePastConfirmedReservation(petId);
+		mockMvc.perform(treatmentRequest(pastReservation, "WEIGHT", "체중", null))
+				.andExpect(status().isBadRequest()); // 진료/접종만
+		String nextVisit = LocalDate.now().plusDays(14).toString();
+		mockMvc.perform(treatmentRequest(pastReservation, "TREATMENT", "피부염 진료, 연고 처방", nextVisit))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.hospitalName").value("규칙테스트병원"));
+		// 다시 저장하면 새로 만들지 않고 수정
+		mockMvc.perform(treatmentRequest(pastReservation, "TREATMENT", "피부염 진료, 연고·약 처방", nextVisit))
+				.andExpect(status().isOk());
+
+		JsonNode records = getData("/api/pets/" + petId + "/health-records", userToken).get("content");
+		assertThat(records).hasSize(1);
+		JsonNode record = records.get(0);
+		assertThat(record.get("content").asText()).isEqualTo("피부염 진료, 연고·약 처방");
+		assertThat(record.get("nextDueDate").asText()).isEqualTo(nextVisit);
+		assertThat(countOf(notificationTypes(userToken), "TREATMENT_RECORDED")).isEqualTo(1); // 생성 때만
+
+		String recordUrl = "/api/pets/" + petId + "/health-records/" + record.get("id").asLong();
+		mockMvc.perform(patch(recordUrl).header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"type\":\"TREATMENT\",\"recordedAt\":\"" + LocalDate.now() + "\",\"content\":\"고침\"}"))
+				.andExpect(status().isForbidden());
+		mockMvc.perform(delete(recordUrl).header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isForbidden());
+	}
+
+	private MockHttpServletRequestBuilder treatmentRequest(long reservationId, String type, String content, String nextDueDate) {
+		return put("/api/admin/reservations/" + reservationId + "/treatment")
+				.header("Authorization", "Bearer " + adminToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"type\":\"" + type + "\",\"content\":\"" + content + "\""
+						+ (nextDueDate == null ? "" : ",\"nextDueDate\":\"" + nextDueDate + "\"") + "}");
 	}
 
 	// ---------- 병원 상세 캐시 ----------

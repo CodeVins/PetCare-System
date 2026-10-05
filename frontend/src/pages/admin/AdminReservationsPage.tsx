@@ -11,8 +11,9 @@ import StatusBadge from '../../components/common/StatusBadge'
 import { usePagedList } from '../../hooks/usePagedList'
 import { useToast } from '../../hooks/useToast'
 import { formatSlot, RESERVATION_TYPE_LABEL, reservationPetCaption } from '../../lib/format'
-import type { ReservationStatus } from '../../types/api'
+import type { Reservation, ReservationStatus } from '../../types/api'
 import AdminPageHeader from './AdminPageHeader'
+import TreatmentRecordDialog from './TreatmentRecordDialog'
 
 const FILTERS: { value: ReservationStatus | ''; label: string }[] = [
   { value: 'PENDING', label: '대기중' },
@@ -53,6 +54,7 @@ export default function AdminReservationsPage() {
     '예약 목록을 불러오지 못했습니다.',
   )
   const [actingId, setActingId] = useState<number | null>(null)
+  const [treatmentTarget, setTreatmentTarget] = useState<Reservation | null>(null)
   const toast = useToast()
 
   const handleAction = async (reservationId: number, action: keyof typeof ACTION_FNS) => {
@@ -72,6 +74,15 @@ export default function AdminReservationsPage() {
   return (
     <div>
       <AdminPageHeader title="예약" description="병원 예약 요청을 확인하고 처리합니다" />
+
+      {treatmentTarget && (
+        <TreatmentRecordDialog
+          key={treatmentTarget.id}
+          reservation={treatmentTarget}
+          onClose={() => setTreatmentTarget(null)}
+          onSaved={() => toast('진료 기록을 저장했어요. 보호자의 건강 기록에 표시됩니다.')}
+        />
+      )}
 
       <div className="admin-card overflow-hidden">
         <div className="flex flex-wrap gap-2 border-b border-stone-100 p-5">
@@ -175,6 +186,17 @@ export default function AdminReservationsPage() {
                               </button>
                             </>
                           )}
+                          {/* 변경(2026-10-05): 진료 시간이 지난 확정 예약에 "진료 기록" 버튼 추가 (이전: 노쇼 처리만) */}
+                          {reservation.status === 'CONFIRMED' &&
+                            new Date(reservation.startTime) <= new Date() && (
+                              <button
+                                type="button"
+                                onClick={() => setTreatmentTarget(reservation)}
+                                className="admin-btn-primary"
+                              >
+                                진료 기록
+                              </button>
+                            )}
                           {reservation.status === 'CONFIRMED' && (
                             <button
                               type="button"

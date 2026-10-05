@@ -1,5 +1,6 @@
 package com.petcare.domain.pet;
 
+import com.petcare.domain.reservation.Reservation;
 import com.petcare.global.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,14 +55,33 @@ public class HealthRecord extends BaseEntity {
 	@Column(name = "reminded_due_date")
 	private LocalDate remindedDueDate;
 
+	// 병원이 진료 후 작성한 기록이면 해당 예약(예약당 1개), 보호자가 직접 쓴 기록이면 null
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "reservation_id", unique = true)
+	private Reservation reservation;
+
+	// 변경(2026-10-05): reservation 파라미터 추가 — 병원 작성 진료 기록 생성용 (이전: 보호자 작성 기록만)
 	@Builder
 	private HealthRecord(
-			Pet pet, HealthRecordType type, LocalDate recordedAt, String content, Double weight, LocalDate nextDueDate) {
+			Pet pet, HealthRecordType type, LocalDate recordedAt, String content, Double weight, LocalDate nextDueDate,
+			Reservation reservation) {
 		this.pet = pet;
 		this.type = type;
 		this.recordedAt = recordedAt;
 		this.content = content;
 		this.weight = weight;
+		this.nextDueDate = nextDueDate;
+		this.reservation = reservation;
+	}
+
+	public boolean isWrittenByHospital() {
+		return reservation != null;
+	}
+
+	// 병원 작성 기록 수정 — 날짜·체중은 예약 기준이라 안 바뀜
+	public void updateTreatment(HealthRecordType type, String content, LocalDate nextDueDate) {
+		this.type = type;
+		this.content = content;
 		this.nextDueDate = nextDueDate;
 	}
 
