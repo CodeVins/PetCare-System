@@ -4,6 +4,7 @@ import com.petcare.domain.hospital.Slot;
 import com.petcare.domain.pet.Pet;
 import com.petcare.domain.user.User;
 import com.petcare.global.common.BaseEntity;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -13,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -40,6 +42,11 @@ public class Waitlist extends BaseEntity {
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
+	// 자리가 나서 이 사람에게 차례를 알린 시각 — null이면 아직 대기 중. 이 시각부터 OFFER_MINUTES 안에 예약하지 않으면
+	// WaitlistOfferScheduler가 항목을 지우고 다음 사람에게 넘김
+	@Column(name = "offered_at")
+	private LocalDateTime offeredAt;
+
 	@Builder
 	private Waitlist(Slot slot, Pet pet, User user) {
 		this.slot = slot;
@@ -49,5 +56,9 @@ public class Waitlist extends BaseEntity {
 
 	public boolean isOwnedBy(Long userId) {
 		return this.user.getId().equals(userId);
+	}
+
+	public void markOffered(LocalDateTime now) {
+		this.offeredAt = now;
 	}
 }

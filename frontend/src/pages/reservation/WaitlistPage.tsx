@@ -9,7 +9,7 @@ import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
 import { useToast } from '../../hooks/useToast'
-import { formatSlot } from '../../lib/format'
+import { formatDateTime, formatSlot } from '../../lib/format'
 import ReservationTabs from './ReservationTabs'
 
 export default function WaitlistPage() {
@@ -83,17 +83,35 @@ export default function WaitlistPage() {
       {!loading && !error && waitlist.length > 0 && (
         <Reveal className="flex flex-col gap-3 md:grid md:grid-cols-2" stagger={0.05}>
           {waitlist.map((item) => {
+            // 변경(2026-10-05): 차례를 받은 항목은 "자리 났어요" + 예약 기한 + 예약하러 가기 (이전: 항상 "대기 중")
+            const offered = item.offerExpiresAt != null
             return (
               <RevealItem key={item.id}>
-                <article className="card flex h-full flex-col gap-2.5 p-4 md:p-5">
+                <article
+                  className={`card flex h-full flex-col gap-2.5 p-4 md:p-5 ${offered ? 'ring-2 ring-brand-600' : ''}`}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="min-w-0 truncate text-base font-bold">{item.hospitalName}</h2>
-                    <span className="badge badge-neutral">대기 중</span>
+                    {offered ? (
+                      <span className="badge bg-brand-600 text-white">자리 났어요</span>
+                    ) : (
+                      <span className="badge badge-neutral">대기 중</span>
+                    )}
                   </div>
                   <p className="text-sm text-stone-600">
                     {item.petName} · {formatSlot(item)}
                   </p>
-                  <div className="mt-auto flex justify-end">
+                  {offered && (
+                    <p className="text-sm font-medium text-brand-700">
+                      {formatDateTime(item.offerExpiresAt!)}까지 예약하지 않으면 다음 대기자에게 넘어가요.
+                    </p>
+                  )}
+                  <div className="mt-auto flex justify-end gap-2">
+                    {offered && (
+                      <Link to={`/hospitals/${item.hospitalId}`} className="btn btn-primary btn-sm h-11 px-4">
+                        예약하러 가기
+                      </Link>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleLeave(item.id)}

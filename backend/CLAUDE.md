@@ -48,7 +48,7 @@ com.petcare
 - ReviewReply: id, review_id(FK, unique — 리뷰당 답글 1개), content — 병원 측(ADMIN 또는 해당 병원 HOSPITAL_OWNER)이 작성
 - ChatRoom: id, customer_id(FK), hospital_id(FK), (customer_id, hospital_id) 유니크(고객-병원당 방 1개)
 - ChatMessage: id, chat_room_id(FK), sender_id(FK), content
-- Waitlist: id, slot_id(FK), pet_id(FK), user_id(FK) — (slot_id, user_id) 유니크, 슬롯이 이미 RESERVED일 때만 등록 가능
+- Waitlist: id, slot_id(FK), pet_id(FK), user_id(FK), offered_at(nullable — 자리가 나서 차례를 받은 시각) — (slot_id, user_id) 유니크, 슬롯이 이미 RESERVED일 때만 등록 가능
 - PasswordResetToken: id, user_id(FK), token(unique), expires_at(발급 30분), used(boolean)
 
 ## 동적 쿼리 (Querydsl)
@@ -144,7 +144,8 @@ com.petcare
 ## 대기자 명단 (Waitlist)
 - 이미 예약 마감(`RESERVED`)된 슬롯에만 등록 가능(`POST /api/waitlists`) — `AVAILABLE` 슬롯에 등록하려 하면 409(그냥 예약하면 되므로)
 - `GET /api/waitlists`(내 대기 목록), `DELETE /api/waitlists/{waitlistId}`(대기 취소)
-- 해당 슬롯의 예약이 취소(`cancel`)되거나 거절(`reject`)되어 슬롯이 다시 열리면(`ReservationService`), `WaitlistService.notifyNextInLine()`이 대기열 맨 앞(`createdAt` 기준)인 사람 1명에게만 `WAITLIST_SLOT_AVAILABLE` 알림을 보내고 그 사람의 대기 항목을 삭제함. ponytail: 선착순 알림 스탬피드 방지를 위해 전체 대기자가 아니라 1명에게만 통지 — 그 사람이 안 잡으면 다음 사람에게 안 넘어감(슬롯이 다시 RESERVED 되는 사건이 없으면 트리거 안 됨), 필요해지면 "확정 안 하면 N분 뒤 다음 순번" 로직 추가
+- 해당 슬롯의 예약이 취소·거절·시간 변경으로 다시 열리면 `WaitlistService.notifyNextInLine()`이 아직 차례를 안 받은 사람 중 맨 앞(`createdAt` 기준) 1명에게 `WAITLIST_SLOT_AVAILABLE` 알림 + `offeredAt` 기록(**차례 제안**, 항목은 안 지움). 예전에 차례를 받았던 항목은 이때 정리(이미 한 번 기회를 가짐). 한 번에 한 명에게만 알림(선착순 알림 스탬피드 방지)
+- 차례 넘기기(2026-10-05): 차례를 받은 사람이 `WaitlistService.OFFER_MINUTES`(30분) 안에 예약하지 않으면 `WaitlistOfferScheduler`(`@Scheduled(fixedRate=60초)`)가 그 항목을 지우고 슬롯이 아직 비어 있고 시작 전이면 다음 사람에게 알림. 누가 그 슬롯을 예약하면(신규 예약·시간 변경 모두) `closeOffers()`로 차례 받은 항목 정리 → 이후 시간이 지나도 다음 사람에게 안 넘어감(남은 대기자는 계속 대기). **만료를 Redis 키 만료 이벤트가 아니라 DB(`offered_at`) + 주기 확인으로 처리** — 키 만료 이벤트는 그 순간 앱이 꺼져 있으면 유실되고 별도 Redis 설정이 필요해서. 서버가 꺼져 있었어도 다음 실행 때 따라잡음. ponytail: 서버 1대 기준(여러 대면 ShedLock 등 분산 락). `WaitlistResponse.offerExpiresAt`(차례 받았으면 예약 기한). 테스트: `BusinessRuleTest`(만료 → 2순위에게, 누가 예약하면 3순위에게 안 넘어가고 계속 대기)
 
 ## 비밀번호 재설정
 - `POST /api/auth/password-reset/request`(이메일만 받음), `POST /api/auth/password-reset/confirm`(토큰+새 비밀번호) — 둘 다 `SecurityConfig` permitAll
