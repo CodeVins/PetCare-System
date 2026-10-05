@@ -64,6 +64,8 @@ public class ReservationService {
 		// (이전: 첨부 없음)
 		HealthRecord healthCheck = request.healthCheckRecordId() == null ? null : findAttachableHealthCheck(pet, request);
 		slot.reserve();
+		// 변경(2026-10-05): 슬롯이 예약되면 대기자 차례 제안 종료 (이전: 알림 즉시 대기 항목을 지워서 정리할 게 없었음)
+		waitlistService.closeOffers(slot);
 
 		User user = userRepository.getReferenceById(userId);
 		Reservation reservation = Reservation.builder()
@@ -152,6 +154,8 @@ public class ReservationService {
 		}
 
 		newSlot.reserve();
+		// 변경(2026-10-05): 새 슬롯의 대기자 차례 제안 종료 — 신규 예약과 같은 처리 (이전: 없음)
+		waitlistService.closeOffers(newSlot);
 		oldSlot.release();
 		reservation.reschedule(newSlot);
 

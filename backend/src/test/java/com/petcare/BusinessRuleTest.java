@@ -20,6 +20,8 @@ import com.petcare.domain.reservation.Reservation;
 import com.petcare.domain.reservation.ReservationRepository;
 import com.petcare.domain.reservation.ReservationStatus;
 import com.petcare.domain.reservation.ReservationType;
+import com.petcare.domain.reservation.WaitlistRepository;
+import com.petcare.domain.reservation.WaitlistService;
 import com.petcare.domain.user.Role;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
@@ -60,6 +62,8 @@ class BusinessRuleTest {
 	@Autowired private SlotRepository slotRepository;
 	@Autowired private PetRepository petRepository;
 	@Autowired private ReservationRepository reservationRepository;
+	@Autowired private WaitlistRepository waitlistRepository;
+	@Autowired private WaitlistService waitlistService;
 
 	private String suffix;
 	private String adminToken;
@@ -264,6 +268,50 @@ class BusinessRuleTest {
 
 		assertThat(notificationTypes(firstToken)).contains("WAITLIST_SLOT_AVAILABLE");
 		assertThat(notificationTypes(secondToken)).doesNotContain("WAITLIST_SLOT_AVAILABLE");
+	}
+
+	@Test
+	void 대기_차례를_받고_시간_안에_예약하지_않으면_다음_사람에게_넘어가고_누가_예약하면_멈춘다() throws Exception {
+		LocalDateTime start = future(24);
+		long slotId = createSlot(hospitalId, start, start.plusMinutes(30));
+		long reservationId = createReservation(userToken, createPet(userToken, "차례펫"), slotId);
+		String firstToken = signupAndLogin("turn1-" + suffix + "@petcare.com");
+		String secondToken = signupAndLogin("turn2-" + suffix + "@petcare.com");
+		String thirdToken = signupAndLogin("turn3-" + suffix + "@petcare.com");
+		joinWaitlist(firstToken, createPet(firstToken, "차례1펫"), slotId);
+		joinWaitlist(secondToken, createPet(secondToken, "차례2펫"), slotId);
+		joinWaitlist(thirdToken, createPet(thirdToken, "차례3펫"), slotId);
+
+		mockMvc.perform(patch("/api/reservations/" + reservationId + "/cancel")
+						.header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk());
+		assertThat(getData("/api/waitlists", firstToken).get("content").get(0).get("offerExpiresAt").isNull()).isFalse();
+		assertThat(getData("/api/waitlists", secondToken).get("content").get(0).get("offerExpiresAt").isNull()).isTrue();
+
+		// 1순위의 차례 시간이 지남 → 2순위에게 넘어가고 1순위 항목은 정리
+		expireOffers(slotId);
+		waitlistService.handOffExpiredOffers();
+		assertThat(getData("/api/waitlists", firstToken).get("content")).isEmpty();
+		assertThat(notificationTypes(secondToken)).contains("WAITLIST_SLOT_AVAILABLE");
+		assertThat(notificationTypes(thirdToken)).doesNotContain("WAITLIST_SLOT_AVAILABLE");
+
+		// 차례 중에 다른 사람이 예약하면 제안 종료 — 시간이 지나도 3순위에게 안 넘어가고 3순위는 계속 대기
+		createReservation(userToken, createPet(userToken, "새치기펫"), slotId);
+		assertThat(getData("/api/waitlists", secondToken).get("content")).isEmpty();
+		expireOffers(slotId);
+		waitlistService.handOffExpiredOffers();
+		assertThat(notificationTypes(thirdToken)).doesNotContain("WAITLIST_SLOT_AVAILABLE");
+		assertThat(getData("/api/waitlists", thirdToken).get("content")).hasSize(1);
+	}
+
+	// 스케줄러를 기다리지 않고 차례 시간을 지난 것으로 만듦
+	private void expireOffers(long slotId) {
+		waitlistRepository.findAll().stream()
+				.filter(w -> w.getSlot().getId().equals(slotId) && w.getOfferedAt() != null)
+				.forEach(w -> {
+					w.markOffered(LocalDateTime.now().minusMinutes(WaitlistService.OFFER_MINUTES + 1));
+					waitlistRepository.save(w);
+				});
 	}
 
 	// ---------- 응답 필드 ----------

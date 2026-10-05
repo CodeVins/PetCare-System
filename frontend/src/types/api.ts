@@ -368,6 +368,8 @@ export interface Waitlist {
   hospitalName: string
   startTime: ISODateTime
   endTime: ISODateTime
+  // 자리가 나서 차례를 받았으면 이 시각까지 예약해야 함(지나면 다음 대기자에게). null이면 아직 대기 중
+  offerExpiresAt: ISODateTime | null
 }
 
 // ── notification / chat ───────────────────────────────
