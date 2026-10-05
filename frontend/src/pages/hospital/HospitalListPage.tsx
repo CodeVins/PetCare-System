@@ -43,6 +43,7 @@ export default function HospitalListPage() {
   const [sort, setSort] = useState<HospitalSort>('NAME_ASC')
   const [is24Hours, setIs24Hours] = useState(searchParams.get('is24Hours') === 'true')
   const [hasParking, setHasParking] = useState(searchParams.get('hasParking') === 'true')
+  const [openNow, setOpenNow] = useState(searchParams.get('openNow') === 'true')
   const [locationEnabled, setLocationEnabled] = useState(false)
   const [radiusKm, setRadiusKm] = useState(5)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -72,13 +73,15 @@ export default function HospitalListPage() {
         radiusKm: locationEnabled ? radiusKm : undefined,
         is24Hours: is24Hours || undefined,
         hasParking: hasParking || undefined,
+        // 변경(2026-10-05): "지금 진료 중" 필터 (이전: 없음)
+        openNow: openNow || undefined,
       })
         .then(({ data }) => setHospitals(data.data))
         .catch((err) => setError(errorMessage(err, '병원 목록을 불러오지 못했습니다.')))
         .finally(() => setLoading(false))
     }, 300)
     return () => clearTimeout(timeout)
-  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm, is24Hours, hasParking])
+  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm, is24Hours, hasParking, openNow])
 
   const enableLocation = () => {
     if (!navigator.geolocation) {
@@ -96,7 +99,8 @@ export default function HospitalListPage() {
   }
 
   const activeFilterCount =
-    (minRating ? 1 : 0) + (is24Hours ? 1 : 0) + (hasParking ? 1 : 0) + (locationEnabled ? 1 : 0)
+    (minRating ? 1 : 0) + (is24Hours ? 1 : 0) + (hasParking ? 1 : 0) + (locationEnabled ? 1 : 0) +
+    (openNow ? 1 : 0)
 
   const filters = (
     <div className="flex flex-col gap-4">
@@ -117,6 +121,14 @@ export default function HospitalListPage() {
         >
           <Crosshair size={16} />
           내 주변 {locationEnabled ? `${radiusKm}km` : ''}
+        </button>
+        <button
+          type="button"
+          aria-pressed={openNow}
+          onClick={() => setOpenNow((v) => !v)}
+          className={`chip ${openNow ? 'chip-soft' : ''}`}
+        >
+          지금 진료 중
         </button>
         <button
           type="button"

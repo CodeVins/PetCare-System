@@ -1,4 +1,5 @@
 import type {
+  DayOfWeek,
   Hospital,
   HospitalPayload,
   HospitalSearchParams,
@@ -79,4 +80,12 @@ export function uploadHospitalImage(hospitalId: number, file: File): ApiPromise<
 
 export function deleteHospitalImage(hospitalId: number): ApiPromise<null> {
   return axiosInstance.delete(`/api/hospitals/${hospitalId}/image`)
+}
+
+// 요일별 진료 시간 전체 교체(빈 배열이면 삭제) — 관리자·해당 병원 소유자
+export function updateOpeningHours(
+  hospitalId: number,
+  hours: { dayOfWeek: DayOfWeek; openTime: string; closeTime: string }[],
+): ApiPromise<Hospital> {
+  return axiosInstance.put(`/api/hospitals/${hospitalId}/opening-hours`, { hours })
 }

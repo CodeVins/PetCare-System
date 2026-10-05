@@ -4,6 +4,8 @@ import com.petcare.domain.user.Role;
 import com.petcare.domain.user.User;
 import com.petcare.global.common.BaseEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -13,6 +15,9 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -59,6 +64,11 @@ public class Hospital extends BaseEntity {
 	@JoinColumn(name = "owner_id")
 	private User owner;
 
+	// 요일별 진료 시간(구조화) — 기존 openingHours(자유 텍스트)는 "점심시간·공휴일 휴무" 같은 안내 문구로 계속 사용
+	@ElementCollection
+	@CollectionTable(name = "hospital_opening_hour", joinColumns = @JoinColumn(name = "hospital_id"))
+	private List<OpeningHour> weeklyHours = new ArrayList<>();
+
 	@Builder
 	private Hospital(
 			String name, String address, Double latitude, Double longitude, String openingHours, String specialty,
@@ -84,6 +94,22 @@ public class Hospital extends BaseEntity {
 
 	public void changeImageUrl(String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	public void replaceWeeklyHours(List<OpeningHour> hours) {
+		weeklyHours.clear();
+		weeklyHours.addAll(hours);
+	}
+
+	// 24시간이면 항상 true, 진료 시간을 등록하지 않았으면 null(알 수 없음), 아니면 그 시각을 포함하는 구간이 있는지
+	public Boolean isOpenAt(LocalDateTime dateTime) {
+		if (Boolean.TRUE.equals(is24Hours)) {
+			return true;
+		}
+		if (weeklyHours.isEmpty()) {
+			return null;
+		}
+		return weeklyHours.stream().anyMatch(hour -> hour.covers(dateTime.getDayOfWeek(), dateTime.toLocalTime()));
 	}
 
 	public void update(

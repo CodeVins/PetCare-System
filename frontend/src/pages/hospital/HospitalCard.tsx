@@ -1,6 +1,7 @@
 import { Buildings, Heart, Star } from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
 import { BASE_URL } from '../../api/axiosInstance'
+import { openStatus } from '../../lib/openingHours'
 import type { Hospital } from '../../types/api'
 
 // 보조 액센트 순환 (teal → amber → sky)
@@ -24,6 +25,7 @@ export default function HospitalCard({
   onToggleFavorite,
   index = 0,
 }: HospitalCardProps) {
+  const status = openStatus(hospital)
   return (
     <article className="card-interactive relative flex gap-3 p-3">
       {/* 카드 전체를 덮는 링크 — 안쪽 즐겨찾기 버튼만 위로 띄운다 */}
@@ -72,6 +74,13 @@ export default function HospitalCard({
         )}
 
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {/* 변경(2026-10-05): 요일별 진료 시간으로 지금 진료 중/종료 표시 — 미등록이면 숨김 (이전: 자유 텍스트만) */}
+          {status === 'open' && (
+            <span className="badge h-6 bg-brand-50 px-2 text-xs font-bold text-brand-700">진료 중</span>
+          )}
+          {status === 'closed' && (
+            <span className="badge badge-neutral h-6 px-2 text-xs text-stone-500">진료 종료</span>
+          )}
           {hospital.is24Hours && (
             <span className="badge badge-neutral h-6 px-2 text-xs">24시간</span>
           )}

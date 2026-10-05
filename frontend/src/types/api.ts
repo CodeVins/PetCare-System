@@ -209,6 +209,14 @@ export interface Hospital {
   averageRating: number | null
   reviewCount: number
   distanceKm: number | null
+  // 요일별 진료 시간(월→일·시간순). 비었으면 미등록 — 진료 중 여부는 lib/openingHours로 화면에서 계산
+  weeklyHours: WeeklyHour[]
+}
+
+export interface WeeklyHour {
+  dayOfWeek: DayOfWeek
+  openTime: string // 'HH:mm:ss' (요청은 'HH:mm'도 됨)
+  closeTime: string
 }
 
 export interface HospitalPayload {
@@ -234,6 +242,7 @@ export interface HospitalSearchParams {
   radiusKm?: number
   is24Hours?: boolean
   hasParking?: boolean
+  openNow?: boolean
 }
 
 export interface Slot {
