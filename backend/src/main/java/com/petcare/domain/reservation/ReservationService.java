@@ -4,6 +4,9 @@ import com.petcare.domain.hospital.Slot;
 import com.petcare.domain.hospital.SlotRepository;
 import com.petcare.domain.notification.NotificationService;
 import com.petcare.domain.notification.NotificationType;
+import com.petcare.domain.pet.HealthRecord;
+import com.petcare.domain.pet.HealthRecordRepository;
+import com.petcare.domain.pet.HealthRecordType;
 import com.petcare.domain.pet.Pet;
 import com.petcare.domain.pet.PetGuardianRepository;
 import com.petcare.domain.pet.PetRepository;
@@ -13,9 +16,11 @@ import com.petcare.domain.user.Role;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
 import com.petcare.global.common.PageResponse;
+import com.petcare.global.exception.BadRequestException;
 import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ReservationService {
 
+	private static final int HEALTH_CHECK_ATTACH_DAYS = 14;
+
 	private final ReservationRepository reservationRepository;
 	private final PetRepository petRepository;
 	private final PetGuardianRepository petGuardianRepository;
@@ -34,6 +41,7 @@ public class ReservationService {
 	private final UserRepository userRepository;
 	private final NotificationService notificationService;
 	private final WaitlistService waitlistService;
+	private final HealthRecordRepository healthRecordRepository;
 
 	@Transactional
 	public ReservationResponse create(Long userId, ReservationCreateRequest request) {
@@ -52,6 +60,9 @@ public class ReservationService {
 		if (!slot.isAvailable()) {
 			throw new ConflictException("이미 예약된 시간입니다.");
 		}
+		// 변경(2026-10-05): 자가 문진 첨부·메모 — 슬롯을 잡기 전에 검증해서 잘못된 첨부면 슬롯이 묶이지 않게
+		// (이전: 첨부 없음)
+		HealthRecord healthCheck = request.healthCheckRecordId() == null ? null : findAttachableHealthCheck(pet, request);
 		slot.reserve();
 
 		User user = userRepository.getReferenceById(userId);
@@ -61,6 +72,9 @@ public class ReservationService {
 				.user(user)
 				.status(ReservationStatus.PENDING)
 				.type(request.type())
+				.memo(request.memo() == null || request.memo().isBlank() ? null : request.memo().trim())
+				.healthCheckSummary(healthCheck == null ? null : healthCheck.getContent())
+				.healthCheckDate(healthCheck == null ? null : healthCheck.getRecordedAt())
 				.build();
 
 		ReservationResponse response = ReservationResponse.from(reservationRepository.save(reservation));
@@ -73,6 +87,17 @@ public class ReservationService {
 					"새 예약 요청이 들어왔습니다. 확정 또는 거절해주세요.");
 		}
 		return response;
+	}
+
+	// 같은 반려동물의 최근 자가 문진 기록만 첨부 가능 — 오래된 문진은 지금 증상과 무관할 수 있어서 기간 제한
+	private HealthRecord findAttachableHealthCheck(Pet pet, ReservationCreateRequest request) {
+		HealthRecord record = healthRecordRepository.findById(request.healthCheckRecordId())
+				.filter(r -> r.getPet().getId().equals(pet.getId()) && r.getType() == HealthRecordType.HEALTH_CHECK)
+				.orElseThrow(() -> new BadRequestException("이 반려동물의 자가 문진 기록만 첨부할 수 있습니다."));
+		if (record.getRecordedAt().isBefore(LocalDate.now().minusDays(HEALTH_CHECK_ATTACH_DAYS))) {
+			throw new BadRequestException("최근 " + HEALTH_CHECK_ATTACH_DAYS + "일 이내의 자가 문진만 첨부할 수 있습니다.");
+		}
+		return record;
 	}
 
 	public PageResponse<ReservationResponse> getMyReservations(Long userId, Pageable pageable) {

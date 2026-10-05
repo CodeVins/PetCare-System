@@ -13,6 +13,7 @@ import com.petcare.domain.pet.dto.HealthRecordResponse;
 import com.petcare.global.exception.BadRequestException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class HealthCheckService {
 
 	private static final int MEDIUM_THRESHOLD = 4;
 	private static final int HIGH_THRESHOLD = 10;
+	private static final int MAX_CONTENT_LENGTH = 255;
 
 	private final HealthCheckQuestionBank questionBank;
 	private final PetService petService;
@@ -50,13 +52,34 @@ public class HealthCheckService {
 
 		Long savedRecordId = null;
 		if (Boolean.TRUE.equals(request.saveRecord())) {
-			String content = "자가 문진 결과: 총점 " + totalScore + "점 (위험도: " + riskLevel + ")";
+			// 변경(2026-10-05): 이상 소견(점수 > 0인 답변)을 내용에 같이 저장 — 예약에 첨부하면 병원이 실제 증상을 봐야 해서
+			// (이전: 총점·위험도만 저장). content 컬럼이 255자라 넘치면 자름
+			String content = "자가 문진 결과: 총점 " + totalScore + "점 (위험도: " + riskLevel + ") — " + abnormalSummary(request);
+			if (content.length() > MAX_CONTENT_LENGTH) {
+				content = content.substring(0, MAX_CONTENT_LENGTH - 1) + "…";
+			}
 			HealthRecordResponse saved = healthRecordService.create(userId, request.petId(),
 					new HealthRecordCreateRequest(HealthRecordType.HEALTH_CHECK, LocalDate.now(), content, null, null));
 			savedRecordId = saved.id();
 		}
 
 		return new HealthCheckResultResponse(totalScore, riskLevel, comparisonNote, disclaimer, savedRecordId);
+	}
+
+	// "식욕: 약간 줄었다, 구토: 1~2회" — 점수가 0보다 큰(정상이 아닌) 답변만
+	private String abnormalSummary(HealthCheckSubmitRequest request) {
+		List<String> items = request.answers().stream()
+				.map(answer -> {
+					Question question = questionBank.findQuestion(answer.questionId());
+					return question.options().stream()
+							.filter(option -> option.id().equals(answer.optionId()) && option.riskScore() > 0)
+							.findFirst()
+							.map(option -> question.category() + ": " + option.label())
+							.orElse(null);
+				})
+				.filter(Objects::nonNull)
+				.toList();
+		return items.isEmpty() ? "특이 소견 없음" : String.join(", ", items);
 	}
 
 	private int scoreOf(AnswerItem answer) {

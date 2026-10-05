@@ -6,6 +6,7 @@ import { getOrCreateChatRoom } from '../../api/chatApi'
 import { getHospital, getSlots } from '../../api/hospitalApi'
 import { getMyPets } from '../../api/petApi'
 import { createReservation } from '../../api/reservationApi'
+import ReservationNoteFields from './ReservationNoteFields'
 import { joinWaitlist } from '../../api/waitlistApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
@@ -48,6 +49,8 @@ export default function HospitalDetailPage() {
   const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null)
   const [selectedPetId, setSelectedPetId] = useState('')
   const [reservationType, setReservationType] = useState<ReservationType | ''>('')
+  const [memo, setMemo] = useState('')
+  const [healthCheckId, setHealthCheckId] = useState<number | null>(null)
   // 변경(2026-09-27): 예약 요청 진행 상태를 React 19 async transition으로 (이전: reserving useState)
   const [reserving, startReserve] = useTransition()
   const [reserveError, setReserveError] = useState('')
@@ -117,10 +120,13 @@ export default function HospitalDetailPage() {
     }
     startReserve(async () => {
       try {
+        // 변경(2026-10-05): 증상 메모·자가 문진 첨부 전달 (이전: 펫·슬롯·진료 유형만)
         await createReservation({
           petId: Number(selectedPetId),
           slotId: selectedSlotId,
           type: reservationType,
+          memo: memo.trim() || null,
+          healthCheckRecordId: healthCheckId,
         })
         toast('예약을 신청했어요. 병원에서 확정하면 알림으로 알려드릴게요.')
         navigate('/reservations', { replace: true })
@@ -360,6 +366,14 @@ export default function HospitalDetailPage() {
                     </p>
                     {slotList}
                   </div>
+
+                  <ReservationNoteFields
+                    petId={selectedPetId}
+                    memo={memo}
+                    onMemoChange={setMemo}
+                    healthCheckId={healthCheckId}
+                    onHealthCheckChange={setHealthCheckId}
+                  />
 
                   <Alert tone="error">{reserveError}</Alert>
 

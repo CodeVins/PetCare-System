@@ -14,10 +14,13 @@ import java.time.LocalDateTime;
 // 변경(2026-09-27): 병원/슬롯 시간(hospitalId, hospitalName, startTime, endTime) 추가 — 프론트가 병원 전체 × 슬롯을
 // N+1로 조회해 조인하던 getSlotIndex()를 없애기 위함 (이전: slotId만 있어서 시간·병원명을 직접 못 얻었고, 슬롯 첫 페이지(20개)만
 // 조인돼서 슬롯이 많은 병원은 "병원 정보 없음"으로 표시되는 버그가 있었음)
+// 변경(2026-10-05): memo, healthCheckSummary, healthCheckDate 추가 — 병원이 예약 목록에서 증상 메모·자가 문진을 미리 봄
+// (이전: 없음)
 public record ReservationResponse(
 		Long id, Long petId, String petName, PetSpecies petSpecies, String petBreed, LocalDate petBirthDate,
 		PetSize petSize, PetSex petSex, Boolean petNeutered, String petImageUrl, Long slotId, ReservationStatus status,
-		ReservationType type, Long hospitalId, String hospitalName, LocalDateTime startTime, LocalDateTime endTime) {
+		ReservationType type, Long hospitalId, String hospitalName, LocalDateTime startTime, LocalDateTime endTime,
+		String memo, String healthCheckSummary, LocalDate healthCheckDate) {
 
 	public static ReservationResponse from(Reservation reservation) {
 		Pet pet = reservation.getPet();
@@ -26,6 +29,7 @@ public record ReservationResponse(
 				reservation.getId(), pet.getId(), pet.getName(), pet.getSpecies(), pet.getBreed(), pet.getBirthDate(),
 				pet.getSize(), pet.getSex(), pet.getNeutered(), pet.getImageUrl(), slot.getId(),
 				reservation.getStatus(), reservation.getType(), slot.getHospital().getId(), slot.getHospital().getName(),
-				slot.getStartTime(), slot.getEndTime());
+				slot.getStartTime(), slot.getEndTime(), reservation.getMemo(), reservation.getHealthCheckSummary(),
+				reservation.getHealthCheckDate());
 	}
 }
