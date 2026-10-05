@@ -59,6 +59,7 @@ com.petcare
 - Querydsl 커스텀 레포지토리 패턴: `XxxRepositoryCustom` 인터페이스 + `XxxRepositoryImpl`(반드시 이 이름, Spring Data가 자동 인식) + `XxxRepository extends JpaRepository<...>, XxxRepositoryCustom`
 - `JPAQueryFactory` 빈은 `global/config/QuerydslConfig`에 등록
 - `GET /api/admin/stats/summary`, `GET /api/admin/stats/hospitals` (ADMIN 전용) — 병원별/전체 예약·리뷰 집계
+- 병원 기간 통계(2026-10-05): `GET /api/admin/stats/hospitals/{hospitalId}?days=7|30|90`(그 외 400) — 클래스는 ADMIN 전용이지만 이 메서드만 `@PreAuthorize(ADMIN or HOSPITAL_OWNER)`(메서드 애너테이션 우선) + 서비스에서 `isManagedBy` 재검증(타 병원 403). 기간은 오늘 포함 최근 N일, **예약 슬롯 시작 시간 기준**. 예약은 `ReservationRepository.findAllForStats`(slot fetch join) 한 번, 슬롯은 기존 겹침 조회 재사용 → 집계는 `AdminStatsService.getHospitalPeriodStats`에서 자바로(병원 1곳·최대 90일이라 소량). 노쇼율 = 시간이 지난 예약 중 NO_SHOW / (CONFIRMED + NO_SHOW)(진료 후에도 CONFIRMED 유지라 지난 CONFIRMED = 내원), 취소율 = CANCELLED / 전체, 분모 0이면 null. 일별 booked(대기·확정·노쇼)/cancelled(취소·거절), 진료 유형별, 슬롯 이용률(RESERVED/전체). `/summary`·`/hospitals`는 계속 ADMIN 전용
 
 ## 예약 확정 플로우
 - 예약 생성(`POST /api/reservations`) 시 바로 CONFIRMED가 아니라 PENDING으로 생성됨 (슬롯은 즉시 RESERVED로 잠금 — 동시 예약 방지는 그대로 유지)

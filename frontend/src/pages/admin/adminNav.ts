@@ -30,6 +30,7 @@ export const ADMIN_NAV: ConsoleNavItem[] = [
 export const OWNER_NAV: ConsoleNavItem[] = [
   { to: '/dashboard', label: '현황', icon: Gauge, end: true },
   { to: '/dashboard/reservations', label: '예약 관리', icon: CalendarCheck },
+  { to: '/dashboard/stats', label: '통계', icon: ChartBar },
   { to: '/dashboard/slots', label: '예약 슬롯', icon: CalendarBlank },
   { to: '/dashboard/reviews', label: '리뷰', icon: ChatText },
   { to: '/dashboard/reports', label: '신고', icon: Flag },

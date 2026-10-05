@@ -10,6 +10,12 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
+	// 병원 기간 통계용 — 기간 안에 시작하는 예약 전부(슬롯 시작 시간 기준), 집계는 서비스에서. 슬롯은 시작 시간을 읽으므로 같이 로딩
+	@Query("select r from Reservation r join fetch r.slot s where s.hospital.id = :hospitalId"
+			+ " and s.startTime >= :from and s.startTime < :to")
+	List<Reservation> findAllForStats(
+			@Param("hospitalId") Long hospitalId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
 	Page<Reservation> findAllByUserId(Long userId, Pageable pageable);
 
 	Page<Reservation> findAllByStatus(ReservationStatus status, Pageable pageable);

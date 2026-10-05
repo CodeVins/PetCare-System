@@ -644,6 +644,66 @@ class BusinessRuleTest {
 		return Path.of("build/test-uploads-reviews", imageUrl.substring(imageUrl.lastIndexOf('/') + 1));
 	}
 
+	// ---------- 병원 기간 통계 ----------
+
+	@Test
+	void 병원_기간_통계는_노쇼율과_취소율을_계산하고_본인_병원만_볼_수_있다() throws Exception {
+		long petId = createPet(userToken, "통계펫");
+		savePastConfirmedReservation(petId); // 내원
+		long noShowId = savePastConfirmedReservation(petId);
+		mockMvc.perform(patch("/api/admin/reservations/" + noShowId + "/no-show")
+						.header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isOk());
+		reservationRepository.save(Reservation.builder() // 취소(슬롯은 다시 AVAILABLE)
+				.slot(savePastSlot())
+				.pet(petRepository.findById(petId).orElseThrow())
+				.user(userRepository.findByEmail(userEmail).orElseThrow())
+				.status(ReservationStatus.CANCELLED)
+				.type(ReservationType.VACCINATION)
+				.build());
+
+		String url = "/api/admin/stats/hospitals/" + hospitalId;
+		JsonNode stats = getData(url + "?days=7", adminToken);
+		assertThat(stats.get("totalReservations").asLong()).isEqualTo(3);
+		assertThat(stats.get("countByStatus").get("NO_SHOW").asLong()).isEqualTo(1);
+		assertThat(stats.get("countByType").get("VACCINATION").asLong()).isEqualTo(1);
+		assertThat(stats.get("noShowRate").asDouble()).isEqualTo(0.5); // 노쇼 1 / (내원 1 + 노쇼 1)
+		assertThat(stats.get("cancelRate").asDouble()).isEqualTo(1.0 / 3);
+		assertThat(stats.get("slotCount").asLong()).isEqualTo(3);
+		assertThat(stats.get("reservedSlotCount").asLong()).isEqualTo(2);
+		assertThat(stats.get("daily")).hasSize(7);
+		long booked = 0;
+		long cancelled = 0;
+		for (JsonNode day : stats.get("daily")) {
+			booked += day.get("booked").asLong();
+			cancelled += day.get("cancelled").asLong();
+		}
+		assertThat(booked).isEqualTo(2);
+		assertThat(cancelled).isEqualTo(1);
+
+		mockMvc.perform(get(url + "?days=10").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(get(url).header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isForbidden()); // 일반 유저
+		String ownerEmail = "owner-stats-" + suffix + "@petcare.com";
+		signupAndLogin(ownerEmail);
+		long ownHospitalId = createHospital();
+		mockMvc.perform(patch("/api/admin/hospitals/" + ownHospitalId + "/owner")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"ownerId\":" + userRepository.findByEmail(ownerEmail).orElseThrow().getId() + "}"))
+				.andExpect(status().isOk());
+		String ownerToken = login(ownerEmail, "password123");
+		mockMvc.perform(get(url).header("Authorization", "Bearer " + ownerToken))
+				.andExpect(status().isForbidden()); // 다른 병원
+		mockMvc.perform(get("/api/admin/stats/hospitals/" + ownHospitalId).header("Authorization", "Bearer " + ownerToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalReservations").value(0))
+				.andExpect(jsonPath("$.data.noShowRate").doesNotExist()); // 분모 0이면 null
+		mockMvc.perform(get("/api/admin/stats/summary").header("Authorization", "Bearer " + ownerToken))
+				.andExpect(status().isForbidden()); // 전체 통계는 여전히 ADMIN 전용
+	}
+
 	// ---------- 병원 상세 캐시 ----------
 
 	@Test
