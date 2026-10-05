@@ -43,7 +43,7 @@ com.petcare
 - Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE, TREATMENT_RECORDED), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
 - NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
 - Favorite: id, user_id(FK), hospital_id(FK), (user_id, hospital_id) 유니크
-- Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, hidden(boolean, 기본 false) — (user_id, hospital_id) 유니크(병원당 리뷰 1개), 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
+- Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, hidden(boolean, 기본 false), imageUrls(값 컬렉션 → `review_image` 테이블(review_id, sort_order, image_url), 최대 3장) — (user_id, hospital_id) 유니크(병원당 리뷰 1개), 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
 - ReviewReport: id, review_id(FK), reporter_id(FK), reason — (review_id, reporter_id) 유니크(같은 리뷰 중복 신고 불가)
 - ReviewReply: id, review_id(FK, unique — 리뷰당 답글 1개), content — 병원 측(ADMIN 또는 해당 병원 HOSPITAL_OWNER)이 작성
 - ChatRoom: id, customer_id(FK), hospital_id(FK), (customer_id, hospital_id) 유니크(고객-병원당 방 1개)
@@ -131,6 +131,7 @@ com.petcare
 - 배포 설정: `application.yml`의 `DB_URL`/`SHOW_SQL`은 환경변수(로컬 기본값 있음), `server.forward-headers-strategy: framework`로 Caddy의 X-Forwarded-* 신뢰(Swagger 서버 URL이 https로 생성됨). 운영 비밀값은 EC2 `~/petcare/.env`에만 있음(`../.env.deploy.example`에 키 목록). 컨테이너 시간대는 `Asia/Seoul` 고정(기본 UTC면 리마인더·슬롯 시간 검증이 9시간 어긋남)
 - 운영 DB에 배포 검증용 계정 `deploy-check-1790777642@petcare.com`(펫 "배포검증")이 있음 — 필요 없으면 관리자 패널에서 정지
 - 파일 업로드(반려동물 사진): 로컬 디스크 저장(`uploads/pets/`, `.gitignore` 처리됨), `global/file/FileStorageService`가 담당. 파일명은 클라이언트 값을 쓰지 않고 UUID로 새로 생성(경로 조작 방지), 업로드 시 jpg/png/webp만 허용, 5MB 제한. `/uploads/**`는 SecurityConfig에서 permitAll — 이미지는 공개로 서빙됨
+- 리뷰 사진(2026-10-05): `POST /api/hospitals/{hospitalId}/reviews/{reviewId}/images`(multipart `file`, 한 장씩, 리뷰당 최대 3장 → 넘으면 409), `DELETE .../images/{fileName}`(서버가 만든 UUID 파일명 — 이 리뷰의 목록에 있는 것만 삭제, 없으면 404). 작성자 본인만(`getOwnedReview`, 남은 403). `FileStorageService.storeReviewImage`(`uploads/reviews/`, `app.upload.review-image-dir`, 기존 jpg/png/webp·5MB 규칙 그대로), `WebConfig`가 `/uploads/reviews/**` 서빙. 리뷰 삭제 시 파일도 삭제(DB 행은 값 컬렉션이라 자동). `ReviewResponse`/`MyReviewResponse`/`ManagedReviewResponse`에 `imageUrls`(관리 화면은 부적절한 사진 모더레이션용). 사진은 평점·리뷰 수와 무관해서 병원 상세 캐시 무효화 대상 아님. 숨김 리뷰의 사진 URL은 추측 불가한 UUID라 따로 막지 않음
 
 ## 반려동물 생활/건강 관련 API
 - `Pet.species`(DOG/CAT) 추가 — breed는 원래도 자유 텍스트라 별도 검증/품종 목록 로직 없었음(고양이 대응 위해 고칠 게 없었음)

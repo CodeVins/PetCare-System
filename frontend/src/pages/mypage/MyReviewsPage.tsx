@@ -7,6 +7,7 @@ import PageHeader from '../../components/common/PageHeader'
 import Stars from '../../components/common/Stars'
 import { usePagedList } from '../../hooks/usePagedList'
 import { formatDateTime } from '../../lib/format'
+import ReviewImages from '../hospital/ReviewImages'
 
 // 마이페이지 "내가 쓴 리뷰" — 병원별 리뷰와 병원 답글을 한곳에서. 수정·삭제는 병원 상세의
 // 리뷰 영역(ReviewSection)에서 하므로 여기선 병원으로 가는 링크만 둔다.
@@ -75,6 +76,8 @@ export default function MyReviewsPage() {
             </div>
 
             <p className="whitespace-pre-wrap text-[15px]">{review.content}</p>
+            {/* 변경(2026-10-05): 리뷰 사진 표시 (이전: 사진 없음) — 추가·삭제는 병원 상세의 리뷰 탭에서 */}
+            <ReviewImages imageUrls={review.imageUrls} />
 
             {review.hidden && (
               <p className="text-[13px] text-stone-500">

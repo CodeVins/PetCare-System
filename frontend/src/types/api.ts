@@ -271,6 +271,8 @@ export interface Review {
   createdAt: ISODateTime
   reply: ReviewReply | null
   mine: boolean
+  // 리뷰 사진(최대 3장, /uploads/reviews/...)
+  imageUrls: string[]
 }
 
 // 변경(2026-09-30): hospitalName·reviewCreatedAt·작성자/신고자 이메일 추가 — 관리 화면에서 사람·날짜로
@@ -305,6 +307,7 @@ export interface ManagedReview {
   reportCount: number
   reply: ReviewReply | null
   createdAt: ISODateTime
+  imageUrls: string[]
 }
 
 // GET /api/users/me/reviews — 마이페이지 "내가 쓴 리뷰"
@@ -317,6 +320,7 @@ export interface MyReview {
   hidden: boolean
   reply: ReviewReply | null
   createdAt: ISODateTime
+  imageUrls: string[]
 }
 
 // 관리 화면 리뷰/신고 목록 필터 — 빈 값은 보내지 않는다. from/to는 작성일(리뷰)·신고일(신고) 'YYYY-MM-DD'

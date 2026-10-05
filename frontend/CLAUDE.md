@@ -125,6 +125,7 @@ src
 - 진료 기록(2026-10-05): 예약 관리 화면(`AdminReservationsPage` — 관리자·병원 소유자 공용)에서 진료 시간이 지난 CONFIRMED 예약에 "진료 기록" 버튼 → `pages/admin/TreatmentRecordDialog`(열 때 기존 기록을 불러와 수정, 종류 진료/접종, 다음 예정일은 진료일 다음 날부터). 반려동물 건강 기록 목록은 `hospitalName`이 있으면 "OO병원 작성" 하늘색 배지 + 수정/삭제 버튼 숨김, 다음 예정일 문구는 접종만 "다음 접종", 나머지는 "다음 내원". 알림 아이콘 `TREATMENT_RECORDED: Stethoscope`
 - 예약 메모·자가 문진 첨부(2026-10-05): 병원 상세 예약 폼에 `pages/hospital/ReservationNoteFields`(증상 메모 + 최근 14일 자가 문진 첨부 체크박스, 반려동물을 바꾸면 다시 찾음). `AdminReservationsPage`는 반려동물 칸 아래에 메모·문진(하늘색) 표시
 - 예약 시간 변경(2026-10-05): 내 예약 목록에서 시작 전 PENDING/CONFIRMED 예약에 "시간 변경" → `pages/reservation/RescheduleDialog`(같은 병원 AVAILABLE 슬롯을 날짜별로 보여주고 선택, "확정 대기로 돌아감" 안내). 성공하면 응답으로 목록 항목 교체
+- 리뷰 사진(2026-10-05): `pages/hospital/ReviewImages`(썸네일 줄, 누르면 원본 새 탭, 작성자면 삭제 버튼 — 병원 리뷰·내 리뷰·관리 화면 공용). 새 리뷰는 폼에서 최대 3장 고르면 리뷰 생성 후 한 장씩 업로드(사진 실패는 리뷰를 되돌리지 않고 토스트), 이후 추가/삭제는 목록의 내 리뷰에서("사진 추가 n/3"). 관리 화면은 접힌 상태 "사진 n장", 펼치면 썸네일
 **날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
 - 디자인: **DESIGN_SPEC.md**가 단일 기준(색·폰트·형태·레이아웃). `petcare-ui-source/`
   는 화면별 HTML 시안 원본. 2026-09-22에 전 화면 이식 완료 — teal `#0F766E` accent,

@@ -24,7 +24,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/hospitals/{hospitalId}/reviews")
@@ -65,6 +67,23 @@ public class ReviewController {
 			@PathVariable Long reviewId) {
 		reviewService.delete(userDetails.getUser().getId(), hospitalId, reviewId);
 		return ResponseEntity.ok(ApiResponse.success());
+	}
+
+	// 리뷰 사진 한 장 추가(최대 3장) — 리뷰 작성 후 사진을 한 장씩 올림
+	@PostMapping("/{reviewId}/images")
+	public ResponseEntity<ApiResponse<ReviewResponse>> addImage(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
+			@PathVariable Long reviewId, @RequestParam("file") MultipartFile file) {
+		return ResponseEntity.ok(ApiResponse.success(
+				reviewService.addImage(userDetails.getUser().getId(), hospitalId, reviewId, file)));
+	}
+
+	@DeleteMapping("/{reviewId}/images/{fileName}")
+	public ResponseEntity<ApiResponse<ReviewResponse>> deleteImage(
+			@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long hospitalId,
+			@PathVariable Long reviewId, @PathVariable String fileName) {
+		return ResponseEntity.ok(ApiResponse.success(
+				reviewService.deleteImage(userDetails.getUser().getId(), hospitalId, reviewId, fileName)));
 	}
 
 	@PostMapping("/{reviewId}/report")

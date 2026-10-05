@@ -66,3 +66,26 @@ export function updateReply(
 export function deleteReply(hospitalId: number | string, reviewId: number): ApiPromise<null> {
   return axiosInstance.delete(`/api/hospitals/${hospitalId}/reviews/${reviewId}/reply`)
 }
+
+// 리뷰 사진 — 리뷰를 먼저 만든 뒤 한 장씩 올림(리뷰당 최대 3장, 작성자만)
+export const MAX_REVIEW_IMAGES = 3
+
+export function uploadReviewImage(
+  hospitalId: number | string,
+  reviewId: number,
+  file: File,
+): ApiPromise<Review> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return axiosInstance.post(`/api/hospitals/${hospitalId}/reviews/${reviewId}/images`, formData)
+}
+
+// imageUrl의 마지막 경로(서버가 만든 UUID 파일명)로 삭제
+export function deleteReviewImage(
+  hospitalId: number | string,
+  reviewId: number,
+  imageUrl: string,
+): ApiPromise<Review> {
+  const fileName = imageUrl.slice(imageUrl.lastIndexOf('/') + 1)
+  return axiosInstance.delete(`/api/hospitals/${hospitalId}/reviews/${reviewId}/images/${fileName}`)
+}

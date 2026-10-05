@@ -3,6 +3,7 @@ package com.petcare;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -22,6 +23,8 @@ import com.petcare.domain.reservation.ReservationType;
 import com.petcare.domain.user.Role;
 import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -32,6 +35,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -587,6 +591,57 @@ class BusinessRuleTest {
 				.header("Authorization", "Bearer " + token)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"slotId\":" + slotId + "}");
+	}
+
+	// ---------- 리뷰 사진 ----------
+
+	@Test
+	void 리뷰_사진은_작성자만_3장까지_올리고_리뷰를_지우면_파일도_지워진다() throws Exception {
+		savePastConfirmedReservation(createPet(userToken, "리뷰사진펫"));
+		String reviewsUrl = "/api/hospitals/" + hospitalId + "/reviews";
+		long reviewId = data(mockMvc.perform(post(reviewsUrl)
+						.header("Authorization", "Bearer " + userToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"rating\":5,\"content\":\"사진 리뷰\"}"))
+				.andExpect(status().isCreated())
+				.andReturn()).get("id").asLong();
+		String imagesUrl = reviewsUrl + "/" + reviewId + "/images";
+
+		mockMvc.perform(imageUpload(imagesUrl, userToken, "text/plain")).andExpect(status().isBadRequest());
+		String otherToken = signupAndLogin("other-photo-" + suffix + "@petcare.com");
+		mockMvc.perform(imageUpload(imagesUrl, otherToken, "image/png")).andExpect(status().isForbidden());
+		for (int i = 0; i < 3; i++) {
+			mockMvc.perform(imageUpload(imagesUrl, userToken, "image/png")).andExpect(status().isOk());
+		}
+		mockMvc.perform(imageUpload(imagesUrl, userToken, "image/png")).andExpect(status().isConflict());
+
+		JsonNode imageUrls = getData(reviewsUrl, userToken).get("content").get(0).get("imageUrls");
+		assertThat(imageUrls).hasSize(3);
+		String firstUrl = imageUrls.get(0).asText();
+		mockMvc.perform(get(firstUrl)).andExpect(status().isOk()); // 공개로 서빙됨
+
+		String firstName = firstUrl.substring(firstUrl.lastIndexOf('/') + 1);
+		mockMvc.perform(delete(imagesUrl + "/" + firstName).header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.imageUrls.length()").value(2));
+		mockMvc.perform(delete(imagesUrl + "/not-mine.png").header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isNotFound());
+		assertThat(Files.exists(reviewImagePath(firstUrl))).isFalse();
+
+		String remainingUrl = getData(reviewsUrl, userToken).get("content").get(0).get("imageUrls").get(0).asText();
+		mockMvc.perform(delete(reviewsUrl + "/" + reviewId).header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk());
+		assertThat(Files.exists(reviewImagePath(remainingUrl))).isFalse();
+	}
+
+	private MockHttpServletRequestBuilder imageUpload(String url, String token, String contentType) {
+		return multipart(url)
+				.file(new MockMultipartFile("file", "photo.png", contentType, new byte[] {1, 2, 3}))
+				.header("Authorization", "Bearer " + token);
+	}
+
+	private Path reviewImagePath(String imageUrl) {
+		return Path.of("build/test-uploads-reviews", imageUrl.substring(imageUrl.lastIndexOf('/') + 1));
 	}
 
 	// ---------- 병원 상세 캐시 ----------

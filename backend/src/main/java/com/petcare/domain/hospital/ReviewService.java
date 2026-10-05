@@ -15,13 +15,16 @@ import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import com.petcare.global.file.FileStorageService;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -35,6 +38,7 @@ public class ReviewService {
 	private final ReservationRepository reservationRepository;
 	private final UserRepository userRepository;
 	private final HospitalService hospitalService;
+	private final FileStorageService fileStorageService;
 
 	@Transactional
 	// 변경(2026-10-02): 리뷰가 바뀌면 병원 평점 집계가 바뀌므로 병원 상세 캐시 무효화 (이전: 캐시 없음)
@@ -100,7 +104,33 @@ public class ReviewService {
 	@CacheEvict(cacheNames = HospitalService.CACHE, key = "#hospitalId")
 	public void delete(Long userId, Long hospitalId, Long reviewId) {
 		Review review = getOwnedReview(userId, hospitalId, reviewId);
+		// 변경(2026-10-05): 리뷰 사진 파일도 같이 삭제 — DB 행은 값 컬렉션이라 자동 삭제, 파일은 직접 (이전: 사진 없음)
+		List<String> imageUrls = List.copyOf(review.getImageUrls());
 		reviewRepository.delete(review);
+		imageUrls.forEach(fileStorageService::deleteReviewImage);
+	}
+
+	@Transactional
+	public ReviewResponse addImage(Long userId, Long hospitalId, Long reviewId, MultipartFile file) {
+		Review review = getOwnedReview(userId, hospitalId, reviewId);
+		if (!review.canAddImage()) {
+			throw new ConflictException("사진은 리뷰당 최대 " + Review.MAX_IMAGES + "장까지 올릴 수 있습니다.");
+		}
+		review.addImage(fileStorageService.storeReviewImage(file));
+		return ReviewResponse.from(review);
+	}
+
+	// fileName은 업로드 때 서버가 만든 UUID 파일명 — 이 리뷰의 사진 목록에 있는 것만 삭제(다른 파일 경로 조작 방지)
+	@Transactional
+	public ReviewResponse deleteImage(Long userId, Long hospitalId, Long reviewId, String fileName) {
+		Review review = getOwnedReview(userId, hospitalId, reviewId);
+		String imageUrl = review.getImageUrls().stream()
+				.filter(url -> url.endsWith("/" + fileName))
+				.findFirst()
+				.orElseThrow(() -> new NotFoundException("사진을 찾을 수 없습니다."));
+		review.removeImage(imageUrl);
+		fileStorageService.deleteReviewImage(imageUrl);
+		return ReviewResponse.from(review);
 	}
 
 	@Transactional
