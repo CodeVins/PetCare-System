@@ -86,6 +86,11 @@ class AuthFlowTest {
 	@Test
 	void 비회원은_병원_조회만_가능하고_그_외는_401() throws Exception {
 		mockMvc.perform(get("/api/hospitals")).andExpect(status().isOk());
+		// 장애 감시용 헬스체크 — 비회원 접근 가능, 상태만 있고 상세(DB 등)는 숨김
+		mockMvc.perform(get("/api/health"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("UP"))
+				.andExpect(jsonPath("$.components").doesNotExist());
 		mockMvc.perform(get("/api/hospitals/999999/reviews")).andExpect(status().isOk());
 		mockMvc.perform(get("/api/hospitals/999999/slots")).andExpect(status().isOk());
 

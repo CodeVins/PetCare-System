@@ -131,6 +131,7 @@ com.petcare
 - 로컬 개발용 계정: `test-new@petcare.com`/`newpassword123`(USER), `admin@petcare.com`/`adminpass123`(ADMIN), `owner-test@petcare.com`/`ownerpass123`(HOSPITAL_OWNER, 병원 id=2 소유)
 - CORS 허용 오리진: `http://localhost:5173`(Vite), `http://localhost:3000`(CRA) — 프론트 개발 서버 포트가 다르면 `SecurityConfig.corsConfigurationSource()`에 추가. 운영은 Caddy가 프론트와 API를 같은 오리진으로 서빙해서 CORS 설정 불필요(운영 도메인 추가하지 말 것)
 - 배포 설정: `application.yml`의 `DB_URL`/`SHOW_SQL`은 환경변수(로컬 기본값 있음), `server.forward-headers-strategy: framework`로 Caddy의 X-Forwarded-* 신뢰(Swagger 서버 URL이 https로 생성됨). 운영 비밀값은 EC2 `~/petcare/.env`에만 있음(`../.env.deploy.example`에 키 목록). 컨테이너 시간대는 `Asia/Seoul` 고정(기본 UTC면 리마인더·슬롯 시간 검증이 9시간 어긋남)
+- 장애 감시·백업(2026-10-05): 헬스체크 `GET /api/health`(actuator, `management.endpoints.web.base-path: /api`로 Caddy·Vite 기존 경로를 그대로 탐, health만 노출·상세 숨김, permitAll). DB가 죽으면 503 DOWN, **Redis는 fail-open이라 헬스 판정에서 제외**(`management.health.redis.enabled: false`, 오탐 방지). 외부 감시는 `.github/workflows/uptime.yml`(15분마다 호출, 실패 시 GitHub 메일 — 별도 모니터링 서비스 가입 없음). 백업은 compose `db-backup` 서비스(mysql:8 이미지 재사용, 하루 한 번 `mysqldump --single-transaction --no-tablespaces` + uploads 볼륨 tar → 서버 `~/petcare/backups` 7일 보관, 일반 DB 계정이라 `--no-tablespaces` 필요). 같은 디스크라 인스턴스 유실 대비는 EBS 스냅샷(수동 설정). 복구 절차·알림 설정은 `../docs/DEPLOY.md` 6·7절
 - 운영 DB에 배포 검증용 계정 `deploy-check-1790777642@petcare.com`(펫 "배포검증")이 있음 — 필요 없으면 관리자 패널에서 정지
 - 파일 업로드(반려동물 사진): 로컬 디스크 저장(`uploads/pets/`, `.gitignore` 처리됨), `global/file/FileStorageService`가 담당. 파일명은 클라이언트 값을 쓰지 않고 UUID로 새로 생성(경로 조작 방지), 업로드 시 jpg/png/webp만 허용, 5MB 제한. `/uploads/**`는 SecurityConfig에서 permitAll — 이미지는 공개로 서빙됨
 - 리뷰 사진(2026-10-05): `POST /api/hospitals/{hospitalId}/reviews/{reviewId}/images`(multipart `file`, 한 장씩, 리뷰당 최대 3장 → 넘으면 409), `DELETE .../images/{fileName}`(서버가 만든 UUID 파일명 — 이 리뷰의 목록에 있는 것만 삭제, 없으면 404). 작성자 본인만(`getOwnedReview`, 남은 403). `FileStorageService.storeReviewImage`(`uploads/reviews/`, `app.upload.review-image-dir`, 기존 jpg/png/webp·5MB 규칙 그대로), `WebConfig`가 `/uploads/reviews/**` 서빙. 리뷰 삭제 시 파일도 삭제(DB 행은 값 컬렉션이라 자동). `ReviewResponse`/`MyReviewResponse`/`ManagedReviewResponse`에 `imageUrls`(관리 화면은 부적절한 사진 모더레이션용). 사진은 평점·리뷰 수와 무관해서 병원 상세 캐시 무효화 대상 아님. 숨김 리뷰의 사진 URL은 추측 불가한 UUID라 따로 막지 않음
@@ -235,12 +236,16 @@ com.petcare
 - Redis 도입(2026-10-02, PR #2~#4, 운영 배포 완료): 로그인 실패 횟수 제한(#2), 병원 상세 캐시(#3), 병원 거리 검색 위경도 범위 DB 필터(#4 — Redis 미사용, 같은 "병원 수 증가 대비" 묶음). 작업 방식: 기능별 브랜치 → PR(CI 테스트만) → 스쿼시 머지(main push 시 자동 배포). 운영 확인은 로그인 429까지 완료, 운영 DB에 병원 데이터가 없어 캐시는 로컬에서만 검증
 - 배포 장애 기록(2026-10-02): deploy job이 `ssh: connect to host ... port 22: Connection timed out`으로 실패 → 원인은 EC2 인스턴스가 중지돼 있던 것(콘솔에서 안 보인 건 리전을 다르게 보고 있어서). 인스턴스 시작 후 **가장 최근 main 실행의 실패 job만** `gh run rerun <id> --failed`로 재실행해 배포(이전 실패 실행을 재실행하면 옛 커밋 이미지가 배포됨). 탄력적 IP라 재시작해도 `EC2_HOST` 그대로
 - push 전략: 파이프라인은 push 때만 돌므로 문서만 바뀐 건 로컬 커밋으로 두고 다음 코드 PR에 같이 올림(`paths-ignore`는 필요해지면 추가)
+- 2026-10-02~05 추가 작업(PR #5~#13): 채팅 WebSocket 전환·안 읽은 수(#5), 진료 기록(#6), 예약 메모·자가문진 첨부(#7), 예약 시간 변경(#8), 리뷰 사진(#9), 병원 기간 통계(#10), 대기자 차례 넘기기(#11), 요일별 진료 시간·지금 진료 중(#12), 헬스체크·uptime 감시·자동 백업(#13, 머지 대기). 각 기능 상세는 해당 섹션 참고
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
 - 병원 검색(`GET /api/hospitals`) 페이지네이션 — 응답 형식이 바뀌어 프론트 수정 필요, 병원 수가 수천 단위가 되면 진행
+- 운영 데모 데이터 — 실제 병원 크롤링은 약관·사칭 문제로 제외, 가상 병원(추천) vs 공공데이터 위치+가상 이름 중 결정 대기
+- 지도 보기 — 카카오맵 JavaScript 키 발급 대기(localhost:5173, 운영 도메인 등록)
+- EBS 스냅샷 자동화(AWS 콘솔, 사용자 설정)
 
 **프론트엔드**: `../frontend`에 별도로 Vite+React 프로젝트 (자체 CLAUDE.md 있음). 인증·병원 탐색/상세·예약/대기·반려동물/건강기록·채팅·알림·마이페이지·병원 소유자 대시보드·관리자 화면·고객지원(FAQ/공지/약관)까지 구현됨.
 

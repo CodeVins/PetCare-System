@@ -35,3 +35,27 @@ main에 push(또는 PR 머지) → test 통과 시 자동 배포. 진행 상황�
   `TAG=sha-<이전 커밋 SHA 40자리> docker compose pull && TAG=sha-<같은 값> docker compose up -d --no-build`
   또는 Actions 탭에서 이전 커밋의 run을 열어 "Re-run all jobs"
 - DB 접속: `docker compose exec mysql mysql -u petcare -p petcare`
+
+## 6. 장애 감시 (2026-10-05)
+- 헬스체크: `https://<도메인>/api/health` → `{"status":"UP"}` (DB 연결까지 확인, Redis는 fail-open이라 제외)
+- `.github/workflows/uptime.yml`이 15분마다 호출 → 실패하면 워크플로 실패로 GitHub가 메일 발송(별도 서비스 가입 불필요)
+  - 메일이 안 오면: GitHub → Settings → Notifications → Actions에서 "실패한 워크플로" 알림이 켜져 있는지 확인
+  - 레포에 60일간 활동이 없으면 GitHub가 스케줄을 끔 → Actions 탭에서 다시 Enable
+  - 수동 확인: Actions 탭 → uptime → Run workflow
+- 알림이 오면: AWS 콘솔(리전 확인!)에서 인스턴스 상태 → 서버 접속해 `docker compose ps`, `docker compose logs --tail 100 backend`
+
+## 7. 백업과 복구 (2026-10-05)
+**자동 백업(같은 서버)**: compose의 `db-backup` 서비스가 하루 한 번 `~/petcare/backups/`에 저장, 7일치 보관
+- `db-YYYY-MM-DD.sql.gz`(DB 전체 덤프), `uploads-YYYY-MM-DD.tar.gz`(반려동물·병원·리뷰 사진)
+- 확인: `ls -lh ~/petcare/backups`, `docker compose logs db-backup`
+
+**서버 밖 백업(인스턴스·디스크 자체를 잃는 경우 대비, 1회 설정)**: EC2 → Elastic Block Store → 수명 주기 관리자(Data Lifecycle Manager)
+→ 정책 생성: 대상 = 이 인스턴스의 볼륨(태그로 지정), 매일 1회, 보관 7개. 스냅샷 비용은 변경분만큼(소량)
+
+**DB 복구** (서버에서, `cd ~/petcare`):
+```bash
+docker compose stop backend                        # 복구 중 쓰기 막기
+gunzip -c backups/db-2026-10-05.sql.gz | docker compose exec -T mysql sh -c 'mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" petcare'
+docker compose start backend
+```
+**사진 복구**: `docker compose run --rm --no-deps -v "$PWD/backups:/backups" --entrypoint tar backend xzf /backups/uploads-2026-10-05.tar.gz -C /app/uploads`
