@@ -1,8 +1,9 @@
 // 화면 6~7곳에 흩어져 있던 같은 포맷터들을 여기로 모음.
-import type { HospitalAmenity, HospitalAnimal, PetSex, PetSpecies, ReservationType } from '../types/api'
+import type { HospitalAmenity, HospitalAnimal, PetSex, PetSize, PetSpecies, ReservationType } from '../types/api'
 
 export const SPECIES_LABEL: Record<PetSpecies, string> = { DOG: '강아지', CAT: '고양이' }
 export const SEX_LABEL: Record<PetSex, string> = { MALE: '수컷', FEMALE: '암컷' }
+export const SIZE_LABEL: Record<PetSize, string> = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' }
 export const RESERVATION_TYPE_LABEL: Record<ReservationType, string> = {
   CHECKUP: '정기검진',
   VACCINATION: '예방접종',
