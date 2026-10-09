@@ -19,7 +19,7 @@ import PageHeader from '../../components/common/PageHeader'
 import Tabs from '../../components/common/Tabs'
 import TextField from '../../components/common/TextField'
 import { useToast } from '../../hooks/useToast'
-import { calculateAge, SEX_LABEL, SPECIES_LABEL } from '../../lib/format'
+import { calculateAge, SEX_LABEL, SIZE_LABEL, SPECIES_LABEL } from '../../lib/format'
 import FeedingCalculatorSection from './FeedingCalculatorSection'
 import GuardianSection from './GuardianSection'
 import HealthRecordSection from './HealthRecordSection'
@@ -36,8 +36,6 @@ const SIZE_OPTIONS: { value: PetSize | ''; label: string }[] = [
   { value: 'LARGE', label: '대형' },
   { value: '', label: '선택 안 함' },
 ]
-
-const SIZE_LABEL: Record<PetSize, string> = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' }
 
 const SEX_OPTIONS: { value: PetSex | ''; label: string }[] = [
   { value: 'MALE', label: '수컷' },
