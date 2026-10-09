@@ -18,14 +18,17 @@ public class HospitalRepositoryImpl implements HospitalRepositoryCustom {
 	@Override
 	public List<HospitalSearchResult> search(
 			String keyword, Double minRating, HospitalSortType sort, Boolean is24Hours, Boolean hasParking,
-			GeoBox box) {
+			GeoBox box, HospitalAnimal animal, HospitalAmenity amenity) {
 		List<Tuple> results = queryFactory
 				.select(hospital, review.rating.avg(), review.id.count())
 				.from(hospital)
 				.leftJoin(review).on(review.hospital.eq(hospital), review.hidden.eq(false))
 				// 변경(2026-10-02): 거리 검색이면 반경을 감싸는 위경도 사각형으로 DB에서 먼저 거름 (이전: 전체 병원을 불러와 메모리에서 거리 계산)
+				// 변경(2026-10-09): 진료 동물·편의 서비스 필터 추가 — 값 컬렉션이라 member of 조건 (이전: 없음)
 				.where(keywordContains(keyword), is24HoursCondition(is24Hours), hasParkingCondition(hasParking),
-						within(box))
+						within(box),
+						animal == null ? null : hospital.animals.contains(animal),
+						amenity == null ? null : hospital.amenities.contains(amenity))
 				.groupBy(hospital.id)
 				.having(minRatingCondition(minRating))
 				.orderBy(orderSpecifier(sort))

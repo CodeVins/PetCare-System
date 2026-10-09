@@ -10,7 +10,8 @@ import Alert from '../../components/common/Alert'
 import TextField from '../../components/common/TextField'
 import Toggle from '../../components/common/Toggle'
 import { useToast } from '../../hooks/useToast'
-import type { Hospital } from '../../types/api'
+import { HOSPITAL_AMENITY_LABEL, HOSPITAL_ANIMAL_LABEL } from '../../lib/format'
+import type { Hospital, HospitalAmenity, HospitalAnimal } from '../../types/api'
 
 function toFormState(hospital: Hospital) {
   return {
@@ -23,7 +24,21 @@ function toFormState(hospital: Hospital) {
     is24Hours: hospital.is24Hours || false,
     hasParking: hospital.hasParking || false,
     avgTreatmentPrice: hospital.avgTreatmentPrice ?? '',
+    // 변경(2026-10-09): 전화번호·소개·진료 동물·편의 서비스 (이전: 없음 — 수정 API가 전체 교체라 폼에 없으면 저장 때 지워짐)
+    phone: hospital.phone || '',
+    description: hospital.description || '',
+    animals: hospital.animals ?? [],
+    amenities: hospital.amenities ?? [],
   }
+}
+
+const ANIMALS = Object.keys(HOSPITAL_ANIMAL_LABEL) as HospitalAnimal[]
+const AMENITIES = Object.keys(HOSPITAL_AMENITY_LABEL) as HospitalAmenity[]
+
+// 체크하면 추가, 해제하면 제거 — 순서는 라벨 정의 순서로 맞춰 둠
+function toggleIn<T extends string>(list: T[], value: T, order: T[]): T[] {
+  const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
+  return order.filter((v) => next.includes(v))
 }
 
 interface HospitalInfoSectionProps {
@@ -61,6 +76,10 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
         hasParking: form.hasParking,
         avgTreatmentPrice:
           form.avgTreatmentPrice === '' ? null : Number(form.avgTreatmentPrice),
+        phone: form.phone.trim() || null,
+        description: form.description.trim() || null,
+        animals: form.animals,
+        amenities: form.amenities,
       })
       onHospitalUpdated(data.data)
       // 변경(2026-09-27): 저장 완료 안내를 토스트로 (이전: 폼 아래 초록 Alert)
@@ -193,6 +212,66 @@ export default function HospitalInfoSection({ hospital, onHospitalUpdated }: Hos
           onChange={(event) => setForm((f) => ({ ...f, specialty: event.target.value }))}
           placeholder="예: 내과, 외과"
         />
+        <TextField
+          label="전화번호"
+          type="tel"
+          value={form.phone}
+          onChange={(event) => setForm((f) => ({ ...f, phone: event.target.value }))}
+          placeholder="예: 02-123-4567"
+        />
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="hospital-description" className="text-sm font-medium text-stone-700">
+            병원 소개 <span className="font-normal text-stone-500">({form.description.length}/500)</span>
+          </label>
+          <textarea
+            id="hospital-description"
+            value={form.description}
+            maxLength={500}
+            rows={3}
+            onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))}
+            placeholder="병원 상세 화면 맨 위에 보이는 소개 문구"
+            className="input min-h-24 py-3"
+          />
+        </div>
+
+        {/* 진료 동물·편의 서비스 — 목록 필터와 상세 배지에 쓰임 */}
+        {(
+          [
+            ['진료 동물', ANIMALS, HOSPITAL_ANIMAL_LABEL, 'animals'],
+            ['편의 서비스', AMENITIES, HOSPITAL_AMENITY_LABEL, 'amenities'],
+          ] as const
+        ).map(([legend, values, labels, key]) => (
+          <fieldset key={key}>
+            <legend className="mb-2 text-sm font-medium text-stone-700">{legend}</legend>
+            <div className="flex flex-wrap gap-2">
+              {values.map((value) => {
+                const list = form[key] as string[]
+                const checked = list.includes(value)
+                return (
+                  <label
+                    key={value}
+                    className={`admin-btn cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-600 ${
+                      checked ? 'bg-stone-900 text-white' : 'border border-stone-300 bg-white text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setForm((f) => ({
+                          ...f,
+                          [key]: toggleIn(f[key] as string[], value, values as readonly string[] as string[]),
+                        }))
+                      }
+                      className="sr-only"
+                    />
+                    {(labels as Record<string, string>)[value]}
+                  </label>
+                )
+              })}
+            </div>
+          </fieldset>
+        ))}
 
         <div>
           {switchRow('is24Hours', '24시간 운영')}

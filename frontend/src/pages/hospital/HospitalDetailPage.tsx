@@ -8,7 +8,7 @@ import { getMyPets } from '../../api/petApi'
 import { createReservation } from '../../api/reservationApi'
 import ReservationNoteFields from './ReservationNoteFields'
 import WeeklyHoursTable from './WeeklyHoursTable'
-import { openStatus } from '../../lib/openingHours'
+import { hasNightHours, openStatus } from '../../lib/openingHours'
 import { joinWaitlist } from '../../api/waitlistApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
@@ -21,7 +21,13 @@ import Tabs from '../../components/common/Tabs'
 import { useAuth } from '../../hooks/useAuth'
 import { useFavoriteIds } from '../../hooks/useFavoriteIds'
 import { useToast } from '../../hooks/useToast'
-import { formatDateLabel, formatTimeRange, RESERVATION_TYPE_LABEL } from '../../lib/format'
+import {
+  formatDateLabel,
+  formatTimeRange,
+  HOSPITAL_AMENITY_LABEL,
+  HOSPITAL_ANIMAL_LABEL,
+  RESERVATION_TYPE_LABEL,
+} from '../../lib/format'
 import { OWNER_ROLES } from '../../lib/roles'
 import type { Hospital, Pet, ReservationType, Slot } from '../../types/api'
 import ReviewSection from './ReviewSection'
@@ -293,6 +299,15 @@ export default function HospitalDetailPage() {
               {hospital.is24Hours && (
                 <span className="badge h-6 bg-brand-50 px-2.5 text-xs text-brand-700">24시간</span>
               )}
+              {/* 변경(2026-10-09): 야간 진료·편의 서비스 배지 (이전: 없음) */}
+              {hasNightHours(hospital) && (
+                <span className="badge h-6 bg-brand-50 px-2.5 text-xs text-brand-700">야간 진료</span>
+              )}
+              {hospital.amenities.map((amenity) => (
+                <span key={amenity} className="badge badge-neutral h-6 px-2.5 text-xs">
+                  {HOSPITAL_AMENITY_LABEL[amenity]}
+                </span>
+              ))}
               {hospital.openingHours && (
                 <span className="badge h-6 bg-brand-50 px-2.5 text-xs text-brand-700">
                   {hospital.openingHours}
@@ -312,6 +327,24 @@ export default function HospitalDetailPage() {
 
           {tab === 'info' && (
             <dl className="card m-0 px-4 py-1">
+              {/* 변경(2026-10-09): 소개·전화번호·진료 동물 추가 (이전: 없음) */}
+              {hospital.description && (
+                <p className="whitespace-pre-wrap border-b border-stone-100 py-3.5 text-[15px] text-stone-800">
+                  {hospital.description}
+                </p>
+              )}
+              <InfoRow term="전화번호">
+                {hospital.phone && (
+                  <a href={`tel:${hospital.phone}`} className="font-medium text-brand-700 underline-offset-2 hover:underline">
+                    {hospital.phone}
+                  </a>
+                )}
+              </InfoRow>
+              <InfoRow term="진료 동물">
+                {hospital.animals.length > 0
+                  ? hospital.animals.map((animal) => HOSPITAL_ANIMAL_LABEL[animal]).join(' · ')
+                  : null}
+              </InfoRow>
               <InfoRow term="진료과목">{hospital.specialty}</InfoRow>
               {/* 변경(2026-10-05): 요일별 진료 시간 표 + 기존 자유 텍스트는 "운영 안내"로 (이전: 자유 텍스트 "운영시간"만) */}
               {hospital.weeklyHours.length > 0 && (

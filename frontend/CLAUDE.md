@@ -129,6 +129,7 @@ src
 - 병원 통계(2026-10-05): 소유자 콘솔 "통계" 메뉴(`/dashboard/stats`, `pages/dashboard/OwnerStatsPage`) — 기간 탭 7/30/90일, KPI(전체 예약·노쇼율·취소율·슬롯 이용률), 일별 누적 막대(예약/취소·거절, 열 전체 hover 툴팁, "표로 보기"), 상태별·진료 유형별. 차트 색은 dataviz 검증기 통과값 `teal-600`(#0d9488)/`amber-600`(#d97706) — 브랜드 `#0f766e`는 채도가 낮아 차트에서 회색처럼 보여서 차트에만 한 단계 밝은 teal
 - 대기 차례(2026-10-05): 내 대기 목록에서 `offerExpiresAt`이 있으면 "자리 났어요" 배지 + 강조 테두리 + "~까지 예약하지 않으면 다음 대기자에게" 안내 + "예약하러 가기"(병원 상세)
 - 진료 시간(2026-10-05): `lib/openingHours.openStatus()`(서버 `isOpenAt`과 같은 규칙, 현재 시각으로 계산 — 상세 응답이 캐시돼서), `HospitalCard`·상세에 "진료 중/진료 종료" 배지(미등록이면 숨김), 병원 목록 칩 "지금 진료 중"(`openNow`, `?openNow=true`로 진입 가능), 상세 정보 탭 `WeeklyHoursTable`(오늘 강조, 구간 없는 요일 휴무) + 기존 자유 텍스트는 "운영 안내". 소유자 "병원 정보"에 `pages/dashboard/OpeningHoursEditor`(요일별 구간 추가/삭제, "월요일 시간을 평일에 적용", 저장은 별도 버튼·전체 교체). `DayOfWeek` 타입은 슬롯 일괄 생성과 공용
+- 병원 프로필(2026-10-09): 라벨은 `lib/format`의 `HOSPITAL_ANIMAL_LABEL`·`HOSPITAL_AMENITY_LABEL`(키 순서 = 표시 순서), 야간 진료는 `lib/openingHours.hasNightHours()`. 상세 정보 탭 맨 위 소개 + 전화번호(`tel:` 링크) + 진료 동물, 상단 배지에 야간 진료·편의 서비스. 카드에 "강아지 · 고양이 진료"·야간 진료 배지. 목록 필터에 진료 동물·편의 서비스 셀렉트(`?animal=&amenity=`로 진입 가능). 소유자 병원 정보 폼에 전화번호·소개·진료 동물/편의 서비스 토글 — **수정 API가 전체 교체라 폼이 이 값들을 항상 같이 보내야 함**(안 보내면 저장 때 지워짐)
 **날짜별 상세 이력·설계 이유·알려진 한계는 PROGRESS.md 참고.**
 - 디자인: **DESIGN_SPEC.md**가 단일 기준(색·폰트·형태·레이아웃). `petcare-ui-source/`
   는 화면별 HTML 시안 원본. 2026-09-22에 전 화면 이식 완료 — teal `#0F766E` accent,

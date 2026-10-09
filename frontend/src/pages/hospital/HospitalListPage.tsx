@@ -10,7 +10,8 @@ import { Reveal, RevealItem } from '../../components/common/Reveal'
 import SelectField from '../../components/common/SelectField'
 import { useAuth } from '../../hooks/useAuth'
 import { useFavoriteIds } from '../../hooks/useFavoriteIds'
-import type { Hospital, HospitalSort } from '../../types/api'
+import { HOSPITAL_AMENITY_LABEL, HOSPITAL_ANIMAL_LABEL } from '../../lib/format'
+import type { Hospital, HospitalAmenity, HospitalAnimal, HospitalSort } from '../../types/api'
 import HospitalCard from './HospitalCard'
 import HospitalTabs from './HospitalTabs'
 
@@ -25,6 +26,16 @@ const RATING_OPTIONS = [
   { value: '3', label: '3.0 이상' },
   { value: '4', label: '4.0 이상' },
   { value: '4.5', label: '4.5 이상' },
+]
+
+const ANIMAL_OPTIONS = [
+  { value: '', label: '진료 동물 전체' },
+  ...Object.entries(HOSPITAL_ANIMAL_LABEL).map(([value, label]) => ({ value, label })),
+]
+
+const AMENITY_OPTIONS = [
+  { value: '', label: '편의 서비스 전체' },
+  ...Object.entries(HOSPITAL_AMENITY_LABEL).map(([value, label]) => ({ value, label })),
 ]
 
 const RADIUS_OPTIONS = [1, 3, 5, 10].map((km) => ({
@@ -44,6 +55,8 @@ export default function HospitalListPage() {
   const [is24Hours, setIs24Hours] = useState(searchParams.get('is24Hours') === 'true')
   const [hasParking, setHasParking] = useState(searchParams.get('hasParking') === 'true')
   const [openNow, setOpenNow] = useState(searchParams.get('openNow') === 'true')
+  const [animal, setAnimal] = useState(searchParams.get('animal') ?? '')
+  const [amenity, setAmenity] = useState(searchParams.get('amenity') ?? '')
   const [locationEnabled, setLocationEnabled] = useState(false)
   const [radiusKm, setRadiusKm] = useState(5)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -75,13 +88,16 @@ export default function HospitalListPage() {
         hasParking: hasParking || undefined,
         // 변경(2026-10-05): "지금 진료 중" 필터 (이전: 없음)
         openNow: openNow || undefined,
+        // 변경(2026-10-09): 진료 동물·편의 서비스 필터 (이전: 없음)
+        animal: (animal || undefined) as HospitalAnimal | undefined,
+        amenity: (amenity || undefined) as HospitalAmenity | undefined,
       })
         .then(({ data }) => setHospitals(data.data))
         .catch((err) => setError(errorMessage(err, '병원 목록을 불러오지 못했습니다.')))
         .finally(() => setLoading(false))
     }, 300)
     return () => clearTimeout(timeout)
-  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm, is24Hours, hasParking, openNow])
+  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm, is24Hours, hasParking, openNow, animal, amenity])
 
   const enableLocation = () => {
     if (!navigator.geolocation) {
@@ -100,7 +116,7 @@ export default function HospitalListPage() {
 
   const activeFilterCount =
     (minRating ? 1 : 0) + (is24Hours ? 1 : 0) + (hasParking ? 1 : 0) + (locationEnabled ? 1 : 0) +
-    (openNow ? 1 : 0)
+    (openNow ? 1 : 0) + (animal ? 1 : 0) + (amenity ? 1 : 0)
 
   const filters = (
     <div className="flex flex-col gap-4">
@@ -153,6 +169,20 @@ export default function HospitalListPage() {
         value={minRating}
         options={RATING_OPTIONS}
         onChange={(event) => setMinRating(event.target.value)}
+      />
+
+      <SelectField
+        label="진료 동물"
+        value={animal}
+        options={ANIMAL_OPTIONS}
+        onChange={(event) => setAnimal(event.target.value)}
+      />
+
+      <SelectField
+        label="편의 서비스"
+        value={amenity}
+        options={AMENITY_OPTIONS}
+        onChange={(event) => setAmenity(event.target.value)}
       />
 
       <SelectField

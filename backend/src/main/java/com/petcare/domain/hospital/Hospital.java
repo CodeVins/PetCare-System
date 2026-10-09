@@ -7,6 +7,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,7 +19,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -69,6 +73,26 @@ public class Hospital extends BaseEntity {
 	@CollectionTable(name = "hospital_opening_hour", joinColumns = @JoinColumn(name = "hospital_id"))
 	private List<OpeningHour> weeklyHours = new ArrayList<>();
 
+	@Column(length = 20)
+	private String phone;
+
+	// 상세 화면 상단 소개 문구
+	@Column(length = 500)
+	private String description;
+
+	// 진료 동물 — 비었으면 "정보 없음"(필터에서 빠짐)
+	@ElementCollection
+	@CollectionTable(name = "hospital_animal", joinColumns = @JoinColumn(name = "hospital_id"))
+	@Enumerated(EnumType.STRING)
+	@Column(name = "animal", nullable = false, columnDefinition = "varchar(20)")
+	private Set<HospitalAnimal> animals = new HashSet<>();
+
+	@ElementCollection
+	@CollectionTable(name = "hospital_amenity", joinColumns = @JoinColumn(name = "hospital_id"))
+	@Enumerated(EnumType.STRING)
+	@Column(name = "amenity", nullable = false, columnDefinition = "varchar(30)")
+	private Set<HospitalAmenity> amenities = new HashSet<>();
+
 	@Builder
 	private Hospital(
 			String name, String address, Double latitude, Double longitude, String openingHours, String specialty,
@@ -94,6 +118,20 @@ public class Hospital extends BaseEntity {
 
 	public void changeImageUrl(String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	// 전화번호·소개·진료 동물·편의 서비스 — 생성·수정 둘 다 전체 교체(다른 필드와 같은 컨벤션: 생략하면 비워짐)
+	public void updateProfile(String phone, String description, Set<HospitalAnimal> animals, Set<HospitalAmenity> amenities) {
+		this.phone = phone;
+		this.description = description;
+		this.animals.clear();
+		if (animals != null) {
+			this.animals.addAll(animals);
+		}
+		this.amenities.clear();
+		if (amenities != null) {
+			this.amenities.addAll(amenities);
+		}
 	}
 
 	public void replaceWeeklyHours(List<OpeningHour> hours) {

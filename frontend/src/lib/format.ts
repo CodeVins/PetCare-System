@@ -1,5 +1,5 @@
 // 화면 6~7곳에 흩어져 있던 같은 포맷터들을 여기로 모음.
-import type { PetSex, PetSpecies, ReservationType } from '../types/api'
+import type { HospitalAmenity, HospitalAnimal, PetSex, PetSpecies, ReservationType } from '../types/api'
 
 export const SPECIES_LABEL: Record<PetSpecies, string> = { DOG: '강아지', CAT: '고양이' }
 export const SEX_LABEL: Record<PetSex, string> = { MALE: '수컷', FEMALE: '암컷' }
@@ -10,6 +10,22 @@ export const RESERVATION_TYPE_LABEL: Record<ReservationType, string> = {
   SURGERY: '수술',
   GROOMING: '미용',
   ETC: '기타',
+}
+
+// 병원 진료 동물·편의 서비스 — 키 순서가 화면 표시 순서(서버도 같은 순서로 정렬해서 내려줌)
+export const HOSPITAL_ANIMAL_LABEL: Record<HospitalAnimal, string> = {
+  DOG: '강아지',
+  CAT: '고양이',
+  EXOTIC: '특수동물',
+}
+
+export const HOSPITAL_AMENITY_LABEL: Record<HospitalAmenity, string> = {
+  EMERGENCY: '응급 진료',
+  GROOMING: '미용',
+  BOARDING: '호텔',
+  CAT_FRIENDLY: '고양이 전용 진료실',
+  HEALTH_SCREENING: '건강검진',
+  REHABILITATION: '재활·물리치료',
 }
 
 export function calculateAge(birthDate: string | null | undefined): number | null {
