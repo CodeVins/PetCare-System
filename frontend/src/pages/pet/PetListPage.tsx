@@ -26,7 +26,7 @@ import {
   SIZE_LABEL,
   SPECIES_LABEL,
 } from '../../lib/format'
-import type { Pet, Reservation, ReservationStatus, UpcomingVaccination } from '../../types/api'
+import type { Pet, Reservation, UpcomingVaccination } from '../../types/api'
 
 // 사진이 없는 반려동물의 커버 색 — teal → amber → sky 순환 (DESIGN_SPEC 보조 액센트)
 const COVER_ACCENTS = [
@@ -34,8 +34,6 @@ const COVER_ACCENTS = [
   'bg-amber-50 text-amber-600',
   'bg-sky-50 text-sky-600',
 ]
-
-const UPCOMING_STATUSES: ReservationStatus[] = ['PENDING', 'CONFIRMED']
 
 function Panel({
   id,
@@ -181,8 +179,9 @@ export default function PetListPage() {
 
   useEffect(() => {
     // 세 목록은 서로 독립이라 하나가 실패해도 나머지는 그린다
-    const now = new Date()
-    Promise.allSettled([getMyPets(), getUpcomingVaccinations(), getMyReservations()])
+    // 변경(2026-10-09): 다가오는 예약은 서버가 거르고 가까운 순으로 줌 (이전: 전체 첫 페이지를 받아 화면에서 거름 —
+    // 예약이 20개 넘으면 다가오는 예약이 빠질 수 있었음)
+    Promise.allSettled([getMyPets(), getUpcomingVaccinations(), getMyReservations(0, { view: 'UPCOMING' })])
       .then(([petsRes, vaccinationsRes, reservationsRes]) => {
         if (petsRes.status === 'fulfilled') setPets(petsRes.value.data.data.content)
         // 둘 다 가까운 순으로 정렬 — 카드의 "다음 접종/예약"은 이 순서에서 처음 찾은 것
@@ -191,11 +190,7 @@ export default function PetListPage() {
             [...vaccinationsRes.value.data.data].sort((a, b) => a.daysRemaining - b.daysRemaining),
           )
         if (reservationsRes.status === 'fulfilled')
-          setReservations(
-            reservationsRes.value.data.data.content
-              .filter((r) => UPCOMING_STATUSES.includes(r.status) && new Date(r.startTime) > now)
-              .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-          )
+          setReservations(reservationsRes.value.data.data.content)
         if (petsRes.status === 'rejected') setError('반려동물 목록을 불러오지 못했습니다.')
       })
       .finally(() => setLoading(false))

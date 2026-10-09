@@ -1,6 +1,6 @@
 import { Buildings, CalendarCheck, ChatCircleDots, Heart, MapPin, Star } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BASE_URL, errorMessage } from '../../api/axiosInstance'
 import { getOrCreateChatRoom } from '../../api/chatApi'
 import { getHospital, getSlots } from '../../api/hospitalApi'
@@ -50,7 +50,12 @@ export default function HospitalDetailPage() {
   const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<DetailTab>('info')
+  // 변경(2026-10-09): ?tab=reviews|booking으로 처음 탭 지정 — 내 예약의 "리뷰 쓰기"·"다시 예약"에서 바로 이동 (이전: 항상 정보 탭)
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<DetailTab>(() => {
+    const initial = searchParams.get('tab')
+    return initial === 'reviews' || initial === 'booking' ? initial : 'info'
+  })
   // 비회원이 회원 기능 버튼(즐겨찾기/문의)을 눌렀을 때 안내를 띄울 기능 이름
   const [gatedFeature, setGatedFeature] = useState('')
 

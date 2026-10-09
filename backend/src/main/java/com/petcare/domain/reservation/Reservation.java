@@ -53,6 +53,10 @@ public class Reservation extends BaseEntity {
 	@Column(name = "reminder_sent", nullable = false)
 	private boolean reminderSent;
 
+	// 보호자가 "내 예약"에서 지운 예약 — 행은 남김(슬롯·통계·리뷰 자격과 얽혀 있어서), 본인 목록에서만 안 보임
+	@Column(name = "hidden_by_user", nullable = false)
+	private boolean hiddenByUser;
+
 	// 보호자가 예약하면서 남긴 증상·요청 메모
 	@Column(length = 500)
 	private String memo;
@@ -108,5 +112,15 @@ public class Reservation extends BaseEntity {
 
 	public void markReminderSent() {
 		this.reminderSent = true;
+	}
+
+	// 지울 수 있는 건 끝난 예약만 — 취소·거절·노쇼, 또는 시간이 지난 예약(진행 중인 예약은 먼저 취소해야 함)
+	public boolean isHideable() {
+		return status == ReservationStatus.CANCELLED || status == ReservationStatus.REJECTED
+				|| status == ReservationStatus.NO_SHOW || slot.hasStarted();
+	}
+
+	public void hideFromUser() {
+		this.hiddenByUser = true;
 	}
 }

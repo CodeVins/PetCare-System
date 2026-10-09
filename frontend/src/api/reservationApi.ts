@@ -1,4 +1,4 @@
-import type { PageResponse, Reservation, ReservationType } from '../types/api'
+import type { PageResponse, Reservation, ReservationType, ReservationView } from '../types/api'
 import axiosInstance, { type ApiPromise } from './axiosInstance'
 
 // 변경(2026-10-05): memo·healthCheckRecordId(선택) 추가 — 병원에 증상 메모와 최근 자가 문진 전달 (이전: 펫·슬롯·유형만)
@@ -12,8 +12,29 @@ export function createReservation(payload: {
   return axiosInstance.post('/api/reservations', payload)
 }
 
-export function getMyReservations(page = 0): ApiPromise<PageResponse<Reservation>> {
-  return axiosInstance.get('/api/reservations', { params: { page } })
+// 변경(2026-10-09): 반려동물·보기 필터 추가 — 서버가 거르고 시간순으로 정렬해 줌 (이전: 전체를 받아 화면에서 거름)
+export function getMyReservations(
+  page = 0,
+  filter: { petId?: number | null; view?: ReservationView } = {},
+): ApiPromise<PageResponse<Reservation>> {
+  return axiosInstance.get('/api/reservations', {
+    params: { page, petId: filter.petId ?? undefined, view: filter.view },
+  })
+}
+
+// 보기별 개수(탭 배지) — 반려동물을 고르면 그 아이 기준
+export function getMyReservationCounts(petId?: number | null): ApiPromise<Record<ReservationView, number>> {
+  return axiosInstance.get('/api/reservations/counts', { params: { petId: petId ?? undefined } })
+}
+
+// 내 목록에서만 지움(병원 기록은 남음) — 취소·거절·노쇼 또는 시간이 지난 예약만
+export function hideReservation(reservationId: number): ApiPromise<null> {
+  return axiosInstance.delete(`/api/reservations/${reservationId}`)
+}
+
+// 취소·거절된 예약 한 번에 지우기 — 지운 개수 반환
+export function hideCancelledReservations(): ApiPromise<number> {
+  return axiosInstance.delete('/api/reservations/cancelled')
 }
 
 export function cancelReservation(reservationId: number): ApiPromise<null> {
