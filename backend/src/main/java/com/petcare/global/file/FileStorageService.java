@@ -60,6 +60,17 @@ public class FileStorageService {
 		delete(imageUrl, hospitalImageDir);
 	}
 
+	// 서버가 직접 만든 PNG(데모 병원 커버) 저장 — 업로드 검증(형식·크기)은 사용자 파일용이라 여기선 생략
+	public String storeHospitalImage(byte[] png) {
+		String filename = UUID.randomUUID() + ".png";
+		try {
+			Files.write(hospitalImageDir.resolve(filename), png);
+		} catch (IOException e) {
+			throw new UncheckedIOException("이미지 저장에 실패했습니다.", e);
+		}
+		return "/uploads/hospitals/" + filename;
+	}
+
 	public String storeReviewImage(MultipartFile file) {
 		return store(file, reviewImageDir, "/uploads/reviews/");
 	}

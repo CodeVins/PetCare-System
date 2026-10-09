@@ -71,6 +71,8 @@ services:
       DB_URL: jdbc:mysql://mysql:3306/petcare?allowPublicKeyRetrieval=true&useSSL=false
       SHOW_SQL: "false"
       REDIS_HOST: redis
+      # 포트폴리오 데모 — 가상 병원 15곳·리뷰를 한 번 만들고 예약 슬롯을 매일 채움(global/demo/DemoDataSeeder)
+      DEMO_SEED: "true"
     volumes:
       - uploads:/app/uploads
     # 변경(2026-10-02): redis 추가 — 시작만 되면 됨(헬스체크 대기 안 함, 연결 실패해도 로그인은 fail-open)

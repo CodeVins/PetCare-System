@@ -49,6 +49,9 @@ app:
     pet-image-dir: uploads/pets
     hospital-image-dir: uploads/hospitals
     review-image-dir: uploads/reviews
+  # 운영 데모 데이터(가상 병원·슬롯·리뷰) — DEMO_SEED=true일 때만 global/demo/DemoDataSeeder가 동작
+  demo:
+    enabled: ${DEMO_SEED:false}
   admin:
     bootstrap-email: ${ADMIN_EMAIL:}
     bootstrap-password: ${ADMIN_PASSWORD:}
