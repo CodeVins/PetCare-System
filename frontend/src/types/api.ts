@@ -25,6 +25,8 @@ export type PetSize = 'SMALL' | 'MEDIUM' | 'LARGE'
 export type PetSex = 'MALE' | 'FEMALE'
 export type PetRole = 'OWNER' | 'GUARDIAN'
 export type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'NO_SHOW'
+// 내 예약 보기 구분 — 다가오는(대기·확정 + 시작 전) / 지난(시작 후 대기·확정·노쇼) / 취소(취소·거절)
+export type ReservationView = 'ALL' | 'UPCOMING' | 'PAST' | 'CANCELLED'
 export type ReservationType =
   | 'CHECKUP'
   | 'VACCINATION'

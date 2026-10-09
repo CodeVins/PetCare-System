@@ -21,9 +21,14 @@ import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.EnumMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -102,8 +107,55 @@ public class ReservationService {
 		return record;
 	}
 
-	public PageResponse<ReservationResponse> getMyReservations(Long userId, Pageable pageable) {
-		return PageResponse.from(reservationRepository.findAllByUserId(userId, pageable).map(ReservationResponse::from));
+	// 변경(2026-10-09): 반려동물·보기(다가오는/지난/취소) 필터 + 지운 예약 제외, 정렬은 슬롯 시간 기준으로 고정
+	// (이전: 내 예약 전체를 요청 정렬대로 — 화면이 불러온 페이지 안에서만 걸러서 다음 페이지에 있는 건 안 보였음)
+	public PageResponse<ReservationResponse> getMyReservations(
+			Long userId, Long petId, ReservationView view, Pageable pageable) {
+		Sort.Direction direction = view == ReservationView.UPCOMING ? Sort.Direction.ASC : Sort.Direction.DESC;
+		Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+				Sort.by(direction, "slot.startTime").and(Sort.by(direction, "id")));
+		LocalDateTime now = LocalDateTime.now();
+		return PageResponse.from(reservationRepository.findMine(
+				userId, petId, view.statuses(), after(view, now), before(view, now), sorted).map(ReservationResponse::from));
+	}
+
+	// 보기별 개수(탭 배지용) — 같은 반려동물 필터 기준
+	public Map<ReservationView, Long> countMyReservations(Long userId, Long petId) {
+		LocalDateTime now = LocalDateTime.now();
+		Map<ReservationView, Long> counts = new EnumMap<>(ReservationView.class);
+		for (ReservationView view : ReservationView.values()) {
+			counts.put(view, reservationRepository.countMine(
+					userId, petId, view.statuses(), after(view, now), before(view, now)));
+		}
+		return counts;
+	}
+
+	// 슬롯 시작 시간 구간 (after, before] — DB에 넣을 수 있는 범위 안의 양 끝값으로 "제한 없음"을 표현
+	private static final LocalDateTime EARLIEST = LocalDateTime.of(2000, 1, 1, 0, 0);
+	private static final LocalDateTime LATEST = LocalDateTime.of(9999, 12, 31, 0, 0);
+
+	private static LocalDateTime after(ReservationView view, LocalDateTime now) {
+		return view.timing() == ReservationView.Timing.FUTURE ? now : EARLIEST;
+	}
+
+	private static LocalDateTime before(ReservationView view, LocalDateTime now) {
+		return view.timing() == ReservationView.Timing.STARTED ? now : LATEST;
+	}
+
+	// 내 목록에서 지우기 — 실제 삭제가 아니라 숨김(병원 기록·통계·리뷰 자격은 그대로)
+	@Transactional
+	public void hide(Long userId, Long reservationId) {
+		Reservation reservation = getOwnedReservation(userId, reservationId);
+		if (!reservation.isHideable()) {
+			throw new ConflictException("진행 중인 예약은 삭제할 수 없습니다. 먼저 예약을 취소해 주세요.");
+		}
+		reservation.hideFromUser();
+	}
+
+	// 취소·거절된 예약 한 번에 지우기 — 지운 개수 반환
+	@Transactional
+	public int hideAllCancelled(Long userId) {
+		return reservationRepository.hideAllByUserIdAndStatusIn(userId, ReservationView.CANCELLED.statuses());
 	}
 
 	public ReservationResponse get(Long userId, Long reservationId) {

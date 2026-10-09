@@ -1,39 +1,49 @@
-import { errorMessage } from '../../api/axiosInstance'
-import { CalendarCheck } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { cancelReservation, getMyReservations } from '../../api/reservationApi'
+import { CalendarCheck, MagnifyingGlass, PawPrint, Trash } from '@phosphor-icons/react'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { BASE_URL, errorMessage } from '../../api/axiosInstance'
+import { getOrCreateChatRoom } from '../../api/chatApi'
+import { getMyPets } from '../../api/petApi'
+import {
+  cancelReservation,
+  getMyReservationCounts,
+  getMyReservations,
+  hideCancelledReservations,
+  hideReservation,
+} from '../../api/reservationApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
-import StatusBadge from '../../components/common/StatusBadge'
 import { usePagedList } from '../../hooks/usePagedList'
 import { useToast } from '../../hooks/useToast'
-import { formatSlot, RESERVATION_TYPE_LABEL } from '../../lib/format'
 import RescheduleDialog from './RescheduleDialog'
+import ReservationCard from './ReservationCard'
 import ReservationTabs from './ReservationTabs'
-import type { Reservation, ReservationStatus } from '../../types/api'
+import type { Pet, Reservation, ReservationView } from '../../types/api'
 
-const CANCELLABLE_STATUSES: ReservationStatus[] = ['PENDING', 'CONFIRMED']
-
-// 사용자가 보기 편한 3분류 + 전체. 거절·취소·노쇼는 "지난 예약"으로 묶는다
-// (전부 더 이상 손댈 게 없는 상태라 따로 볼 이유가 적어서).
-const FILTERS: { value: string; label: string; match: (status: ReservationStatus) => boolean }[] = [
-  { value: 'ALL', label: '전체', match: () => true },
-  { value: 'PENDING', label: '대기중', match: (s) => s === 'PENDING' },
-  { value: 'CONFIRMED', label: '확정', match: (s) => s === 'CONFIRMED' },
-  {
-    value: 'PAST',
-    label: '지난 예약',
-    match: (s) => s === 'CANCELLED' || s === 'REJECTED' || s === 'NO_SHOW',
-  },
+const VIEWS: { value: ReservationView; label: string; empty: string }[] = [
+  { value: 'UPCOMING', label: '다가오는', empty: '다가오는 예약이 없어요.' },
+  { value: 'PAST', label: '지난', empty: '지난 예약이 없어요.' },
+  { value: 'CANCELLED', label: '취소·거절', empty: '취소되거나 거절된 예약이 없어요.' },
+  { value: 'ALL', label: '전체', empty: '예약 내역이 없어요.' },
 ]
 
+// 변경(2026-10-09): 반려동물별 보기, 다가오는/지난/취소 보기(서버 필터·시간순), 예약 카드 개편(날짜 블록·반려동물 사진),
+// 끝난 예약 삭제·취소 예약 한 번에 지우기, 병원 문의·다시 예약·리뷰 쓰기 바로가기 추가
+// (이전: 대기중/확정/지난 칩을 불러온 페이지 안에서만 거름, 반려동물 이름이 작은 글씨 한 줄, 취소된 예약을 지울 수 없음)
 export default function ReservationListPage() {
-  // 변경(2026-09-27): usePagedList로 "더 보기" 페이지네이션 (이전: getMyReservations() 첫 페이지 20개만 보임).
-  // 필터 칩 개수는 불러온 만큼 기준.
+  const [pets, setPets] = useState<Pet[]>([])
+  const [petId, setPetId] = useState<number | null>(null)
+  const [view, setView] = useState<ReservationView>('UPCOMING')
+  const [counts, setCounts] = useState<Record<ReservationView, number> | null>(null)
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const [clearing, setClearing] = useState(false)
+  const [rescheduleTarget, setRescheduleTarget] = useState<Reservation | null>(null)
+  const toast = useToast()
+  const navigate = useNavigate()
+
   const {
     items: reservations,
     setItems: setReservations,
@@ -42,42 +52,106 @@ export default function ReservationListPage() {
     hasMore,
     loadMore,
     loadingMore,
-  } = usePagedList(getMyReservations, null, '예약 목록을 불러오지 못했습니다.')
-  const [cancellingId, setCancellingId] = useState<number | null>(null)
-  const [rescheduleTarget, setRescheduleTarget] = useState<Reservation | null>(null)
-  const toast = useToast()
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  } = usePagedList(
+    (page) => getMyReservations(page, { petId, view }),
+    `${petId}-${view}`,
+    '예약 목록을 불러오지 못했습니다.',
+  )
 
-  const handleCancel = async (reservationId: number) => {
-    if (!window.confirm('예약을 취소할까요?')) return
-    setCancellingId(reservationId)
+  const reloadCounts = useCallback(() => {
+    getMyReservationCounts(petId)
+      .then(({ data }) => setCounts(data.data))
+      .catch(() => setCounts(null))
+  }, [petId])
+
+  useEffect(reloadCounts, [reloadCounts])
+
+  useEffect(() => {
+    getMyPets()
+      .then(({ data }) => setPets(data.data.content))
+      .catch(() => setPets([]))
+  }, [])
+
+  // 이 보기에서 빠지는 항목(취소·삭제)은 목록에서 바로 빼고 개수만 다시 받음
+  const removeFromList = (reservationId: number) => {
+    setReservations((prev) => prev.filter((r) => r.id !== reservationId))
+    reloadCounts()
+  }
+
+  const handleCancel = async (reservation: Reservation) => {
+    if (!window.confirm(`${reservation.hospitalName} 예약을 취소할까요?`)) return
+    setBusyId(reservation.id)
     try {
-      await cancelReservation(reservationId)
-      setReservations((prev) =>
-        prev.map((reservation) =>
-          reservation.id === reservationId
-            ? { ...reservation, status: 'CANCELLED' }
-            : reservation,
-        ),
-      )
+      await cancelReservation(reservation.id)
+      if (view === 'ALL') {
+        setReservations((prev) =>
+          prev.map((r) => (r.id === reservation.id ? { ...r, status: 'CANCELLED' } : r)),
+        )
+        reloadCounts()
+      } else {
+        removeFromList(reservation.id)
+      }
       toast('예약을 취소했어요.')
     } catch (err) {
-      // 변경(2026-09-27): 취소 실패를 토스트로 (이전: setError로 예약 목록 전체가 에러 문구로 바뀜)
       toast(errorMessage(err, '예약 취소에 실패했습니다.'), 'error')
     } finally {
-      setCancellingId(null)
+      setBusyId(null)
     }
   }
 
-  const activeFilter = FILTERS.find((f) => f.value === statusFilter) ?? FILTERS[0]
-  const filteredReservations = useMemo(
-    () => reservations.filter((r) => activeFilter.match(r.status)),
-    [reservations, activeFilter],
-  )
+  const handleHide = async (reservation: Reservation) => {
+    if (!window.confirm('이 예약을 목록에서 삭제할까요? 병원의 진료 기록에는 남아 있어요.')) return
+    setBusyId(reservation.id)
+    try {
+      await hideReservation(reservation.id)
+      removeFromList(reservation.id)
+      toast('예약을 삭제했어요.')
+    } catch (err) {
+      toast(errorMessage(err, '예약을 삭제하지 못했습니다.'), 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleClearCancelled = async () => {
+    if (!window.confirm('취소·거절된 예약을 모두 삭제할까요? (모든 반려동물)')) return
+    setClearing(true)
+    try {
+      const { data } = await hideCancelledReservations()
+      setReservations((prev) => prev.filter((r) => r.status !== 'CANCELLED' && r.status !== 'REJECTED'))
+      reloadCounts()
+      toast(`${data.data}건을 삭제했어요.`)
+    } catch (err) {
+      toast(errorMessage(err, '삭제하지 못했습니다.'), 'error')
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const handleChat = async (reservation: Reservation) => {
+    try {
+      const { data } = await getOrCreateChatRoom(reservation.hospitalId)
+      navigate(`/chats/${data.data.id}`)
+    } catch (err) {
+      toast(errorMessage(err, '채팅을 시작하지 못했습니다.'), 'error')
+    }
+  }
+
+  const activeView = VIEWS.find((v) => v.value === view) ?? VIEWS[0]
+  const selectedPet = pets.find((pet) => pet.id === petId)
 
   return (
     <div>
-      <PageHeader title="예약" />
+      <title>예약 | 펫케어</title>
+      <PageHeader
+        title="예약"
+        action={
+          <Link to="/hospitals" className="btn btn-primary btn-sm">
+            <MagnifyingGlass size={18} />
+            병원 찾기
+          </Link>
+        }
+      />
       <ReservationTabs />
 
       {rescheduleTarget && (
@@ -92,41 +166,86 @@ export default function ReservationListPage() {
         />
       )}
 
-      {!loading && !error && reservations.length > 0 && (
-        <div
-          role="tablist"
-          aria-label="예약 상태 필터"
-          className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0"
-        >
-          {FILTERS.map((filter) => {
-            const count = reservations.filter((r) => filter.match(r.status)).length
-            return (
+      {/* 반려동물 고르기 — 둘 이상일 때만 의미가 있음 */}
+      {pets.length > 1 && (
+        <section aria-label="반려동물 선택" className="mb-4">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar md:mx-0 md:px-0">
+            <button
+              type="button"
+              aria-pressed={petId === null}
+              onClick={() => setPetId(null)}
+              className={`chip h-12 pl-1.5 pr-4 ${petId === null ? 'chip-soft' : ''}`}
+            >
+              <span className="flex size-9 items-center justify-center rounded-full bg-stone-100 text-stone-600">
+                <PawPrint size={18} />
+              </span>
+              모든 아이
+            </button>
+            {pets.map((pet) => (
               <button
-                key={filter.value}
+                key={pet.id}
                 type="button"
-                role="tab"
-                aria-selected={statusFilter === filter.value}
-                onClick={() => setStatusFilter(filter.value)}
-                className={`chip ${statusFilter === filter.value ? 'chip-on' : ''}`}
+                aria-pressed={petId === pet.id}
+                onClick={() => setPetId(pet.id)}
+                className={`chip h-12 pl-1.5 pr-4 ${petId === pet.id ? 'chip-soft' : ''}`}
               >
-                {filter.label}
-                <span
-                  className={
-                    statusFilter === filter.value ? 'text-white/80' : 'text-stone-500'
-                  }
-                >
-                  {count}
+                <span className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-stone-100 text-stone-500">
+                  {pet.imageUrl ? (
+                    <img
+                      src={`${BASE_URL}${pet.imageUrl}`}
+                      alt=""
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <PawPrint size={18} weight="duotone" />
+                  )}
                 </span>
+                {pet.name}
               </button>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="예약 보기" className="segmented w-full sm:w-auto">
+          {VIEWS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={view === item.value}
+              onClick={() => setView(item.value)}
+              className={`seg-btn flex items-center justify-center gap-1 whitespace-nowrap px-3 text-sm sm:px-4 ${view === item.value ? 'seg-btn-on' : ''}`}
+            >
+              {item.label}
+              {counts && (
+                <span className={view === item.value ? 'text-brand-600' : 'text-stone-400'}>
+                  {counts[item.value]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        {view === 'CANCELLED' && (counts?.CANCELLED ?? 0) > 0 && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleClearCancelled}
+            loading={clearing}
+          >
+            <Trash size={16} />
+            모두 삭제
+          </Button>
+        )}
+      </div>
+
       {loading && (
-        <div className="flex flex-col gap-3">
+        <div className="grid gap-3 md:grid-cols-2">
           {[0, 1].map((i) => (
-            <div key={i} className="h-30 animate-pulse rounded-2xl bg-stone-100" />
+            <div key={i} className="h-52 animate-pulse rounded-2xl bg-stone-100" />
           ))}
         </div>
       )}
@@ -138,73 +257,30 @@ export default function ReservationListPage() {
           <EmptyState
             icon={CalendarCheck}
             action={
-              <Link to="/hospitals" className="btn btn-primary btn-sm">
-                병원 찾아보기
-              </Link>
+              view === 'UPCOMING' && (
+                <Link to="/hospitals" className="btn btn-primary btn-sm">
+                  병원 찾아보기
+                </Link>
+              )
             }
           >
-            예약 내역이 없습니다.
+            {selectedPet ? `${selectedPet.name}의 ${activeView.empty}` : activeView.empty}
           </EmptyState>
         </div>
       )}
 
-      {!loading && !error && reservations.length > 0 && filteredReservations.length === 0 && (
-        <div className="card">
-          <EmptyState icon={CalendarCheck}>
-            {`${activeFilter.label} 예약이 없습니다.`}
-          </EmptyState>
-        </div>
-      )}
-
-      {!loading && !error && filteredReservations.length > 0 && (
-        <Reveal
-          key={statusFilter}
-          className="flex flex-col gap-3 md:grid md:grid-cols-2"
-          stagger={0.05}
-        >
-          {filteredReservations.map((reservation) => (
+      {!loading && !error && reservations.length > 0 && (
+        <Reveal key={`${petId}-${view}`} className="grid gap-3 md:grid-cols-2" stagger={0.05}>
+          {reservations.map((reservation) => (
             <RevealItem key={reservation.id}>
-              <article className="card flex h-full flex-col gap-2.5 p-4 md:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="min-w-0 truncate text-base font-bold">
-                    {reservation.hospitalName}
-                  </h2>
-                  <StatusBadge status={reservation.status} />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {reservation.type && (
-                    <span className="badge badge-neutral h-6 shrink-0 px-2 text-xs">
-                      {RESERVATION_TYPE_LABEL[reservation.type] ?? reservation.type}
-                    </span>
-                  )}
-                  <p className="min-w-0 truncate text-sm text-stone-600">
-                    {reservation.petName} ·{' '}
-                    {formatSlot(reservation)}
-                  </p>
-                </div>
-                {CANCELLABLE_STATUSES.includes(reservation.status) && (
-                  <div className="mt-auto flex justify-end gap-2">
-                    {/* 변경(2026-10-05): 아직 시작 전인 예약은 같은 병원 다른 시간으로 변경 가능 (이전: 취소만) */}
-                    {new Date(reservation.startTime) > new Date() && (
-                      <button
-                        type="button"
-                        onClick={() => setRescheduleTarget(reservation)}
-                        className="chip h-11 px-4 font-bold"
-                      >
-                        시간 변경
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleCancel(reservation.id)}
-                      disabled={cancellingId === reservation.id}
-                      className="chip h-11 px-4 font-bold text-red-700 disabled:opacity-50"
-                    >
-                      예약 취소
-                    </button>
-                  </div>
-                )}
-              </article>
+              <ReservationCard
+                reservation={reservation}
+                busy={busyId === reservation.id}
+                onReschedule={() => setRescheduleTarget(reservation)}
+                onCancel={() => handleCancel(reservation)}
+                onHide={() => handleHide(reservation)}
+                onChat={() => handleChat(reservation)}
+              />
             </RevealItem>
           ))}
         </Reveal>

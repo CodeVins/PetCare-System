@@ -30,6 +30,8 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -632,6 +634,57 @@ class BusinessRuleTest {
 
 		// 원래 자리는 다시 열려서 다른 사람이 예약 가능
 		createReservation(otherToken, createPet(otherToken, "남의펫2"), oldSlotId);
+	}
+
+	// ---------- 내 예약 목록 ----------
+
+	@Test
+	void 내_예약은_반려동물과_보기로_거르고_끝난_예약만_목록에서_지울_수_있다() throws Exception {
+		long petId = createPet(userToken, "목록펫");
+		long otherPetId = createPet(userToken, "다른펫");
+		LocalDateTime start = future(72);
+		long upcomingId = createReservation(userToken, petId, createSlot(hospitalId, start, start.plusMinutes(30)));
+		long cancelledId = createReservation(userToken, petId,
+				createSlot(hospitalId, start.plusHours(1), start.plusHours(1).plusMinutes(30)));
+		mockMvc.perform(patch("/api/reservations/" + cancelledId + "/cancel").header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk());
+		long pastId = savePastConfirmedReservation(petId);
+		createReservation(userToken, otherPetId, createSlot(hospitalId, start.plusHours(2), start.plusHours(2).plusMinutes(30)));
+
+		JsonNode counts = getData("/api/reservations/counts?petId=" + petId, userToken);
+		assertThat(counts.get("ALL").asLong()).isEqualTo(3);
+		assertThat(counts.get("UPCOMING").asLong()).isEqualTo(1);
+		assertThat(counts.get("PAST").asLong()).isEqualTo(1);
+		assertThat(counts.get("CANCELLED").asLong()).isEqualTo(1);
+		assertThat(getData("/api/reservations/counts", userToken).get("ALL").asLong()).isEqualTo(4);
+		assertThat(myReservationIds(petId, "UPCOMING")).containsExactly(upcomingId);
+		assertThat(myReservationIds(petId, "PAST")).containsExactly(pastId);
+		assertThat(myReservationIds(petId, "CANCELLED")).containsExactly(cancelledId);
+
+		// 진행 중인 예약은 먼저 취소해야 하고, 남의 예약은 못 지움
+		mockMvc.perform(delete("/api/reservations/" + upcomingId).header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isConflict());
+		String otherToken = signupAndLogin("other-hide-" + suffix + "@petcare.com");
+		mockMvc.perform(delete("/api/reservations/" + pastId).header("Authorization", "Bearer " + otherToken))
+				.andExpect(status().isForbidden());
+
+		mockMvc.perform(delete("/api/reservations/" + pastId).header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk());
+		mockMvc.perform(delete("/api/reservations/cancelled").header("Authorization", "Bearer " + userToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data").value(1));
+		assertThat(myReservationIds(petId, "ALL")).containsExactly(upcomingId);
+
+		// 목록에서만 사라지고 기록은 그대로(병원 관리·통계·리뷰 자격용)
+		assertThat(reservationRepository.findById(pastId)).isPresent();
+		assertThat(reservationRepository.findById(cancelledId)).isPresent();
+	}
+
+	private List<Long> myReservationIds(long petId, String view) throws Exception {
+		List<Long> ids = new ArrayList<>();
+		getData("/api/reservations?petId=" + petId + "&view=" + view, userToken).get("content")
+				.forEach(reservation -> ids.add(reservation.get("id").asLong()));
+		return ids;
 	}
 
 	private MockHttpServletRequestBuilder rescheduleRequest(String token, long reservationId, long slotId) {

@@ -1,10 +1,12 @@
 package com.petcare.domain.reservation;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,6 +19,26 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 			@Param("hospitalId") Long hospitalId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
 	Page<Reservation> findAllByUserId(Long userId, Pageable pageable);
+
+	// 내 예약 목록 — 지운 예약 제외, 반려동물(선택)·상태·슬롯 시작 시간 구간 (after, before]로 거름(ReservationView)
+	@Query("select r from Reservation r where r.user.id = :userId and r.hiddenByUser = false"
+			+ " and (:petId is null or r.pet.id = :petId) and r.status in :statuses"
+			+ " and r.slot.startTime > :after and r.slot.startTime <= :before")
+	Page<Reservation> findMine(@Param("userId") Long userId, @Param("petId") Long petId,
+			@Param("statuses") Collection<ReservationStatus> statuses,
+			@Param("after") LocalDateTime after, @Param("before") LocalDateTime before, Pageable pageable);
+
+	@Query("select count(r) from Reservation r where r.user.id = :userId and r.hiddenByUser = false"
+			+ " and (:petId is null or r.pet.id = :petId) and r.status in :statuses"
+			+ " and r.slot.startTime > :after and r.slot.startTime <= :before")
+	long countMine(@Param("userId") Long userId, @Param("petId") Long petId,
+			@Param("statuses") Collection<ReservationStatus> statuses,
+			@Param("after") LocalDateTime after, @Param("before") LocalDateTime before);
+
+	@Modifying
+	@Query("update Reservation r set r.hiddenByUser = true where r.user.id = :userId and r.hiddenByUser = false"
+			+ " and r.status in :statuses")
+	int hideAllByUserIdAndStatusIn(@Param("userId") Long userId, @Param("statuses") Collection<ReservationStatus> statuses);
 
 	Page<Reservation> findAllByStatus(ReservationStatus status, Pageable pageable);
 
