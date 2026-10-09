@@ -657,7 +657,7 @@ flowchart LR
     BK --> M
     BK --- V1
     BK --> V3
-    GH -->|"실패 시 메일"| W
+    GH -->|"헬스체크 호출 (실패 시 메일)"| W
 ```
 
 - 공개 포트는 Caddy의 80/443뿐이고 backend·MySQL은 컨테이너 내부망에만 있습니다.
