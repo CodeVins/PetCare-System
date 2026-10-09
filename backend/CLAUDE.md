@@ -216,7 +216,7 @@ com.petcare
 - Redis도 로컬 컨테이너 `petcare-redis`(`redis:7-alpine`, 6379) — `docker start petcare-redis`. 운영은 compose의 `redis` 서비스(영속화 끔, maxmemory 64mb)
 
 ## 자동화 테스트
-- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영)
+- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트) — 총 37개
 - 과거 시간 슬롯은 API로 못 만들게 막혀 있어서, 지난 슬롯/지난 예약이 필요한 테스트는 `SlotRepository`/`ReservationRepository`로 직접 저장함
 - Redis는 Testcontainers(`RedisTestConfig`, `@ServiceConnection`)로 테스트 중에만 컨테이너를 띄움 — **모든 `@SpringBootTest` 클래스에 `@Import(RedisTestConfig.class)`** 붙일 것(설정이 같아야 컨텍스트가 캐시돼 컨테이너가 한 번만 뜸). 로컬/CI 모두 Docker 필요. Testcontainers 버전을 `build.gradle`에서 1.21.4로 올려둠(Boot 3.4.1 기본 1.20.x는 Docker 29에서 실행 실패 — 겪은 문제)
 - 테스트는 개발용 MySQL을 안 건드리고 별도 H2 인메모리 DB 사용 (`src/test/resources/application-test.yml`, `@ActiveProfiles("test")` 필요). `NON_KEYWORDS=USER` 빠뜨리면 H2에서 `user` 테이블명이 예약어라 DDL이 깨짐(겪은 문제)
@@ -239,14 +239,14 @@ com.petcare
 - Redis 도입(2026-10-02, PR #2~#4, 운영 배포 완료): 로그인 실패 횟수 제한(#2), 병원 상세 캐시(#3), 병원 거리 검색 위경도 범위 DB 필터(#4 — Redis 미사용, 같은 "병원 수 증가 대비" 묶음). 작업 방식: 기능별 브랜치 → PR(CI 테스트만) → 스쿼시 머지(main push 시 자동 배포). 운영 확인은 로그인 429까지 완료, 운영 DB에 병원 데이터가 없어 캐시는 로컬에서만 검증
 - 배포 장애 기록(2026-10-02): deploy job이 `ssh: connect to host ... port 22: Connection timed out`으로 실패 → 원인은 EC2 인스턴스가 중지돼 있던 것(콘솔에서 안 보인 건 리전을 다르게 보고 있어서). 인스턴스 시작 후 **가장 최근 main 실행의 실패 job만** `gh run rerun <id> --failed`로 재실행해 배포(이전 실패 실행을 재실행하면 옛 커밋 이미지가 배포됨). 탄력적 IP라 재시작해도 `EC2_HOST` 그대로
 - push 전략: 파이프라인은 push 때만 돌므로 문서만 바뀐 건 로컬 커밋으로 두고 다음 코드 PR에 같이 올림(`paths-ignore`는 필요해지면 추가)
-- 2026-10-02~05 추가 작업(PR #5~#13): 채팅 WebSocket 전환·안 읽은 수(#5), 진료 기록(#6), 예약 메모·자가문진 첨부(#7), 예약 시간 변경(#8), 리뷰 사진(#9), 병원 기간 통계(#10), 대기자 차례 넘기기(#11), 요일별 진료 시간·지금 진료 중(#12), 헬스체크·uptime 감시·자동 백업(#13, 머지 대기). 각 기능 상세는 해당 섹션 참고
+- 2026-10-02~05 추가 작업(PR #5~#13): 채팅 WebSocket 전환·안 읽은 수(#5), 진료 기록(#6), 예약 메모·자가문진 첨부(#7), 예약 시간 변경(#8), 리뷰 사진(#9), 병원 기간 통계(#10), 대기자 차례 넘기기(#11), 요일별 진료 시간·지금 진료 중(#12), 헬스체크·uptime 감시·자동 백업(#13). 각 기능 상세는 해당 섹션 참고
+- 2026-10-09 추가 작업(PR #14~#17, 전부 운영 배포): 병원 프로필(#14), 운영 데모 데이터(#15), 반려동물 화면 개편(#16), 내 예약 화면 개편 — 반려동물별·기간별 보기·끝난 예약 삭제(#17)
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
 - 병원 검색(`GET /api/hospitals`) 페이지네이션 — 응답 형식이 바뀌어 프론트 수정 필요, 병원 수가 수천 단위가 되면 진행
-- 운영 데모 데이터 — 2026-10-09 가상 병원 방식으로 구현(PR #15, 상세는 "운영 데모 데이터" 항목)
 - 지도 보기 — 카카오맵 JavaScript 키 발급 대기(localhost:5173, 운영 도메인 등록)
 - EBS 스냅샷 자동화(AWS 콘솔, 사용자 설정)
 

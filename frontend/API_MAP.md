@@ -43,7 +43,7 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   petBirthDate/petSize/petSex/petNeutered/petImageUrl)과 병원/시간(hospitalId/
   hospitalName/startTime/endTime)이 같이 오므로 조인 없이 바로 렌더
   (`formatSlot(reservation)`). WaitlistResponse도 petName/hospitalName/startTime/
-  endTime 포함. /api/reservations (CRUD + cancel) → /reservations.
+  endTime 포함. /api/reservations (CRUD + cancel, 목록 `petId`·`view` 필터, `/counts`, DELETE=목록에서 숨김·`/cancelled` 일괄) → /reservations.
   /api/admin/reservations (목록+confirm/reject/no-show, CONFIRMED만 노쇼 전환
   가능) → /dashboard/reservations, /admin/reservations.
   /api/waitlists (신청/내목록/취소, RESERVED 슬롯에만 신청 가능) → /waitlist,

@@ -32,12 +32,13 @@
 | 구분 | 내용 |
 |---|---|
 | 사용자 역할 | 보호자(`USER`) · 병원 소유자(`HOSPITAL_OWNER`) · 플랫폼 관리자(`ADMIN`) |
-| 백엔드 | Spring Boot 3 / Java 21, 도메인 8개, REST 컨트롤러 21개, 엔드포인트 96개 |
+| 백엔드 | Spring Boot 3 / Java 21, 도메인 8개, REST 컨트롤러 21개, 엔드포인트 99개 |
 | 프론트엔드 | React 19 + Vite, 소비자 앱 + 병원 운영 대시보드 + 별도 관리자 패널 |
 | 실시간 | 알림은 SSE(단방향), 1:1 채팅은 WebSocket(STOMP, 양방향) — 용도에 맞게 분리 |
 | Redis | 로그인 실패 횟수 제한(TTL), 병원 상세 캐시 — 둘 다 Redis 장애 시 fail-open |
 | 동시성 | 예약 슬롯 낙관적 락(`@Version`) — 동시 예약, 예약 시간 변경과 새 예약의 경합까지 통합 테스트로 검증 |
 | 운영 | 15분 주기 헬스체크 감시(실패 시 메일), 매일 DB·사진 자동 백업 7일 보관 |
+| 데모 데이터 | 실제 병원 대신 **가상 병원 15곳**(코드로 그린 커버 이미지, 걸리지 않는 전화번호, 매일 채워지는 예약 슬롯) — 크롤링은 약관·사칭 문제로 하지 않음 |
 | 문서 | Swagger UI, 설계 문서(`backend/CLAUDE.md`, `backend/ADMIN.md`, `frontend/API_MAP.md`, `frontend/PROGRESS.md`, `frontend/DESIGN_SPEC.md`) |
 
 ## 저장소 구조
@@ -66,8 +67,9 @@ petcare-project
 │       │       ├── security      # JWT 필터/프로바이더, SecurityConfig(CORS 포함)
 │       │       ├── exception     # GlobalExceptionHandler + 공통 예외
 │       │       ├── file          # FileStorageService (반려동물/병원/리뷰 사진 공용)
+│       │       ├── demo          # 운영 데모 데이터 — 가상 병원 정의·커버 일러스트 생성·시더(DEMO_SEED=true일 때만)
 │       │       └── common        # ApiResponse, PageResponse, BaseEntity
-│       └── test                  # AuthFlowTest, ReservationFlowTest, BusinessRuleTest, ChatWebSocketTest (H2 + Testcontainers Redis)
+│       └── test                  # AuthFlowTest, ReservationFlowTest, BusinessRuleTest, ChatWebSocketTest, DemoDataSeederTest (H2 + Testcontainers Redis)
 └── frontend                   # React (Vite) SPA
     ├── CLAUDE.md              # 개요/스택/API 계약/컨벤션
     ├── PROGRESS.md            # 날짜별 상세 변경 이력·설계 이유·알려진 한계
@@ -197,9 +199,9 @@ erDiagram
 | `Pet` | user(최초 등록자), name, species(`DOG`/`CAT`), breed, birthDate, size(`SMALL`/`MEDIUM`/`LARGE`), sex(`MALE`/`FEMALE`), neutered, imageUrl | size/sex/neutered/image는 nullable |
 | `PetGuardian` | pet, user | (pet, user) 유니크. 최초 등록자는 포함 안 됨 |
 | `HealthRecord` | pet, type, recordedAt, content, weight, nextDueDate, reservation | type: `WEIGHT`/`VACCINATION`/`TREATMENT`/`WALK`/`MEAL`/`EXCRETION`/`HEALTH_CHECK`. reservation이 있으면 병원이 작성한 진료 기록(예약당 1개, 보호자 수정·삭제 불가) |
-| `Hospital` | name, address, latitude, longitude, openingHours(운영 안내 문구), specialty, is24Hours, hasParking, avgTreatmentPrice, imageUrl, owner, weeklyHours | weeklyHours: 요일별 진료 시간 값 컬렉션(`hospital_opening_hour`). 평균 평점/리뷰 수는 응답 시 집계 |
+| `Hospital` | name, address, latitude, longitude, openingHours(운영 안내 문구), specialty, is24Hours, hasParking, avgTreatmentPrice, imageUrl, owner, weeklyHours, phone, description, animals, amenities | weeklyHours: 요일별 진료 시간 값 컬렉션(`hospital_opening_hour`). animals(진료 동물 `DOG`/`CAT`/`EXOTIC`)·amenities(응급·미용·호텔·고양이 전용·건강검진·재활)도 값 컬렉션. 평균 평점/리뷰 수는 응답 시 집계 |
 | `Slot` | hospital, startTime, endTime, status(`AVAILABLE`/`RESERVED`), version | `@Version` 낙관적 락 |
-| `Reservation` | slot, pet, user, status, type, memo, healthCheckSummary, healthCheckDate | status: `PENDING`/`CONFIRMED`/`REJECTED`/`CANCELLED`/`NO_SHOW`, type: `CHECKUP`/`VACCINATION`/`TREATMENT`/`SURGERY`/`GROOMING`/`ETC`. 자가문진은 예약 당시 내용의 복사본 |
+| `Reservation` | slot, pet, user, status, type, memo, healthCheckSummary, healthCheckDate, hiddenByUser | status: `PENDING`/`CONFIRMED`/`REJECTED`/`CANCELLED`/`NO_SHOW`, type: `CHECKUP`/`VACCINATION`/`TREATMENT`/`SURGERY`/`GROOMING`/`ETC`. 자가문진은 예약 당시 내용의 복사본. hiddenByUser = 보호자가 내 목록에서 지운 예약(행은 남김) |
 | `Waitlist` | slot, pet, user, offeredAt | (slot, user) 유니크, RESERVED 슬롯에만 등록. offeredAt = 자리가 나서 차례를 받은 시각 |
 | `Favorite` | user, hospital | (user, hospital) 유니크 |
 | `Review` | hospital, user, rating(1~5), content, hidden, imageUrls | (user, hospital) 유니크 — 병원당 1개. 사진은 값 컬렉션(`review_image`), 최대 3장 |
@@ -315,6 +317,12 @@ stateDiagram-v2
 - GitHub Actions `uptime` 워크플로가 15분마다 호출, 실패하면 워크플로 실패 → GitHub 메일 알림(별도 모니터링 서비스 없이). EC2가 꺼져 있었는데 배포가 실패할 때까지 몰랐던 경험에서 추가.
 - compose `db-backup` 서비스가 매일 DB 덤프 + 업로드 사진 묶음을 서버에 7일 보관. 인스턴스 자체 유실 대비는 EBS 스냅샷 자동화(절차는 [docs/DEPLOY.md](docs/DEPLOY.md)).
 
+### 11. 데모 데이터 — 크롤링 대신 가상 병원
+- 운영 사이트가 비어 보이지 않게 `DEMO_SEED=true`일 때만 동작하는 `DemoDataSeeder`가 가상 병원 15곳을 만듭니다. 실제 병원 정보를 긁어오면 약관 위반이고, 실제 병원처럼 보이면 사칭이 되므로 하지 않았습니다.
+- 가상임이 드러나게: 동화 같은 이름, "OO동 일대 (가상 주소)", 실제로 걸리지 않는 `02-0000-xxxx` 번호, 소개 끝 "데모용 가상 병원" 문구, 푸터 안내.
+- 커버 이미지는 Java2D로 코드에서 그린 일러스트(외부 이미지·저작권 없음, 병원마다 색·모양이 다름).
+- 앱 시작 시 데모 병원이 없을 때만 한 번 생성(한 트랜잭션), 매일 00:10에 앞으로 7일치 예약 슬롯을 채워서 언제 와도 예약 데모가 동작합니다. 리뷰는 로그인할 수 없는 계정(정지 + 랜덤 비밀번호)이 리뷰 자격 규칙(지난 확정 예약)을 지켜 작성합니다.
+
 ## 기능 상세
 
 ### 인증 / 계정
@@ -325,6 +333,7 @@ stateDiagram-v2
 - 로그인 직후 역할 확인 → ADMIN은 관리자 패널(`/admin`)로, 그 외는 홈으로 자동 이동
 
 ### 반려동물
+- 반려동물 목록 — 사진이 크게 보이는 카드(사진 없으면 색 커버), 아이별 **다음 접종 D-day·다음 예약**, 아래에 다가오는 접종·예약 일정 구역
 - 반려동물 CRUD — 이름, 종(강아지/고양이), 품종, 생년월일, 크기, **성별, 중성화 여부(완료/안함/모름)**, 사진
 - 반려동물 상세는 탭 구성: 개요(읽기전용 정보 카드 + 현재 체중, 연필 아이콘으로 수정 모드 진입) · 건강기록 · 급여량 · 보호자
 - 사진 업로드/삭제
@@ -335,15 +344,18 @@ stateDiagram-v2
 - 비대면 건강 자가문진: 식욕/배변/구토/기력/피부/호흡/음수/체중 8문항 → 점수 합산으로 낮음(0~3)/주의(4~9)/높음(10+) 판정, 3단계 위저드 UI(반려동물 선택 → 문항 1개씩 + 진행바 → 결과), 결과를 건강기록으로 저장 가능. 진단이 아닌 참고용이라는 disclaimer와, 품종/연령별 통계가 없다는 사실을 그대로 안내
 
 ### 병원
-- 병원 목록/검색 — 키워드, 최소 평점, 내 위치 기준 반경 검색, **지금 진료 중**, 24시간 운영, 주차 가능 필터 + 이름/평점/리뷰수 정렬 (데스크톱은 좌측 필터 사이드바), 카드마다 진료 중/종료 배지
-- 병원 상세 탭: 정보(요일별 진료 시간 표 — 오늘 강조, 운영 안내/진료과목/평균 진료비/사진/평점) · 예약(슬롯 선택 + 반려동물 + 진료 유형 + 증상 메모·자가문진 첨부) · 리뷰
+- 병원 목록/검색 — 키워드, 최소 평점, 내 위치 기준 반경 검색, **지금 진료 중**, 24시간 운영, 주차 가능, **진료 동물·편의 서비스** 필터 + 이름/평점/리뷰수 정렬 (데스크톱은 좌측 필터 사이드바), 카드마다 진료 중/종료·야간 진료 배지
+- 병원 상세 탭: 정보(소개, 전화번호(누르면 전화), 진료 동물, 편의 서비스·야간 진료 배지, 요일별 진료 시간 표 — 오늘 강조, 운영 안내/진료과목/평균 진료비/사진/평점) · 예약(슬롯 선택 + 반려동물 + 진료 유형 + 증상 메모·자가문진 첨부) · 리뷰. `?tab=reviews|booking`으로 바로 해당 탭
+- 야간 진료 배지는 컬럼 없이 요일별 진료 시간으로 계산(21시 이후 진료, 24시간 병원 제외)
 - 즐겨찾기(찜) — 찜한 병원에 새 슬롯이 열리면 자동 알림, 찜 목록 페이지
 - 리뷰 작성/수정/삭제(방문 확정 이력자만), **사진 최대 3장**, 리뷰 신고, 병원측 답글 표시
 
 ### 예약
 - 예약 생성 → `PENDING` → 병원/관리자 확정 또는 거절. 증상 메모와 최근 14일 자가문진을 첨부하면 병원이 예약 목록에서 미리 확인
-- 내 예약 목록 — 전체/대기중/확정/지난 예약(거절·취소·노쇼) 칩 필터와 개수, 반려동물 이름·진료유형 배지 표시
-- 예약 취소(PENDING/CONFIRMED만), **같은 병원 다른 시간으로 변경**(다시 확정 대기로)
+- 내 예약 목록 — **반려동물별**(사진 칩) × **다가오는/지난/취소·거절/전체** 보기와 개수, 서버에서 거르고 시간순 정렬(다가오는 것은 가까운 순)
+- 예약 카드: 날짜 블록, 병원(상세 링크), 시간·오늘/내일/D-n·진료 유형, 반려동물 사진·이름·종·품종·나이, 증상 메모
+- 다가오는 예약: 시간 변경(같은 병원 다른 시간, 다시 확정 대기로)·병원 문의(채팅)·취소 / 끝난 예약: 리뷰 쓰기·다시 예약·**삭제**
+- 삭제는 내 목록에서만 숨김(병원 기록·통계·리뷰 자격은 유지), 진행 중인 예약은 먼저 취소해야 함, 취소·거절 예약 한 번에 지우기
 - 마감된 슬롯에 대기자 명단 등록/취소, 슬롯이 열리면 1순위에게 알림 → 30분 안에 예약 안 하면 다음 순번으로. 차례를 받은 항목은 "자리 났어요"와 예약 기한 표시
 
 ### 알림
@@ -360,7 +372,7 @@ stateDiagram-v2
 ### 병원 운영 대시보드 (`/dashboard`, HOSPITAL_OWNER·ADMIN)
 - 예약 관리: 대기 예약 확정/거절, 확정 예약 노쇼 처리, **진료 기록 작성**(진단·처방·다음 내원/접종일), 보호자 증상 메모·자가문진 확인
 - **통계**: 최근 7/30/90일 노쇼율·취소율·슬롯 이용률, 일별 예약/취소 차트, 상태별·진료 유형별
-- 병원 정보 수정, 병원 사진 업로드, **요일별 진료 시간 편집**(점심시간 구간 분리, 평일 일괄 적용)
+- 병원 정보 수정(전화번호·소개·진료 동물·편의 서비스 포함), 병원 사진 업로드, **요일별 진료 시간 편집**(점심시간 구간 분리, 평일 일괄 적용)
 - 예약 슬롯 등록(과거 시간·같은 병원 겹치는 시간대 거부), 반복 일괄 등록(기간·요일·시간대·간격 지정, 겹치는 칸은 건너뜀), 예약 이력 없는 슬롯 삭제
 - 리뷰 답글 작성/수정/삭제
 - 백엔드는 리뷰 신고 조회·숨김 API도 HOSPITAL_OWNER에게 본인 병원 범위로 열어두었음(현재 화면은 관리자 패널에만 있음)
@@ -443,7 +455,7 @@ stateDiagram-v2
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/api/hospitals` 👑 | 병원 등록 |
-| GET | `/api/hospitals` | 검색 `keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow` |
+| GET | `/api/hospitals` | 검색 `keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow, animal, amenity` |
 | GET | `/api/hospitals/{hospitalId}` | 상세 (평균 평점/리뷰 수, 요일별 진료 시간 포함, Redis 캐시) |
 | PATCH | `/api/hospitals/{hospitalId}` 🏥 | 정보 수정 |
 | PUT | `/api/hospitals/{hospitalId}/opening-hours` 🏥 | 요일별 진료 시간 전체 교체 |
@@ -470,9 +482,12 @@ stateDiagram-v2
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/api/reservations` | 예약 생성 (`slotId, petId, type`, 선택 `memo, healthCheckRecordId`) → PENDING |
-| GET | `/api/reservations` | 내 예약 목록 |
+| GET | `/api/reservations` | 내 예약 목록 `petId, view=UPCOMING\|PAST\|CANCELLED\|ALL` (지운 예약 제외, 시간순) |
+| GET | `/api/reservations/counts` | 보기별 개수 (`petId` 선택) |
 | GET | `/api/reservations/{reservationId}` | 예약 상세 |
 | PATCH | `/api/reservations/{reservationId}/cancel` | 예약 취소 |
+| DELETE | `/api/reservations/{reservationId}` | 내 목록에서 삭제(숨김) — 끝난 예약만, 진행 중이면 409 |
+| DELETE | `/api/reservations/cancelled` | 취소·거절 예약 한 번에 삭제(숨김), 지운 개수 반환 |
 | PATCH | `/api/reservations/{reservationId}/reschedule` | 같은 병원 다른 시간으로 변경 (`slotId`) → PENDING |
 | POST | `/api/waitlists` | 대기 등록 (RESERVED 슬롯만) |
 | GET | `/api/waitlists` | 내 대기 목록 (차례를 받았으면 `offerExpiresAt`) |
@@ -538,11 +553,11 @@ stateDiagram-v2
 | `/login`, `/signup` | 로그인 / 회원가입 | 공개 |
 | `/forgot-password`, `/reset-password` | 비밀번호 찾기 / 재설정 (`?token=` 지원) | 공개 |
 | `/` | 홈 — 인사말, 반려동물 아바타, 예정 접종, 다가오는 예약, 바로가기 | 로그인 |
-| `/pets`, `/pets/new`, `/pets/:petId` | 반려동물 목록 / 등록 / 상세(개요·건강기록·급여량·보호자 탭) | 로그인 |
+| `/pets`, `/pets/new`, `/pets/:petId` | 반려동물 목록(사진 카드·아이별 다음 일정·접종/예약 일정) / 등록 / 상세(개요·건강기록·급여량·보호자 탭) | 로그인 |
 | `/health-check` | 건강 자가문진 위저드 | 로그인 |
 | `/hospitals`, `/hospitals/:hospitalId` | 병원 검색 / 상세(정보·예약·리뷰 탭) | 로그인 |
 | `/favorites` | 찜한 병원 | 로그인 |
-| `/reservations`, `/waitlist` | 내 예약(상태 필터) / 대기 목록 | 로그인 |
+| `/reservations`, `/waitlist` | 내 예약(반려동물별·다가오는/지난/취소 보기, 삭제) / 대기 목록 | 로그인 |
 | `/notifications` | 알림 목록 | 로그인 |
 | `/chats`, `/chats/:roomId` | 채팅방 목록 / 채팅방 | 로그인 |
 | `/mypage`, `/mypage/notifications`, `/mypage/account` | 마이페이지 / 알림 설정 / 계정 설정 | 로그인 |
@@ -619,11 +634,12 @@ cd backend
 | 테스트 | 검증 내용 |
 |---|---|
 | `AuthFlowTest` | 회원가입 → 로그인, 이메일 중복 가입 거부, 잘못된 비밀번호 로그인 실패, **로그인 5회 실패 시 429**(성공하면 초기화·대소문자 무관), 비회원 공개 범위, 헬스체크 공개·상세 숨김 |
-| `BusinessRuleTest` | 과거/겹치는 슬롯 생성 거부, 지난 슬롯 예약·대기신청·취소 거부와 노쇼 시점 제한, 다른 병원 소유자의 예약 확정 403과 새 예약 알림, 공동보호자의 반려동물 삭제 403, 대기 1순위에게만 알림과 **30분 뒤 차례 넘기기·예약되면 중단**, 계정 정지 즉시 반영, 슬롯 일괄 등록과 삭제 조건, 리마인더 중복 방지, **병원 상세 캐시 무효화**, **거리 검색**, **진료 기록**(시간 전 409·보호자 수정 403), **자가문진 첨부**(다른 펫·오래된 문진 400), **예약 시간 변경 규칙**, **리뷰 사진**(3장 제한·파일 삭제), **병원 기간 통계**(노쇼율·취소율·권한), **요일별 진료 시간·지금 진료 중 필터** |
+| `BusinessRuleTest` | 과거/겹치는 슬롯 생성 거부, 지난 슬롯 예약·대기신청·취소 거부와 노쇼 시점 제한, 다른 병원 소유자의 예약 확정 403과 새 예약 알림, 공동보호자의 반려동물 삭제 403, 대기 1순위에게만 알림과 **30분 뒤 차례 넘기기·예약되면 중단**, 계정 정지 즉시 반영, 슬롯 일괄 등록과 삭제 조건, 리마인더 중복 방지, **병원 상세 캐시 무효화**, **거리 검색**, **진료 기록**(시간 전 409·보호자 수정 403), **자가문진 첨부**(다른 펫·오래된 문진 400), **예약 시간 변경 규칙**, **리뷰 사진**(3장 제한·파일 삭제), **병원 기간 통계**(노쇼율·취소율·권한), **요일별 진료 시간·지금 진료 중 필터**, **병원 프로필·진료 동물/편의 서비스 검색**, **내 예약 보기·삭제**(반려동물·기간 필터, 진행 중 삭제 409, 숨겨도 기록 유지) |
+| `DemoDataSeederTest` | 데모 시더를 켠 별도 컨텍스트 — 가상 병원 15곳·커버 이미지 파일 서빙·진료 시간·미래 슬롯·리뷰, 다시 돌려도 중복 없음, 리뷰 작성 계정 로그인 불가 |
 | `ReservationFlowTest` | 예약 생성 시 PENDING → 관리자 확정 흐름, **멀티스레드로 같은 슬롯에 동시 예약 시 정확히 1건만 성공**(낙관적 락), **시간 변경과 새 예약이 같은 슬롯을 동시에 노려도 1건만 성공하고 진 쪽 예약은 원래 슬롯 유지** |
 | `ChatWebSocketTest` | 실제 포트로 띄워 **진짜 STOMP 클라이언트**로 접속 — 실시간 수신, 방을 보는 중엔 알림 생략, 타인 방 구독 거부, 토큰 없는 연결 거부, 안 읽은 메시지 수·관리자 열람 시 유지 |
 
-- 백엔드 테스트 34개. 개발용 MySQL을 건드리지 않도록 H2 인메모리 DB(`application-test.yml`, `@ActiveProfiles("test")`)로 실행하고, Redis는 Testcontainers로 테스트 중에만 실제 컨테이너를 띄웁니다(로컬·CI 모두 Docker 필요).
+- 백엔드 테스트 37개. 개발용 MySQL을 건드리지 않도록 H2 인메모리 DB(`application-test.yml`, `@ActiveProfiles("test")`)로 실행하고, Redis는 Testcontainers로 테스트 중에만 실제 컨테이너를 띄웁니다(로컬·CI 모두 Docker 필요).
 - 새 기능마다 핵심 검증을 **일부러 빼서 테스트가 실패하는지** 확인했습니다(테스트가 실제로 그 규칙을 지키는지 검증).
 - 자동화 테스트 외에도 기능 추가 시마다 `bootRun`으로 서버를 띄우고 curl로 정상 케이스와 에러 케이스(권한 없음/중복/유효성 실패 등)를 직접 호출해 검증했습니다.
 - 같은 테스트가 GitHub Actions에서 PR마다 실행되며, 실패하면 배포 단계로 넘어가지 않습니다.
@@ -721,6 +737,10 @@ flowchart LR
 | 요일별 진료 시간이 금·월·목… 순으로 정렬될 뻔함 | 요일을 문자열로 저장해서 SQL 정렬이 알파벳순 | DB 정렬 대신 응답 DTO에서 요일 순서로 정렬 |
 | 진료 중 여부가 캐시 때문에 틀릴 수 있음 | 병원 상세 응답이 10분 캐시 | 응답엔 진료 시간 목록만, 진료 중 여부는 화면이 현재 시각으로 계산 |
 | 차트에서 브랜드 청록이 회색처럼 보임 | 브랜드 색 채도가 낮음(차트 색 검증 스크립트에서 채도 기준 미달) | 차트에만 검증을 통과한 한 단계 밝은 teal + amber 사용 |
+| 데모 데이터가 서버 시작 직후 조회되지 않음 | 시더가 `ApplicationRunner`라 "Started" 로그 뒤에 실행됨, 중간에 서버를 끄면 한 트랜잭션이라 전부 롤백 | 시작 후 약 10초 기다려 확인, 원자적 생성이라 다음 시작 때 처음부터 다시 만듦 |
+| 컨테이너 이미지에 글자를 넣을 수 없음 | 운영 JRE 이미지에 한글 폰트가 없음 | 커버 일러스트는 도형만 그리고 병원 이름은 화면이 표시 |
+| 세로로 긴 반려동물 사진이 카드와 같은 줄 카드까지 늘림 | `aspect-ratio` 칸 안의 이미지가 원래 높이로 칸을 밀어냄 | 이미지를 `absolute inset-0`으로 칸에 고정(헤드리스 Chrome 캡처로 발견) |
+| 예약 필터에서 일부 예약이 안 보임 | 화면이 불러온 첫 페이지(20개) 안에서만 상태를 거름 | 반려동물·보기 필터를 서버 쿼리로 옮기고 개수 API 추가 |
 
 ## 알려진 한계 / 설계상 트레이드오프
 
@@ -738,6 +758,8 @@ flowchart LR
 - **공동보호자 초대에 수락 절차 없음**: 가입된 이메일이면 즉시 추가되며 알림도 없습니다.
 - **수정 API는 전체 필드 재입력 방식**: 병원/반려동물/건강기록 PATCH에서 생략한 필드는 null로 덮어써집니다.
 - **서버 한 대 구성**: 재배포 때 컨테이너가 교체되는 몇 초 동안 끊깁니다. 자동 백업은 같은 서버 디스크에 있어 인스턴스 자체 유실은 EBS 스냅샷(수동 설정)으로 대비합니다. 서버를 늘리려면 실시간 연결(메모리)과 업로드 사진(로컬 볼륨)을 Redis·S3 같은 공유 저장소로 옮겨야 합니다.
+- **예약 삭제는 되돌리기 없음**: 내 목록에서 숨기기만 하고 기록은 남지만, 다시 보이게 하는 화면은 없습니다.
+- **데모 병원은 가상 데이터**: 좌표는 서울 각 동네의 대략적 위치이고 실제 병원과 무관합니다. 실제 병원 데이터는 제휴·공공데이터로 받아야 합니다.
 - **장애 감시는 GitHub 스케줄 기준**: 정시에 안 돌고 몇 분씩 밀릴 수 있고, 레포에 60일간 활동이 없으면 스케줄이 꺼집니다.
 
 ## 개발 이력
@@ -764,12 +786,13 @@ flowchart LR
 | 실시간 채팅 (10/02) | 채팅을 WebSocket(STOMP)으로 전환, 안 읽은 메시지 수, 채팅 알림 구분 (PR #5) |
 | 서비스 흐름 완성 (10/05) | 진료 기록 → 건강기록·리마인더 연동, 예약 시 증상 메모·자가문진 첨부, 예약 시간 변경, 리뷰 사진, 병원 기간 통계, 대기자 차례 넘기기, 요일별 진료 시간·지금 진료 중 필터 (PR #6~#12) |
 | 운영 기반 (10/05) | 헬스체크 + 15분 주기 장애 감시, 매일 DB·사진 자동 백업 (PR #13) |
+| 병원 정보·데모 (10/09) | 병원 프로필(전화번호·소개·진료 동물·편의 서비스·야간 진료 배지), 가상 병원 15곳 운영 데모 데이터 (PR #14~#15) |
+| 화면 개편 (10/09) | 반려동물 화면(사진 카드·아이별 다음 일정), 내 예약 화면(반려동물별·기간별 보기, 끝난 예약 삭제, 문의·다시 예약·리뷰 바로가기) (PR #16~#17) |
 
 날짜별 상세 이력과 각 결정의 이유는 `frontend/PROGRESS.md`, 백엔드 설계 결정과 겪은 버그는 `backend/CLAUDE.md`, 관리 기능 권한 모델은 `backend/ADMIN.md`에 정리되어 있습니다.
 
 ## 남은 작업
 
-- 운영 데모 데이터 — 실제 병원 크롤링은 약관·사칭 문제로 제외, 가상 병원 데이터로 진행 예정
 - 지도 보기 — 카카오맵 JavaScript 키 발급 필요(병원 좌표·거리 검색은 이미 있음)
 - EBS 스냅샷 자동화 설정(AWS 콘솔), 무중단 배포 — 현재는 재배포 시 수 초 끊김
 - 소셜 로그인(구글/네이버) — 개발자 콘솔 클라이언트 발급 필요
