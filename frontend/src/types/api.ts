@@ -211,7 +211,21 @@ export interface Hospital {
   distanceKm: number | null
   // 요일별 진료 시간(월→일·시간순). 비었으면 미등록 — 진료 중 여부는 lib/openingHours로 화면에서 계산
   weeklyHours: WeeklyHour[]
+  phone: string | null
+  description: string | null
+  // 진료 동물·편의 서비스(선언 순서로 정렬돼서 옴). 비었으면 정보 없음
+  animals: HospitalAnimal[]
+  amenities: HospitalAmenity[]
 }
+
+export type HospitalAnimal = 'DOG' | 'CAT' | 'EXOTIC'
+export type HospitalAmenity =
+  | 'EMERGENCY'
+  | 'GROOMING'
+  | 'BOARDING'
+  | 'CAT_FRIENDLY'
+  | 'HEALTH_SCREENING'
+  | 'REHABILITATION'
 
 export interface WeeklyHour {
   dayOfWeek: DayOfWeek
@@ -229,6 +243,10 @@ export interface HospitalPayload {
   is24Hours?: boolean | null
   hasParking?: boolean | null
   avgTreatmentPrice?: number | null
+  phone?: string | null
+  description?: string | null
+  animals?: HospitalAnimal[]
+  amenities?: HospitalAmenity[]
 }
 
 export type HospitalSort = 'NAME_ASC' | 'RATING_DESC' | 'REVIEW_COUNT_DESC'
@@ -243,6 +261,8 @@ export interface HospitalSearchParams {
   is24Hours?: boolean
   hasParking?: boolean
   openNow?: boolean
+  animal?: HospitalAnimal
+  amenity?: HospitalAmenity
 }
 
 export interface Slot {

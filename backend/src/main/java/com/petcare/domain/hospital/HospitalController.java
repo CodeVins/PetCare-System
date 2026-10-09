@@ -49,9 +49,12 @@ public class HospitalController {
 			@RequestParam(required = false) Double radiusKm,
 			@RequestParam(required = false) Boolean is24Hours,
 			@RequestParam(required = false) Boolean hasParking,
-			@RequestParam(required = false) Boolean openNow) {
+			@RequestParam(required = false) Boolean openNow,
+			@RequestParam(required = false) HospitalAnimal animal,
+			@RequestParam(required = false) HospitalAmenity amenity) {
 		return ResponseEntity.ok(ApiResponse.success(
-				hospitalService.search(keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow)));
+				hospitalService.search(
+						keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow, animal, amenity)));
 	}
 
 	@GetMapping("/{hospitalId}")

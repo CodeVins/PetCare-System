@@ -812,6 +812,54 @@ class BusinessRuleTest {
 				.content("{\"hours\":[" + hoursJson + "]}");
 	}
 
+	// ---------- 병원 프로필(전화번호·소개·진료 동물·편의 서비스) ----------
+
+	@Test
+	void 병원_프로필을_저장하고_진료_동물과_편의_서비스로_검색할_수_있다() throws Exception {
+		String tag = "프로필" + suffix;
+		long catClinic = createProfileHospital(tag + "-고양이", "02-123-4567", "[\"CAT\"]", "[\"CAT_FRIENDLY\",\"GROOMING\"]");
+		long allClinic = createProfileHospital(tag + "-종합", "031-1234-5678", "[\"DOG\",\"CAT\",\"EXOTIC\"]", "[\"EMERGENCY\"]");
+		createProfileHospital(tag + "-정보없음", "", "[]", "[]");
+
+		JsonNode detail = getData("/api/hospitals/" + catClinic, userToken);
+		assertThat(detail.get("phone").asText()).isEqualTo("02-123-4567");
+		assertThat(detail.get("description").asText()).isEqualTo("소개");
+		assertThat(detail.get("amenities").toString()).isEqualTo("[\"GROOMING\",\"CAT_FRIENDLY\"]"); // 선언 순서로 정렬
+
+		String base = "/api/hospitals?keyword=" + tag;
+		assertThat(getData(base + "&animal=CAT", userToken).findValuesAsText("id"))
+				.containsExactlyInAnyOrder(String.valueOf(catClinic), String.valueOf(allClinic));
+		assertThat(getData(base + "&animal=EXOTIC", userToken).findValuesAsText("id"))
+				.containsExactly(String.valueOf(allClinic));
+		assertThat(getData(base + "&animal=CAT&amenity=GROOMING", userToken).findValuesAsText("id"))
+				.containsExactly(String.valueOf(catClinic));
+
+		// 수정은 전체 교체 — 진료 동물을 빼서 보내면 비워짐
+		mockMvc.perform(patch("/api/hospitals/" + catClinic)
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"" + tag + "-고양이\",\"phone\":\"02-999-0000\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.phone").value("02-999-0000"))
+				.andExpect(jsonPath("$.data.animals").isEmpty());
+
+		mockMvc.perform(post("/api/hospitals")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"" + tag + "-잘못\",\"phone\":\"010 1234\"}"))
+				.andExpect(status().isBadRequest());
+	}
+
+	private long createProfileHospital(String name, String phone, String animals, String amenities) throws Exception {
+		return data(mockMvc.perform(post("/api/hospitals")
+						.header("Authorization", "Bearer " + adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"" + name + "\",\"phone\":\"" + phone + "\",\"description\":\"소개\","
+								+ "\"animals\":" + animals + ",\"amenities\":" + amenities + "}"))
+				.andExpect(status().isCreated())
+				.andReturn()).get("id").asLong();
+	}
+
 	// ---------- 병원 상세 캐시 ----------
 
 	@Test

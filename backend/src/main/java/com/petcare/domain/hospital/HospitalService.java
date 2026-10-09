@@ -45,8 +45,15 @@ public class HospitalService {
 				.hasParking(request.hasParking())
 				.avgTreatmentPrice(request.avgTreatmentPrice())
 				.build();
+		// 변경(2026-10-09): 전화번호·소개·진료 동물·편의 서비스 저장 (이전: 기본 정보만)
+		hospital.updateProfile(blankToNull(request.phone()), blankToNull(request.description()), request.animals(),
+				request.amenities());
 
 		return HospitalResponse.from(hospitalRepository.save(hospital));
+	}
+
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 	@Transactional
@@ -58,6 +65,9 @@ public class HospitalService {
 		hospital.update(
 				request.name(), request.address(), request.latitude(), request.longitude(), request.openingHours(),
 				request.specialty(), request.is24Hours(), request.hasParking(), request.avgTreatmentPrice());
+		// 변경(2026-10-09): 전화번호·소개·진료 동물·편의 서비스도 전체 교체 (이전: 기본 정보만)
+		hospital.updateProfile(blankToNull(request.phone()), blankToNull(request.description()), request.animals(),
+				request.amenities());
 		return toResponseWithRating(hospital);
 	}
 
@@ -96,14 +106,15 @@ public class HospitalService {
 
 	// 변경(2026-10-05): openNow(지금 진료 중만) 파라미터 추가 — 진료 시간이 요일별 구간 목록이라 DB 조건 대신 조회 후 자바로 거름
 	// (병원 수가 수천 단위까지는 문제없음, 진료 시간 미등록 병원은 제외) (이전: 없음)
+	// 변경(2026-10-09): animal(진료 동물)·amenity(편의 서비스) 필터 추가 — DB where절 (이전: 없음)
 	public List<HospitalResponse> search(
 			String keyword, Double minRating, HospitalSortType sort, Double lat, Double lng, Double radiusKm,
-			Boolean is24Hours, Boolean hasParking, Boolean openNow) {
+			Boolean is24Hours, Boolean hasParking, Boolean openNow, HospitalAnimal animal, HospitalAmenity amenity) {
 		boolean nearby = lat != null && lng != null && radiusKm != null;
 		// 변경(2026-10-02): 거리 검색이면 사각형 범위로 DB에서 1차 필터 후 아래에서 정확한 원으로 재필터 (이전: 전체 병원 조회 후 메모리 필터)
 		GeoBox box = nearby ? GeoBox.around(lat, lng, radiusKm) : null;
 		LocalDateTime now = LocalDateTime.now();
-		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort, is24Hours, hasParking, box).stream()
+		List<HospitalResponse> results = hospitalRepository.search(keyword, minRating, sort, is24Hours, hasParking, box, animal, amenity).stream()
 				.filter(result -> !Boolean.TRUE.equals(openNow) || Boolean.TRUE.equals(result.hospital().isOpenAt(now)))
 				.map(result -> HospitalResponse.of(result.hospital(), result.averageRating(), result.reviewCount()))
 				.toList();

@@ -1,7 +1,8 @@
 import { Buildings, Heart, Star } from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
 import { BASE_URL } from '../../api/axiosInstance'
-import { openStatus } from '../../lib/openingHours'
+import { HOSPITAL_ANIMAL_LABEL } from '../../lib/format'
+import { hasNightHours, openStatus } from '../../lib/openingHours'
 import type { Hospital } from '../../types/api'
 
 // 보조 액센트 순환 (teal → amber → sky)
@@ -72,6 +73,12 @@ export default function HospitalCard({
         {hospital.specialty && (
           <p className="truncate text-[13px] text-stone-600">{hospital.specialty}</p>
         )}
+        {/* 변경(2026-10-09): 진료 동물 표시 (이전: 없음) */}
+        {hospital.animals?.length > 0 && (
+          <p className="truncate text-[13px] text-stone-600">
+            {hospital.animals.map((animal) => HOSPITAL_ANIMAL_LABEL[animal]).join(' · ')} 진료
+          </p>
+        )}
 
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           {/* 변경(2026-10-05): 요일별 진료 시간으로 지금 진료 중/종료 표시 — 미등록이면 숨김 (이전: 자유 텍스트만) */}
@@ -83,6 +90,9 @@ export default function HospitalCard({
           )}
           {hospital.is24Hours && (
             <span className="badge badge-neutral h-6 px-2 text-xs">24시간</span>
+          )}
+          {hasNightHours(hospital) && (
+            <span className="badge badge-neutral h-6 px-2 text-xs">야간 진료</span>
           )}
           {hospital.hasParking && (
             <span className="badge badge-neutral h-6 px-2 text-xs">주차 가능</span>

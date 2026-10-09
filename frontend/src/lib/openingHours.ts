@@ -35,3 +35,11 @@ export function openStatus(
   )
   return open ? 'open' : 'closed'
 }
+
+// 야간 진료 배지 — 별도 컬럼 없이 요일별 진료 시간으로 판단(어느 요일이든 21시 이후까지 진료하면). 24시간 병원은 이미
+// "24시간" 배지가 있어서 제외
+export const NIGHT_FROM = '21:00:00'
+export function hasNightHours(hospital: Pick<Hospital, 'is24Hours' | 'weeklyHours'>): boolean {
+  if (hospital.is24Hours) return false
+  return (hospital.weeklyHours ?? []).some((hour) => hour.closeTime > NIGHT_FROM)
+}
