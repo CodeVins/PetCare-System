@@ -7,8 +7,9 @@ import type { Hospital } from '../../types/api'
 let hospitalsPromise: Promise<Hospital[]> | null = null
 
 export function loadPublicHospitals(): Promise<Hospital[]> {
-  hospitalsPromise ??= getHospitals({ sort: 'RATING_DESC' })
-    .then(({ data }) => data.data)
+  // 변경(2026-10-26): 랜딩은 상위 5곳만 쓰므로 size=5로 요청 (이전: 전체 병원을 받아 화면에서 자름)
+  hospitalsPromise ??= getHospitals({ sort: 'RATING_DESC', size: 5 })
+    .then(({ data }) => data.data.content)
     .catch(() => [])
   return hospitalsPromise
 }

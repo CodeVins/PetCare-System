@@ -3,7 +3,7 @@ import { ArrowSquareOut, MagnifyingGlass, Star } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { getAllUsers, updateHospitalOwner } from '../../api/adminApi'
-import { createHospital, getHospitals } from '../../api/hospitalApi'
+import { createHospital, getAllHospitals } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
 import AdminPageHeader from './AdminPageHeader'
 import type { Hospital, User } from '../../types/api'
@@ -26,9 +26,10 @@ export default function AdminHospitalsPage() {
   const [ownerMessage, setOwnerMessage] = useState('')
 
   useEffect(() => {
-    Promise.all([getHospitals(), getAllUsers()])
-      .then(([hospitalsRes, usersRes]) => {
-        setHospitals(hospitalsRes.data.data)
+    // 변경(2026-10-26): 병원 검색이 페이지 응답이 돼서 getAllHospitals 사용 (이전: getHospitals 배열)
+    Promise.all([getAllHospitals(), getAllUsers()])
+      .then(([allHospitals, usersRes]) => {
+        setHospitals(allHospitals)
         setUsers(usersRes.data.data.content)
       })
       .catch((err) =>

@@ -828,9 +828,9 @@ class BusinessRuleTest {
 		mockMvc.perform(hoursRequest(otherDay, hour(notToday, "09:00", "18:00"))).andExpect(status().isOk());
 		assertThat(getData("/api/hospitals/" + allDay, userToken).get("weeklyHours")).hasSize(7);
 
-		JsonNode open = getData("/api/hospitals?keyword=" + tag + "&openNow=true", userToken);
+		JsonNode open = getData("/api/hospitals?keyword=" + tag + "&openNow=true", userToken).get("content");
 		assertThat(open.findValuesAsText("id")).containsExactlyInAnyOrder(String.valueOf(allDay), String.valueOf(always));
-		assertThat(getData("/api/hospitals?keyword=" + tag, userToken)).hasSize(4); // 필터 없으면 전부
+		assertThat(getData("/api/hospitals?keyword=" + tag, userToken).get("content")).hasSize(4); // 필터 없으면 전부
 
 		mockMvc.perform(hoursRequest(otherDay, hour(today, "18:00", "09:00"))).andExpect(status().isBadRequest());
 		mockMvc.perform(hoursRequest(otherDay, hour(today, "09:00", "13:00") + "," + hour(today, "12:00", "18:00")))
@@ -880,11 +880,11 @@ class BusinessRuleTest {
 		assertThat(detail.get("amenities").toString()).isEqualTo("[\"GROOMING\",\"CAT_FRIENDLY\"]"); // 선언 순서로 정렬
 
 		String base = "/api/hospitals?keyword=" + tag;
-		assertThat(getData(base + "&animal=CAT", userToken).findValuesAsText("id"))
+		assertThat(getData(base + "&animal=CAT", userToken).get("content").findValuesAsText("id"))
 				.containsExactlyInAnyOrder(String.valueOf(catClinic), String.valueOf(allClinic));
-		assertThat(getData(base + "&animal=EXOTIC", userToken).findValuesAsText("id"))
+		assertThat(getData(base + "&animal=EXOTIC", userToken).get("content").findValuesAsText("id"))
 				.containsExactly(String.valueOf(allClinic));
-		assertThat(getData(base + "&animal=CAT&amenity=GROOMING", userToken).findValuesAsText("id"))
+		assertThat(getData(base + "&animal=CAT&amenity=GROOMING", userToken).get("content").findValuesAsText("id"))
 				.containsExactly(String.valueOf(catClinic));
 
 		// 수정은 전체 교체 — 진료 동물을 빼서 보내면 비워짐
@@ -953,12 +953,19 @@ class BusinessRuleTest {
 		createHospitalAt("사각형모서리6.4km", lat + 4.5 / kmPerDegree, lng + 4.5 / (kmPerDegree * 0.5));
 		createHospitalAt("북쪽55km", lat + 0.5, lng);
 
-		JsonNode results = getData("/api/hospitals?lat=" + lat + "&lng=" + lng + "&radiusKm=5", userToken);
+		JsonNode results = getData("/api/hospitals?lat=" + lat + "&lng=" + lng + "&radiusKm=5", userToken).get("content");
 
 		assertThat(results).hasSize(2);
 		assertThat(results.get(0).get("id").asLong()).isEqualTo(center);
 		assertThat(results.get(1).get("id").asLong()).isEqualTo(east);
 		assertThat(results.get(1).get("distanceKm").asDouble()).isBetween(4.8, 5.0);
+
+		// 페이지는 거리 필터·정렬 뒤에 자름 — 2페이지(size=1)는 두 번째로 가까운 병원, 전체 수는 반경 안 병원 수
+		JsonNode page = getData("/api/hospitals?lat=" + lat + "&lng=" + lng + "&radiusKm=5&page=1&size=1", userToken);
+		assertThat(page.get("content")).hasSize(1);
+		assertThat(page.get("content").get(0).get("id").asLong()).isEqualTo(east);
+		assertThat(page.get("totalElements").asLong()).isEqualTo(2);
+		assertThat(getData("/api/hospitals?lat=" + lat + "&lng=" + lng + "&radiusKm=5&page=5", userToken).get("content")).isEmpty();
 	}
 
 	// ---------- helpers ----------

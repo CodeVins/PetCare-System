@@ -78,7 +78,9 @@ export default function AdminReportsPage() {
 
         {!loading && !error && reports.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse">
+            {/* 변경(2026-10-26): 상태·처리 칸 줄바꿈 금지 + 단어 단위 줄바꿈(break-keep) — 1280px 화면에서 "노출중" 배지가 한 글자씩 세로로 꺾였음
+                (이전: 부족한 폭에 배지가 눌림) */}
+            <table className="w-full min-w-[900px] border-collapse break-keep">
               <thead>
                 <tr className="bg-stone-50">
                   <th scope="col" className="admin-th">신고일</th>
@@ -131,14 +133,14 @@ export default function AdminReportsPage() {
                         </p>
                       </div>
                     </td>
-                    <td className="admin-td">
+                    <td className="admin-td whitespace-nowrap">
                       <span
                         className={`badge ${report.reviewHidden ? 'badge-neutral' : 'badge-wait'}`}
                       >
                         {report.reviewHidden ? '숨김' : '노출중'}
                       </span>
                     </td>
-                    <td className="admin-td">
+                    <td className="admin-td whitespace-nowrap">
                       <div className="flex justify-end">
                         <button
                           type="button"

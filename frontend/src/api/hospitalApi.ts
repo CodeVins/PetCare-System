@@ -12,8 +12,17 @@ import type {
 import axiosInstance, { type ApiPromise } from './axiosInstance'
 
 // 목록·상세·슬롯 조회(GET)는 비회원도 호출 가능 (백엔드 SecurityConfig PUBLIC_GET_PATHS)
-export function getHospitals(params?: HospitalSearchParams): ApiPromise<Hospital[]> {
+// 변경(2026-10-26): 응답이 PageResponse로 바뀜(page/size, 기본 20) — 이전: 조건에 맞는 병원 전체 배열
+export function getHospitals(
+  params?: HospitalSearchParams & { page?: number; size?: number },
+): ApiPromise<PageResponse<Hospital>> {
   return axiosInstance.get('/api/hospitals', { params })
+}
+
+// 관리 화면 선택지용 전체 병원 목록
+// ponytail: 한 번에 1000곳까지 — 넘으면 검색형 선택 UI로
+export function getAllHospitals(): Promise<Hospital[]> {
+  return getHospitals({ size: 1000 }).then(({ data }) => data.data.content)
 }
 
 export function getHospital(hospitalId: number | string): ApiPromise<Hospital> {

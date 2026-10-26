@@ -5,6 +5,7 @@ import com.petcare.domain.hospital.dto.HospitalResponse;
 import com.petcare.domain.hospital.dto.HospitalUpdateRequest;
 import com.petcare.domain.hospital.dto.OpeningHoursUpdateRequest;
 import com.petcare.domain.user.User;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.BadRequestException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
@@ -16,6 +17,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -107,9 +110,13 @@ public class HospitalService {
 	// 변경(2026-10-05): openNow(지금 진료 중만) 파라미터 추가 — 진료 시간이 요일별 구간 목록이라 DB 조건 대신 조회 후 자바로 거름
 	// (병원 수가 수천 단위까지는 문제없음, 진료 시간 미등록 병원은 제외) (이전: 없음)
 	// 변경(2026-10-09): animal(진료 동물)·amenity(편의 서비스) 필터 추가 — DB where절 (이전: 없음)
-	public List<HospitalResponse> search(
+	// 변경(2026-10-26): List 대신 PageResponse 반환 — 필터·거리 정렬까지 끝낸 뒤 page/size만큼 잘라 응답 크기를 줄임
+	// (이전: 조건에 맞는 병원 전체 반환). openNow·거리는 자바에서 거르므로 DB LIMIT 대신 메모리에서 자름
+	// ponytail: DB에서는 여전히 후보 전체를 읽음 — 병원 수가 수만 단위가 되면 openNow·거리 없는 경우만 DB 페이징으로 분리
+	public PageResponse<HospitalResponse> search(
 			String keyword, Double minRating, HospitalSortType sort, Double lat, Double lng, Double radiusKm,
-			Boolean is24Hours, Boolean hasParking, Boolean openNow, HospitalAnimal animal, HospitalAmenity amenity) {
+			Boolean is24Hours, Boolean hasParking, Boolean openNow, HospitalAnimal animal, HospitalAmenity amenity,
+			Pageable pageable) {
 		boolean nearby = lat != null && lng != null && radiusKm != null;
 		// 변경(2026-10-02): 거리 검색이면 사각형 범위로 DB에서 1차 필터 후 아래에서 정확한 원으로 재필터 (이전: 전체 병원 조회 후 메모리 필터)
 		GeoBox box = nearby ? GeoBox.around(lat, lng, radiusKm) : null;
@@ -119,16 +126,18 @@ public class HospitalService {
 				.map(result -> HospitalResponse.of(result.hospital(), result.averageRating(), result.reviewCount()))
 				.toList();
 
-		if (!nearby) {
-			return results;
+		if (nearby) {
+			results = results.stream()
+					.filter(r -> r.latitude() != null && r.longitude() != null)
+					.map(r -> r.withDistance(distanceKm(lat, lng, r.latitude(), r.longitude())))
+					.filter(r -> r.distanceKm() <= radiusKm)
+					.sorted(Comparator.comparingDouble(HospitalResponse::distanceKm))
+					.toList();
 		}
 
-		return results.stream()
-				.filter(r -> r.latitude() != null && r.longitude() != null)
-				.map(r -> r.withDistance(distanceKm(lat, lng, r.latitude(), r.longitude())))
-				.filter(r -> r.distanceKm() <= radiusKm)
-				.sorted(Comparator.comparingDouble(HospitalResponse::distanceKm))
-				.toList();
+		int from = (int) Math.min(pageable.getOffset(), results.size());
+		int to = Math.min(from + pageable.getPageSize(), results.size());
+		return PageResponse.from(new PageImpl<>(results.subList(from, to), pageable, results.size()));
 	}
 
 	private double distanceKm(double lat1, double lng1, double lat2, double lng2) {

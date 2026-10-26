@@ -1,7 +1,7 @@
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getHospitals } from '../../api/hospitalApi'
+import { getAllHospitals } from '../../api/hospitalApi'
 import { getOwnedHospitals } from '../../api/userApi'
 import { useAuth } from '../../hooks/useAuth'
 import type { Hospital, ReviewFilter } from '../../types/api'
@@ -43,8 +43,9 @@ function useHospitalOptions() {
   const [hospitals, setHospitals] = useState<Hospital[]>([])
   useEffect(() => {
     if (!role) return
-    ;(role === 'ADMIN' ? getHospitals() : getOwnedHospitals())
-      .then(({ data }) => setHospitals(data.data))
+    // 변경(2026-10-26): 병원 검색이 페이지 응답이 돼서 관리자는 getAllHospitals 사용 (이전: getHospitals 배열)
+    ;(role === 'ADMIN' ? getAllHospitals() : getOwnedHospitals().then(({ data }) => data.data))
+      .then(setHospitals)
       .catch(() => setHospitals([]))
   }, [role])
   return hospitals

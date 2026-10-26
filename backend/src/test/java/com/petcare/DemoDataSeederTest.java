@@ -49,7 +49,7 @@ class DemoDataSeederTest {
 		assertThat(slotRepository.count()).isEqualTo(slotsBefore);
 
 		// 공개 API로 보이는 모습 확인 — 커버 이미지 파일, 프로필, 진료 시간, 앞으로의 슬롯
-		JsonNode list = data(mockMvc.perform(get("/api/hospitals?keyword=동물")).andReturn().getResponse().getContentAsString());
+		JsonNode list = data(mockMvc.perform(get("/api/hospitals?keyword=동물")).andReturn().getResponse().getContentAsString()).get("content");
 		JsonNode first = list.get(0);
 		assertThat(first.get("phone").asText()).startsWith("02-0000-");
 		assertThat(first.get("description").asText()).contains("데모용 가상 병원");

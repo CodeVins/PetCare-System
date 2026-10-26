@@ -83,16 +83,17 @@ export default function AdminReviewsPage() {
 
         {!loading && !error && reviews.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse">
+            {/* 변경(2026-10-26): 상태 칸을 없애고 숨김 배지는 내용 칸으로, 작성일은 날짜/시간 두 줄, 단어 단위 줄바꿈(break-keep), 병원·내용 칸 min-w, 신고·처리 칸 줄바꿈 금지 —
+                1280px 화면에서 내용 칸이 한두 글자 폭으로 눌리고 처리 버튼이 상태 배지를 덮었음 (이전: 8칸, 부족한 폭을 내용 칸만 떠안음) */}
+            <table className="w-full min-w-[860px] border-collapse break-keep">
               <thead>
                 <tr className="bg-stone-50">
-                  <th scope="col" className="admin-th">작성일</th>
-                  <th scope="col" className="admin-th">병원</th>
+                  <th scope="col" className="admin-th min-w-[104px]">작성일</th>
+                  <th scope="col" className="admin-th min-w-[120px]">병원</th>
                   <th scope="col" className="admin-th">작성자</th>
                   <th scope="col" className="admin-th">별점</th>
-                  <th scope="col" className="admin-th w-[32%]">내용</th>
-                  <th scope="col" className="admin-th text-center">신고</th>
-                  <th scope="col" className="admin-th">상태</th>
+                  <th scope="col" className="admin-th w-[32%] min-w-[180px]">내용</th>
+                  <th scope="col" className="admin-th whitespace-nowrap text-center">신고</th>
                   <th scope="col" className="admin-th text-right">처리</th>
                 </tr>
               </thead>
@@ -102,10 +103,10 @@ export default function AdminReviewsPage() {
                   return (
                     <Fragment key={review.id}>
                       <tr className={review.hidden ? 'bg-stone-50/60' : 'hover:bg-stone-50'}>
-                        <td className="admin-td whitespace-nowrap text-stone-600">
+                        <td className="admin-td text-stone-600">
                           {formatDateTime(review.createdAt)}
                         </td>
-                        <td className="admin-td whitespace-nowrap font-medium text-stone-900">
+                        <td className="admin-td font-medium text-stone-900">
                           {review.hospitalName}
                         </td>
                         <td className="admin-td">
@@ -143,6 +144,7 @@ export default function AdminReviewsPage() {
                             <ChatText size={13} />
                             {review.reply ? '답글 있음' : '답글 없음'}
                           </span>
+                          {review.hidden && <span className="badge badge-neutral ml-2">숨김</span>}
                           {/* 변경(2026-10-05): 리뷰 사진 — 접힌 상태는 장수만, 펼치면 썸네일(부적절한 사진 확인용) (이전: 사진 없음) */}
                           {review.imageUrls.length > 0 &&
                             (expanded ? (
@@ -168,12 +170,7 @@ export default function AdminReviewsPage() {
                             <span className="text-stone-400">0</span>
                           )}
                         </td>
-                        <td className="admin-td">
-                          <span className={`badge ${review.hidden ? 'badge-neutral' : 'badge-ok'}`}>
-                            {review.hidden ? '숨김' : '노출중'}
-                          </span>
-                        </td>
-                        <td className="admin-td">
+                        <td className="admin-td whitespace-nowrap">
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
@@ -195,7 +192,7 @@ export default function AdminReviewsPage() {
                       </tr>
                       {expanded && (
                         <tr className="bg-stone-50">
-                          <td colSpan={8} className="px-4 pb-4 pt-1">
+                          <td colSpan={7} className="px-4 pb-4 pt-1">
                             <ReplyEditor
                               review={review}
                               onSaved={(reply) => patch(review.id, { reply })}

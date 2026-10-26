@@ -17,8 +17,9 @@ export default function AuthorCell({
       <button
         type="button"
         onClick={onFilter}
-        title="이 사용자만 보기"
-        className="max-w-[200px] truncate text-left text-stone-800 hover:text-brand-700 hover:underline"
+        title={`${email} — 이 사용자만 보기`}
+        // 변경(2026-10-26): 최대 폭 200→160px — 리뷰 관리 표가 1280px 화면에서 넘쳐 처리 버튼이 잘렸음 (이전: 200px)
+        className="max-w-[160px] truncate text-left text-stone-800 hover:text-brand-700 hover:underline"
       >
         {email}
       </button>

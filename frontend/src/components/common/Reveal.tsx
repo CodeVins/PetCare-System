@@ -1,5 +1,5 @@
-import { motion, useReducedMotion } from 'motion/react'
-import type { ReactNode } from 'react'
+import { motion, useInView, useReducedMotion } from 'motion/react'
+import { useRef, type ReactNode } from 'react'
 
 interface RevealProps {
   children: ReactNode
@@ -13,17 +13,21 @@ interface RevealProps {
 // and lists so items cascade in instead of popping in all at once.
 export function Reveal({ children, className = '', stagger = 0, delay = 0 }: RevealProps) {
   const reduceMotion = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, amount: 0.2 })
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>
   }
 
+  // 변경(2026-10-26): whileInView 대신 useInView + animate — 한 번 보인 뒤 "더 보기"로 붙은 RevealItem이
+  // opacity 0에 머물던 문제 (이전: whileInView 상태가 나중에 마운트된 자식에게 전달되지 않음)
   return (
     <motion.div
+      ref={ref}
       className={className}
       initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
+      animate={inView ? 'visible' : 'hidden'}
       variants={{
         hidden: {},
         visible: {

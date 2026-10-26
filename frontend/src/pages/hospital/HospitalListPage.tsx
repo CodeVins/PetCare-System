@@ -1,17 +1,18 @@
 import { Buildings, Crosshair, MagnifyingGlass, SlidersHorizontal } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { errorMessage } from '../../api/axiosInstance'
 import { getHospitals } from '../../api/hospitalApi'
 import Alert from '../../components/common/Alert'
+import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import { Reveal, RevealItem } from '../../components/common/Reveal'
 import SelectField from '../../components/common/SelectField'
 import { useAuth } from '../../hooks/useAuth'
 import { useFavoriteIds } from '../../hooks/useFavoriteIds'
+import { usePagedList } from '../../hooks/usePagedList'
 import { HOSPITAL_AMENITY_LABEL, HOSPITAL_ANIMAL_LABEL } from '../../lib/format'
-import type { Hospital, HospitalAmenity, HospitalAnimal, HospitalSort } from '../../types/api'
+import type { HospitalAmenity, HospitalAnimal, HospitalSort } from '../../types/api'
 import HospitalCard from './HospitalCard'
 import HospitalTabs from './HospitalTabs'
 
@@ -64,40 +65,39 @@ export default function HospitalListPage() {
   // 모바일에서만 접었다 펴는 필터 영역 (데스크톱은 항상 보이는 사이드바)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const [hospitals, setHospitals] = useState<Hospital[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
   // 변경(2026-09-27): 즐겨찾기 조회/토글을 useFavoriteIds(useOptimistic)로 분리, 비회원이면 하트 숨김
   // (이전: 이 화면에서 Set을 직접 들고 실패 시 수동 롤백, 비회원 개념 없음)
   const { favoriteIds, toggleFavorite } = useFavoriteIds()
 
+  // 검색어 입력 중에는 300ms 쉬었다가 한 번만 호출
+  // 변경(2026-10-26): 디바운스는 검색어에만 — 필터·정렬은 바로 반영 (이전: 모든 조건 변경에 300ms 대기)
+  const [debouncedKeyword, setDebouncedKeyword] = useState(keyword)
   useEffect(() => {
-    setLoading(true)
-    setError('')
-    // 검색어 입력 중에는 300ms 쉬었다가 한 번만 호출
-    const timeout = setTimeout(() => {
-      getHospitals({
-        keyword: keyword || undefined,
-        minRating: minRating ? Number(minRating) : undefined,
-        sort: locationEnabled ? undefined : sort,
-        lat: locationEnabled ? coords?.lat : undefined,
-        lng: locationEnabled ? coords?.lng : undefined,
-        radiusKm: locationEnabled ? radiusKm : undefined,
-        is24Hours: is24Hours || undefined,
-        hasParking: hasParking || undefined,
-        // 변경(2026-10-05): "지금 진료 중" 필터 (이전: 없음)
-        openNow: openNow || undefined,
-        // 변경(2026-10-09): 진료 동물·편의 서비스 필터 (이전: 없음)
-        animal: (animal || undefined) as HospitalAnimal | undefined,
-        amenity: (amenity || undefined) as HospitalAmenity | undefined,
-      })
-        .then(({ data }) => setHospitals(data.data))
-        .catch((err) => setError(errorMessage(err, '병원 목록을 불러오지 못했습니다.')))
-        .finally(() => setLoading(false))
-    }, 300)
+    const timeout = setTimeout(() => setDebouncedKeyword(keyword), 300)
     return () => clearTimeout(timeout)
-  }, [keyword, minRating, sort, locationEnabled, coords, radiusKm, is24Hours, hasParking, openNow, animal, amenity])
+  }, [keyword])
+
+  const params = {
+    keyword: debouncedKeyword || undefined,
+    minRating: minRating ? Number(minRating) : undefined,
+    sort: locationEnabled ? undefined : sort,
+    lat: locationEnabled ? coords?.lat : undefined,
+    lng: locationEnabled ? coords?.lng : undefined,
+    radiusKm: locationEnabled ? radiusKm : undefined,
+    is24Hours: is24Hours || undefined,
+    hasParking: hasParking || undefined,
+    // 변경(2026-10-05): "지금 진료 중" 필터 (이전: 없음)
+    openNow: openNow || undefined,
+    // 변경(2026-10-09): 진료 동물·편의 서비스 필터 (이전: 없음)
+    animal: (animal || undefined) as HospitalAnimal | undefined,
+    amenity: (amenity || undefined) as HospitalAmenity | undefined,
+  }
+  // 변경(2026-10-26): 서버 페이지(20곳씩) + "더 보기" — usePagedList 재사용 (이전: 전체 병원을 한 번에 받아 렌더)
+  const { items: hospitals, loading, error, hasMore, total, loadMore, loadingMore } = usePagedList(
+    (page) => getHospitals({ ...params, page }),
+    JSON.stringify(params),
+    '병원 목록을 불러오지 못했습니다.',
+  )
 
   const enableLocation = () => {
     if (!navigator.geolocation) {
@@ -277,6 +277,10 @@ export default function HospitalListPage() {
           )}
 
           {!loading && !error && hospitals.length > 0 && (
+            <p className="mb-3 text-sm text-stone-500">병원 {total}곳</p>
+          )}
+
+          {!loading && !error && hospitals.length > 0 && (
             <Reveal className="flex flex-col gap-3" stagger={0.05}>
               {hospitals.map((hospital, index) => (
                 <RevealItem key={hospital.id}>
@@ -289,6 +293,12 @@ export default function HospitalListPage() {
                 </RevealItem>
               ))}
             </Reveal>
+          )}
+
+          {!loading && !error && hasMore && (
+            <Button type="button" variant="secondary" onClick={loadMore} loading={loadingMore} className="mt-4 w-full">
+              더 보기
+            </Button>
           )}
         </div>
       </div>
