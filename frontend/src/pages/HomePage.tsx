@@ -228,7 +228,9 @@ export default function HomePage() {
       </section>
 
       {/* 공지사항 / 자주 묻는 질문 */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* 변경(2026-10-26): grid-cols-1(minmax(0,1fr)) 추가 — 모바일에서 열이 auto라 긴 공지 제목만큼 카드가 넓어져
+          가로 스크롤이 생기고 truncate가 안 먹었음 (이전: md 미만은 열 지정 없음) */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <section aria-labelledby="h-notice" className="card p-5 md:p-6">
           <SectionTitle id="h-notice" moreTo="/notices">
             공지사항

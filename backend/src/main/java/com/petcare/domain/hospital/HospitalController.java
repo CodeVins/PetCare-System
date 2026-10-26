@@ -5,10 +5,13 @@ import com.petcare.domain.hospital.dto.HospitalResponse;
 import com.petcare.domain.hospital.dto.HospitalUpdateRequest;
 import com.petcare.domain.hospital.dto.OpeningHoursUpdateRequest;
 import com.petcare.global.common.ApiResponse;
+import com.petcare.global.common.PageResponse;
 import com.petcare.global.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,7 +43,7 @@ public class HospitalController {
 	}
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<HospitalResponse>>> search(
+	public ResponseEntity<ApiResponse<PageResponse<HospitalResponse>>> search(
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) Double minRating,
 			@RequestParam(required = false, defaultValue = "NAME_ASC") HospitalSortType sort,
@@ -51,10 +54,12 @@ public class HospitalController {
 			@RequestParam(required = false) Boolean hasParking,
 			@RequestParam(required = false) Boolean openNow,
 			@RequestParam(required = false) HospitalAnimal animal,
-			@RequestParam(required = false) HospitalAmenity amenity) {
+			@RequestParam(required = false) HospitalAmenity amenity,
+			@PageableDefault(size = 20) Pageable pageable) {
+		// 변경(2026-10-26): page/size를 받아 PageResponse로 응답 (이전: 전체 목록 List). 정렬은 기존 sort(HospitalSortType)만 씀
 		return ResponseEntity.ok(ApiResponse.success(
 				hospitalService.search(
-						keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow, animal, amenity)));
+						keyword, minRating, sort, lat, lng, radiusKm, is24Hours, hasParking, openNow, animal, amenity, pageable)));
 	}
 
 	@GetMapping("/{hospitalId}")

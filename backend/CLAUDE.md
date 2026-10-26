@@ -55,7 +55,7 @@ com.petcare
 - `GET /api/hospitals?keyword=&minRating=&sort=NAME_ASC|RATING_DESC|REVIEW_COUNT_DESC` — Hospital-Review left join + groupBy로 평점 집계/필터/정렬을 쿼리 하나로 처리 (`HospitalRepositoryImpl`)
 - 같은 엔드포인트에 `&lat=&lng=&radiusKm=` 추가하면 거리 기반 필터링. 셋 다 줘야 동작, 좌표 없는 병원(latitude/longitude null)은 결과에서 제외. 응답의 `distanceKm`은 이 파라미터를 줬을 때만 채워짐
   - 2단계(2026-10-02, 병원 수 증가 대비): ① `GeoBox.around()`로 반경을 감싸는 위경도 사각형을 만들어 Querydsl where절 `between`으로 DB에서 후보만 조회(`idx_hospital_lat_lng(latitude, longitude)` 인덱스) ② 후보만 `HospitalService`에서 Haversine으로 정확한 원 필터+거리순 정렬. 이전엔 전체 병원을 불러와 메모리에서 계산. MySQL 공간 함수/공간 인덱스는 안 씀(ponytail: 병원 수가 수십만 단위가 되면 `POINT` + `SPATIAL INDEX` 검토). 날짜변경선·극지방 미고려(국내 전용)
-  - 여전히 페이지네이션 없음 — 좌표 없이 검색하면 조건에 맞는 병원 전체를 반환
+  - 페이지네이션(2026-10-26): `page`/`size`(기본 20) → `PageResponse`. openNow·거리는 자바에서 거르므로 DB LIMIT이 아니라 **필터·정렬을 끝낸 목록을 메모리에서 자름**(`HospitalService.search`) — 응답 크기만 줄고 DB는 후보 전체를 읽음(ponytail: 수만 단위면 openNow·거리 없는 경우만 DB 페이징). 정렬은 기존 `sort`(HospitalSortType)만 쓰고 Pageable sort는 무시. 프론트 관리 화면 선택지는 `getAllHospitals()`(size=1000)
 - Querydsl 커스텀 레포지토리 패턴: `XxxRepositoryCustom` 인터페이스 + `XxxRepositoryImpl`(반드시 이 이름, Spring Data가 자동 인식) + `XxxRepository extends JpaRepository<...>, XxxRepositoryCustom`
 - `JPAQueryFactory` 빈은 `global/config/QuerydslConfig`에 등록
 - `GET /api/admin/stats/summary`, `GET /api/admin/stats/hospitals` (ADMIN 전용) — 병원별/전체 예약·리뷰 집계
@@ -207,7 +207,7 @@ com.petcare
 
 ## 페이지네이션
 - 대부분의 목록 API는 `Pageable`(쿼리파라미터 `page`, `size`, `sort`) 기반, 응답은 `ApiResponse<PageResponse<T>>` (`global/common/PageResponse`: content/page/size/totalElements/totalPages). 컨트롤러에 `@PageableDefault(size = 20)` 기본값
-- 제외된 목록(의도적으로 페이지네이션 안 함): `GET /api/hospitals`(검색 — 거리 필터를 메모리에서 계산해서 DB 페이지네이션과 안 맞음), `GET /api/admin/stats/hospitals`(리포트성, 병원 수만큼만), `GET /api/users/me/upcoming-vaccinations`(개인용 소량 목록)
+- 제외된 목록(의도적으로 페이지네이션 안 함): `GET /api/admin/stats/hospitals`(리포트성, 병원 수만큼만), `GET /api/users/me/upcoming-vaccinations`(개인용 소량 목록)
 - 새 목록 API 만들 땐 이 패턴 따라갈 것: Repository는 `Page<Entity> findAllByXxx(..., Pageable)`, Service는 `PageResponse<Dto> method(..., Pageable)` 반환, Controller는 `Pageable pageable` 파라미터 받아서 그대로 전달
 
 ## 검증 방식
@@ -241,12 +241,12 @@ com.petcare
 - push 전략: 파이프라인은 push 때만 돌므로 문서만 바뀐 건 로컬 커밋으로 두고 다음 코드 PR에 같이 올림(`paths-ignore`는 필요해지면 추가)
 - 2026-10-02~05 추가 작업(PR #5~#13): 채팅 WebSocket 전환·안 읽은 수(#5), 진료 기록(#6), 예약 메모·자가문진 첨부(#7), 예약 시간 변경(#8), 리뷰 사진(#9), 병원 기간 통계(#10), 대기자 차례 넘기기(#11), 요일별 진료 시간·지금 진료 중(#12), 헬스체크·uptime 감시·자동 백업(#13). 각 기능 상세는 해당 섹션 참고
 - 2026-10-09 추가 작업(PR #14~#17, 전부 운영 배포): 병원 프로필(#14), 운영 데모 데이터(#15), 반려동물 화면 개편(#16), 내 예약 화면 개편 — 반려동물별·기간별 보기·끝난 예약 삭제(#17)
+- 2026-10-26: 병원 검색 페이지네이션(메모리 자르기, 프론트 "더 보기"), 브라우저 화면 확인 — `Reveal`이 "더 보기"로 붙은 항목을 안 보여주던 버그, 홈 모바일 가로 넘침, 리뷰·신고 관리 표 칸 눌림 수정
 
 **남은 것**
 - 소셜 로그인(구글/네이버) — 개발자 콘솔에서 클라이언트 ID/Secret 발급 필요, 아직 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
-- 병원 검색(`GET /api/hospitals`) 페이지네이션 — 응답 형식이 바뀌어 프론트 수정 필요, 병원 수가 수천 단위가 되면 진행
 - 지도 보기 — 카카오맵 JavaScript 키 발급 대기(localhost:5173, 운영 도메인 등록)
 - EBS 스냅샷 자동화(AWS 콘솔, 사용자 설정)
 
