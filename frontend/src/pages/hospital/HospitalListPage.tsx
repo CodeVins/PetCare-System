@@ -1,4 +1,4 @@
-import { Buildings, Crosshair, MagnifyingGlass, SlidersHorizontal } from '@phosphor-icons/react'
+import { Buildings, Crosshair, ListBullets, MagnifyingGlass, MapTrifold, SlidersHorizontal } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getHospitals } from '../../api/hospitalApi'
@@ -12,8 +12,10 @@ import { useAuth } from '../../hooks/useAuth'
 import { useFavoriteIds } from '../../hooks/useFavoriteIds'
 import { usePagedList } from '../../hooks/usePagedList'
 import { HOSPITAL_AMENITY_LABEL, HOSPITAL_ANIMAL_LABEL } from '../../lib/format'
+import { hasKakaoKey } from '../../lib/kakaoMap'
 import type { HospitalAmenity, HospitalAnimal, HospitalSort } from '../../types/api'
 import HospitalCard from './HospitalCard'
+import HospitalMap from './HospitalMap'
 import HospitalTabs from './HospitalTabs'
 
 const SORT_OPTIONS: { value: HospitalSort; label: string }[] = [
@@ -64,6 +66,9 @@ export default function HospitalListPage() {
   const [geoError, setGeoError] = useState('')
   // 모바일에서만 접었다 펴는 필터 영역 (데스크톱은 항상 보이는 사이드바)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // 지도: 카드에 마우스를 올리거나 마커를 누른 병원에 이름표. 모바일은 버튼으로 펼침(데스크톱은 항상 오른쪽)
+  const [focusId, setFocusId] = useState<number | null>(null)
+  const [mapOpen, setMapOpen] = useState(false)
 
   // 변경(2026-09-27): 즐겨찾기 조회/토글을 useFavoriteIds(useOptimistic)로 분리, 비회원이면 하트 숨김
   // (이전: 이 화면에서 Set을 직접 들고 실패 시 수동 롤백, 비회원 개념 없음)
@@ -259,7 +264,32 @@ export default function HospitalListPage() {
           </div>
         </div>
 
-        <div>
+        {/* 변경(2026-10-27): 결과 영역을 [목록 | 지도] 2단으로 — 카카오맵으로 병원 위치 확인 (이전: 목록만) */}
+        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
+          {hasKakaoKey && (
+            <aside className="lg:sticky lg:top-22 lg:order-last">
+              <button
+                type="button"
+                onClick={() => setMapOpen((v) => !v)}
+                aria-expanded={mapOpen}
+                className="btn btn-secondary mb-3 w-full lg:hidden"
+              >
+                {mapOpen ? <ListBullets size={20} /> : <MapTrifold size={20} />}
+                {mapOpen ? '지도 접기' : '지도로 보기'}
+              </button>
+              <div className={`${mapOpen ? 'block' : 'hidden'} mb-3 lg:mb-0 lg:block`}>
+                <HospitalMap
+                  hospitals={hospitals}
+                  focusId={focusId}
+                  onFocus={setFocusId}
+                  linkToDetail
+                  className="h-72 lg:h-[calc(100dvh-8rem)]"
+                />
+              </div>
+            </aside>
+          )}
+
+          <div>
           {loading && (
             <div className="flex flex-col gap-3">
               {[0, 1, 2].map((i) => (
@@ -284,12 +314,18 @@ export default function HospitalListPage() {
             <Reveal className="flex flex-col gap-3" stagger={0.05}>
               {hospitals.map((hospital, index) => (
                 <RevealItem key={hospital.id}>
-                  <HospitalCard
-                    hospital={hospital}
-                    index={index}
-                    isFavorite={favoriteIds.has(hospital.id)}
-                    onToggleFavorite={isAuthenticated ? toggleFavorite : undefined}
-                  />
+                  <div
+                    onMouseEnter={() => setFocusId(hospital.id)}
+                    onFocus={() => setFocusId(hospital.id)}
+                    className={focusId === hospital.id ? 'rounded-2xl ring-2 ring-brand-500' : ''}
+                  >
+                    <HospitalCard
+                      hospital={hospital}
+                      index={index}
+                      isFavorite={favoriteIds.has(hospital.id)}
+                      onToggleFavorite={isAuthenticated ? toggleFavorite : undefined}
+                    />
+                  </div>
                 </RevealItem>
               ))}
             </Reveal>
@@ -300,6 +336,7 @@ export default function HospitalListPage() {
               더 보기
             </Button>
           )}
+          </div>
         </div>
       </div>
     </div>

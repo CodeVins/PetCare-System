@@ -28,6 +28,9 @@ public class SecurityConfig {
 			"/api/auth/login",
 			"/api/auth/reissue",
 			"/api/auth/password-reset/**",
+			// 변경(2026-10-27): 카카오 로그인(인가 페이지 이동·코드 교환) 공개 — 정확한 경로만 (이전: 없음)
+			"/api/auth/kakao/login",
+			"/api/auth/kakao",
 			"/swagger-ui/**",
 			"/v3/api-docs/**",
 			"/uploads/**",

@@ -35,12 +35,21 @@ public class User extends BaseEntity {
 	@Column(nullable = false)
 	private boolean suspended;
 
+	// 카카오 회원번호 — 카카오 로그인으로 가입·연결된 계정만 값이 있음(이메일이 바뀌어도 이걸로 찾음)
+	@Column(unique = true)
+	private Long kakaoId;
+
 	@Builder
-	private User(String email, String password, Role role) {
+	private User(String email, String password, Role role, Long kakaoId) {
 		this.email = email;
 		this.password = password;
 		this.role = role;
+		this.kakaoId = kakaoId;
 		this.suspended = false;
+	}
+
+	public void linkKakao(Long kakaoId) {
+		this.kakaoId = kakaoId;
 	}
 
 	public void changeEmail(String email) {

@@ -14,7 +14,10 @@ interface RevealProps {
 export function Reveal({ children, className = '', stagger = 0, delay = 0 }: RevealProps) {
   const reduceMotion = useReducedMotion()
   const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, amount: 0.2 })
+  // 변경(2026-10-27): amount 0.2 → 'some'(조금이라도 보이면) — 긴 목록은 컨테이너의 20%가 한 화면보다 커서 영영 안 보였음
+  // (이전: 병원 목록을 [목록|지도] 2단으로 좁히자 카드 17개 목록 높이 3244px의 20% > 보이는 609px라 카드 전부 투명.
+  // "더 보기"로 길어진 목록·낮은 화면에서도 같은 문제가 잠재)
+  const inView = useInView(ref, { once: true, amount: 'some' })
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>
