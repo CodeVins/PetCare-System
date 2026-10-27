@@ -8,6 +8,8 @@ import { getMyPets } from '../../api/petApi'
 import { createReservation } from '../../api/reservationApi'
 import ReservationNoteFields from './ReservationNoteFields'
 import WeeklyHoursTable from './WeeklyHoursTable'
+import HospitalMap from './HospitalMap'
+import { hasKakaoKey, kakaoDirectionsUrl } from '../../lib/kakaoMap'
 import { hasNightHours, openStatus } from '../../lib/openingHours'
 import { joinWaitlist } from '../../api/waitlistApi'
 import Alert from '../../components/common/Alert'
@@ -288,6 +290,20 @@ export default function HospitalDetailPage() {
                 <MapPin size={18} />
                 {hospital.address}
               </p>
+            )}
+
+            {hasKakaoKey && hospital.latitude != null && hospital.longitude != null && (
+              <div className="flex flex-col gap-1.5">
+                <HospitalMap hospitals={[hospital]} focusId={hospital.id} className="h-48" />
+                <a
+                  href={kakaoDirectionsUrl(hospital.name, hospital.latitude, hospital.longitude)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="self-end text-sm font-medium text-brand-700 underline-offset-2 hover:underline"
+                >
+                  카카오맵에서 길찾기 ↗
+                </a>
+              </div>
             )}
 
             <div className="flex flex-wrap gap-1.5">
