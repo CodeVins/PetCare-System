@@ -14,6 +14,10 @@ export function login({ email, password }: Credentials): ApiPromise<TokenRespons
   return axiosInstance.post('/api/auth/login', { email, password })
 }
 
+export function kakaoLogin(code: string): ApiPromise<TokenResponse> {
+  return axiosInstance.post('/api/auth/kakao', { code })
+}
+
 export function logout(): ApiPromise<null> {
   return axiosInstance.post('/api/auth/logout')
 }

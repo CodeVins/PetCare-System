@@ -19,6 +19,7 @@ const AdminStatsPage = lazy(() => import('../pages/admin/AdminStatsPage'))
 const AdminUserDetailPage = lazy(() => import('../pages/admin/AdminUserDetailPage'))
 const AdminUsersPage = lazy(() => import('../pages/admin/AdminUsersPage'))
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'))
+const KakaoCallbackPage = lazy(() => import('../pages/auth/KakaoCallbackPage'))
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'))
 const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'))
 const SignupPage = lazy(() => import('../pages/auth/SignupPage'))
@@ -56,6 +57,7 @@ export default function AppRouter() {
       <Suspense fallback={null}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/oauth/kakao/callback" element={<KakaoCallbackPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

@@ -52,6 +52,11 @@ app:
   # 운영 데모 데이터(가상 병원·슬롯·리뷰) — DEMO_SEED=true일 때만 global/demo/DemoDataSeeder가 동작
   demo:
     enabled: ${DEMO_SEED:false}
+  # 카카오 로그인(domain/user/KakaoOAuthClient). redirect-uri는 프론트 콜백 화면 — 카카오 콘솔에 같은 값 등록 필요
+  kakao:
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}
+    redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:5173/oauth/kakao/callback}
   admin:
     bootstrap-email: ${ADMIN_EMAIL:}
     bootstrap-password: ${ADMIN_PASSWORD:}
