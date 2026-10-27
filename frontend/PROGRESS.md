@@ -387,6 +387,17 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       헤드리스 캡처로 세로 사진이 카드를 늘리는 문제와 지난 예약이 "다가오는"에 섞이던 문제 발견해 수정
     - **내 예약 화면**: 반려동물 칩 + 다가오는/지난/취소·거절/전체 탭(서버 필터·개수), 날짜 블록 카드에 반려동물 사진·이름
       크게, 시간 변경·문의·취소 / 리뷰 쓰기·다시 예약·삭제(숨김), 취소 탭 "모두 삭제". 병원 상세 `?tab=` 지원
+- [x] 2026-10-27 카카오맵·카카오 로그인 (PR #19)
+    - **지도**: `lib/kakaoMap.ts`(SDK 1회 로드, `VITE_KAKAO_JS_KEY` 없으면 지도 숨김) + `pages/hospital/HospitalMap`
+      (좌표 있는 병원만 마커, 목록 바뀌면 범위 맞춤, ResizeObserver로 숨겨졌다 펼친 지도도 다시 그림). 병원 목록 lg부터
+      [목록 | 지도(sticky)] 2단 — 카드 hover/마커 클릭 시 이름표·이동, 이름표 클릭 시 상세. 모바일은 "지도로 보기" 토글.
+      상세는 주소 아래 지도 + 카카오맵 길찾기 링크. 마커는 불러온 병원(20곳씩)만 — 지도 이동 시 재검색은 안 함.
+      운영 빌드는 GitHub secret `KAKAO_JS_KEY` → Docker build-arg(Vite가 빌드 시점에 번들에 넣어서)
+    - **카카오 로그인**: 로그인 화면 노란 버튼 → `pages/auth/loginFlow.startKakaoLogin`(state를 sessionStorage에) →
+      `/api/auth/kakao/login`(백엔드가 카카오로 302) → `/oauth/kakao/callback`(`KakaoCallbackPage`, state 확인 후
+      POST /api/auth/kakao, StrictMode 중복 요청은 ref로 막음 — 인가 코드 1회용). 로그인 후 이동 규칙은 `loginDestination`으로 공유
+    - 헤드리스 확인 중 발견: 2단으로 좁아진 목록(높이 3244px)에서 `Reveal`의 amount 0.2(649px)가 화면(609px)보다 커서
+      카드가 전부 투명 → amount 'some'으로 수정(더 보기로 길어진 목록에도 잠재하던 문제)
 
 ## 다음 할 일 (2026-09-27 백엔드 세션에서 정리, 추천 순서: ① → ③ → ② → ④ → ⑦ → ⑧, ⑤⑥은 ① 하면서 브라우저 띄울 때 같이)
 
