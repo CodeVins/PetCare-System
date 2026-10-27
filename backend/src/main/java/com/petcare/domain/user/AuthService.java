@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Slf4j
 @Service
@@ -74,7 +75,9 @@ public class AuthService {
 		try {
 			kakao = kakaoOAuthClient.fetchUser(code);
 		} catch (RestClientException e) {
-			log.warn("[카카오 로그인] 사용자 정보 조회 실패: {}", e.getMessage());
+			// 카카오 에러 코드(KOE010 등)는 응답 본문에만 있어서 같이 남김 — 메시지만으론 "401 [no body]"
+			String body = e instanceof RestClientResponseException re ? re.getResponseBodyAsString() : "";
+			log.warn("[카카오 로그인] 사용자 정보 조회 실패: {} {}", e.getMessage(), body);
 			throw new InvalidCredentialsException("카카오 로그인에 실패했습니다. 다시 시도해주세요.");
 		}
 
