@@ -80,6 +80,8 @@ CLAUDE.md에서 분리한 상세 엔드포인트 매핑. 특정 도메인 작업
   /admin/*가 아니면 항상). ADMIN은 /dashboard 대신 /admin만 씀(OwnerRoute가 /admin으로 보냄).
 - 카카오 로그인: GET /api/auth/kakao/login?state= (페이지 이동, 백엔드가 카카오로 302) → /oauth/kakao/callback →
   POST /api/auth/kakao { code } → TokenResponse(일반 로그인과 같음). LoginPage 버튼, KakaoCallbackPage
+- 캘린더: GET /api/calendar?from=&to=&petId= (양끝 포함 최대 62일, 배열 그대로) → CalendarEvent[]
+  (kind RESERVATION/RECORD/DUE, date, time(예약만), petName, title, recordType, reservationStatus, hospitalName) → PetCalendarPage
 - 비밀번호 재설정: POST /api/auth/password-reset/request { email } (항상 200),
   POST /api/auth/password-reset/confirm { token, newPassword } → /forgot-password,
   /reset-password. 백엔드가 실제 메일 발송 없이 토큰을 로그로만 남김(포트폴리오

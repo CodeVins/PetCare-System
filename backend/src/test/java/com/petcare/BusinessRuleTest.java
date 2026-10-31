@@ -968,6 +968,51 @@ class BusinessRuleTest {
 		assertThat(getData("/api/hospitals?lat=" + lat + "&lng=" + lng + "&radiusKm=5&page=5", userToken).get("content")).isEmpty();
 	}
 
+	// ---------- 캘린더 ----------
+
+	@Test
+	void 캘린더는_공동보호자_펫의_예약_기록_예정일을_모으고_취소된_예약과_남의_펫은_뺀다() throws Exception {
+		String ownerEmail = "cal-owner" + System.nanoTime() + "@petcare.com";
+		String guardianEmail = "cal-guardian" + System.nanoTime() + "@petcare.com";
+		String owner = signupAndLogin(ownerEmail);
+		String guardian = signupAndLogin(guardianEmail);
+		String stranger = signupAndLogin("cal-stranger" + System.nanoTime() + "@petcare.com");
+		long petId = createPet(owner, "달력이");
+		mockMvc.perform(post("/api/pets/" + petId + "/guardians")
+						.header("Authorization", "Bearer " + owner)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"" + guardianEmail + "\"}"))
+				.andExpect(status().isCreated());
+
+		// 오늘 접종 기록(다음 예정일 +5일) → RECORD + DUE, 공동보호자가 한 예약 → RESERVATION, 취소한 예약은 안 보임
+		LocalDate today = LocalDate.now();
+		mockMvc.perform(post("/api/pets/" + petId + "/health-records")
+						.header("Authorization", "Bearer " + owner)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(healthRecordJson(today.plusDays(5))))
+				.andExpect(status().isCreated());
+		long calendarHospital = createHospital();
+		createReservation(guardian, petId, createSlot(calendarHospital, future(48), future(49)));
+		long cancelled = createReservation(owner, petId, createSlot(calendarHospital, future(50), future(51)));
+		mockMvc.perform(patch("/api/reservations/" + cancelled + "/cancel").header("Authorization", "Bearer " + owner))
+				.andExpect(status().isOk());
+
+		String url = "/api/calendar?from=" + today + "&to=" + today.plusDays(10);
+		for (String token : List.of(owner, guardian)) {
+			JsonNode events = getData(url, token);
+			assertThat(events).extracting(e -> e.get("kind").asText())
+					.containsExactly("RECORD", "RESERVATION", "DUE");
+			assertThat(events.get(1).get("hospitalName").asText()).isEqualTo("규칙테스트병원");
+			assertThat(events.get(2).get("date").asText()).isEqualTo(today.plusDays(5).toString());
+		}
+		assertThat(getData(url + "&petId=" + petId, stranger)).isEmpty();
+
+		mockMvc.perform(get("/api/calendar?from=" + today + "&to=" + today.plusDays(62)).header("Authorization", "Bearer " + owner))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(get("/api/calendar?from=" + today + "&to=" + today.minusDays(1)).header("Authorization", "Bearer " + owner))
+				.andExpect(status().isBadRequest());
+	}
+
 	// ---------- helpers ----------
 
 	private long createHospitalAt(String name, double latitude, double longitude) throws Exception {

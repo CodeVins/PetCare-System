@@ -102,6 +102,25 @@ export interface UpcomingVaccination {
   daysRemaining: number
 }
 
+// ── calendar ──────────────────────────────────────────
+// GET /api/calendar — 예약(RESERVATION)·건강 기록(RECORD)·다음 접종/내원 예정일(DUE)을 모은 일정
+export type CalendarEventKind = 'RESERVATION' | 'RECORD' | 'DUE'
+
+export interface CalendarEvent {
+  kind: CalendarEventKind
+  date: ISODate
+  time: string | null // 'HH:mm:ss', 예약만
+  petId: number
+  petName: string
+  title: string // 예약은 병원명, 기록·예정일은 기록 내용
+  recordId: number | null
+  recordType: HealthRecordType | null
+  reservationId: number | null
+  reservationStatus: ReservationStatus | null
+  hospitalId: number | null // 예약 병원, 또는 병원이 작성한 기록의 병원
+  hospitalName: string | null
+}
+
 // ── pet ───────────────────────────────────────────────
 export interface Pet {
   id: number

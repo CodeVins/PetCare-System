@@ -17,6 +17,7 @@ import { getUpcomingVaccinations } from '../../api/userApi'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import StatusBadge from '../../components/common/StatusBadge'
+import PetTabs from './PetTabs'
 import {
   calculateAge,
   formatDateTime,
@@ -221,6 +222,8 @@ export default function PetListPage() {
           </>
         }
       />
+      {/* 변경(2026-10-31): 내 아이들 | 캘린더 탭 추가 (이전: 탭 없음) */}
+      <PetTabs />
 
       <section aria-labelledby="h-pets">
         <h2 id="h-pets" className="h-section mb-3">

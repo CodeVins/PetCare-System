@@ -28,6 +28,15 @@ public interface HealthRecordRepository extends JpaRepository<HealthRecord, Long
 			+ " order by h.nextDueDate asc")
 	List<HealthRecord> findAllAccessibleDueFrom(@Param("userId") Long userId, @Param("from") LocalDate from);
 
+	// 캘린더용 — 기록일 또는 다음 예정일이 기간 안인 기록(내 펫 + 공동보호자 펫, petId가 있으면 그 펫만)
+	@Query("select h from HealthRecord h join fetch h.pet p"
+			+ " where (h.recordedAt between :from and :to or h.nextDueDate between :from and :to)"
+			+ " and (:petId is null or p.id = :petId)"
+			+ " and (p.user.id = :userId or exists (select 1 from PetGuardian g where g.pet = p and g.user.id = :userId))")
+	List<HealthRecord> findAllAccessibleInRange(
+			@Param("userId") Long userId, @Param("petId") Long petId,
+			@Param("from") LocalDate from, @Param("to") LocalDate to);
+
 	List<HealthRecord> findAllByPetIdAndTypeOrderByRecordedAtAsc(Long petId, HealthRecordType type);
 
 	long countByPetIdAndType(Long petId, HealthRecordType type);

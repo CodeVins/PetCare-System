@@ -398,6 +398,15 @@ CLAUDE.md에서 분리한 상세 변경 이력. 현재 상태 요약은 루트 C
       POST /api/auth/kakao, StrictMode 중복 요청은 ref로 막음 — 인가 코드 1회용). 로그인 후 이동 규칙은 `loginDestination`으로 공유
     - 헤드리스 확인 중 발견: 2단으로 좁아진 목록(높이 3244px)에서 `Reveal`의 amount 0.2(649px)가 화면(609px)보다 커서
       카드가 전부 투명 → amount 'some'으로 수정(더 보기로 길어진 목록에도 잠재하던 문제)
+- [x] 2026-10-31 반려동물 캘린더 1단계(모아 보기)
+    - `/pets/calendar`(`pages/pet/PetCalendarPage`), 반려동물 화면 위 `PetTabs`(내 아이들 | 캘린더 — 병원 탭과 같은 segmented)
+    - 일요일 시작 6주(42일) 격자를 그대로 서버 조회 범위로 사용. 라이브러리 없이 CSS grid — 날짜는 `isoDate()`로 현지 기준
+      (`toISOString`은 UTC라 새벽에 하루 밀림). 종류별 색: 예약 teal / 접종·내원 예정 amber / 기록 sky + 범례
+    - 데스크톱: 칸에 앞 2개 제목 + "+N", 오른쪽 sticky 패널에 선택한 날 목록. 모바일: 칸엔 점만, 아래에 목록
+    - 목록 항목은 예약 → `/reservations`, 기록·예정일 → `/pets/:id?tab=records`(PetFormPage가 `?tab=` 지원하도록 수정).
+      병원 작성 기록은 "OO병원 작성", 예약은 상태 배지. 반려동물 2마리 이상이면 칩 필터
+    - 헤드리스 확인 중 발견: 바깥 grid 열 크기를 안 정해서 모바일에서 격자가 내용 폭만큼 늘어나 금·토 칸이 잘림 →
+      `grid-cols-[minmax(0,1fr)]`
 
 ## 다음 할 일 (2026-09-27 백엔드 세션에서 정리, 추천 순서: ① → ③ → ② → ④ → ⑦ → ⑧, ⑤⑥은 ① 하면서 브라우저 띄울 때 같이)
 

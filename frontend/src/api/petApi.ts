@@ -1,4 +1,5 @@
 import type {
+  CalendarEvent,
   FeedingCalculatorPayload,
   FeedingCalculatorResult,
   PageResponse,
@@ -9,6 +10,11 @@ import axiosInstance, { type ApiPromise } from './axiosInstance'
 
 export function getMyPets(): ApiPromise<PageResponse<Pet>> {
   return axiosInstance.get('/api/pets')
+}
+
+// 기간 양끝 포함, 최대 62일. 내 펫 + 공동보호자 펫 (페이지네이션 없이 배열 그대로)
+export function getCalendarEvents(from: string, to: string, petId?: number): ApiPromise<CalendarEvent[]> {
+  return axiosInstance.get('/api/calendar', { params: { from, to, petId } })
 }
 
 export function getPet(petId: number | string): ApiPromise<Pet> {
