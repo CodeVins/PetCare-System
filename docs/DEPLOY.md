@@ -35,6 +35,13 @@ main에 push(또는 PR 머지) → test 통과 시 자동 배포. 진행 상황�
   `TAG=sha-<이전 커밋 SHA 40자리> docker compose pull && TAG=sha-<같은 값> docker compose up -d --no-build`
   또는 Actions 탭에서 이전 커밋의 run을 열어 "Re-run all jobs"
 - DB 접속: `docker compose exec mysql mysql -u petcare -p petcare`
+- **`.env`를 바꾼 뒤 재시작할 때 주의 (2026-10-31 겪음)**: 그냥 `docker compose up -d backend`를 하면 `.env`의 `TAG=latest`로
+  서버에 남아 있는 **옛날 `latest` 이미지**가 떠버림(자동 배포는 `sha-…` 태그만 받아서 서버의 `latest`는 갱신 안 됨).
+  증상: 헬스체크 `/api/health`가 401, 최근 기능 경로가 401/404. 데이터는 그대로이고 아래 중 하나로 복구
+  - (권장) Actions 탭에서 **가장 최근 main run**을 열어 deploy job만 다시 실행(`gh run rerun <run id> --job <deploy job id>`) —
+    그 커밋의 이미지를 받아 새 `.env`로 띄움. 옛 run을 다시 실행하면 옛 커밋이 배포되니 주의
+  - 서버에서 직접: `export TAG=sha-<main 최신 커밋 SHA 40자리> && docker compose pull backend && docker compose up -d backend`
+    (`git rev-parse HEAD`로 SHA 확인)
 
 ## 6. 장애 감시 (2026-10-05)
 - 헬스체크: `https://<도메인>/api/health` → `{"status":"UP"}` (DB 연결까지 확인, Redis는 fail-open이라 제외)

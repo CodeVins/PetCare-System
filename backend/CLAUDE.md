@@ -254,7 +254,7 @@ com.petcare
 - 2026-10-26: 병원 검색 페이지네이션(메모리 자르기, 프론트 "더 보기"), 브라우저 화면 확인 — `Reveal`이 "더 보기"로 붙은 항목을 안 보여주던 버그, 홈 모바일 가로 넘침, 리뷰·신고 관리 표 칸 눌림 수정
 
 **남은 것**
-- **운영 카카오 로그인 500 (2026-10-28 확인)** — PR #19 배포 후 운영 `/api/auth/kakao/login`이 500(`KAKAO_REST_API_KEY` 빈 값). 로컬 `backend/.env`가 아니라 **EC2 `~/petcare/.env`**에 `KAKAO_REST_API_KEY`·`KAKAO_CLIENT_SECRET`·`KAKAO_REDIRECT_URI=https://petcare-yongbin.duckdns.org/oauth/kakao/callback`(전부 대문자) 추가 후 `docker compose up -d backend` 필요. 이 PC엔 `petcare-deploy.pem`이 없어 Claude가 직접 못 함
+- ~~운영 카카오 로그인 500~~ — 2026-10-31 해결(EC2 `.env`에 키 추가 후 deploy job 재실행, 재시작 주의사항은 `../docs/DEPLOY.md` 5절)
 - 소셜 로그인 — 카카오는 2026-10-27 구현(위 컨벤션 참고), 구글/네이버는 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸
