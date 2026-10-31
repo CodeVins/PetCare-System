@@ -39,6 +39,7 @@ const MyReviewsPage = lazy(() => import('../pages/mypage/MyReviewsPage'))
 const NotificationSettingsPage = lazy(() => import('../pages/mypage/NotificationSettingsPage'))
 const NotificationListPage = lazy(() => import('../pages/notification/NotificationListPage'))
 const HealthCheckPage = lazy(() => import('../pages/pet/HealthCheckPage'))
+const PetCalendarPage = lazy(() => import('../pages/pet/PetCalendarPage'))
 const PetFormPage = lazy(() => import('../pages/pet/PetFormPage'))
 const PetListPage = lazy(() => import('../pages/pet/PetListPage'))
 const ReservationListPage = lazy(() => import('../pages/reservation/ReservationListPage'))
@@ -107,6 +108,7 @@ export default function AppRouter() {
 
             <Route element={<PrivateRoute />}>
               <Route path="/pets" element={<PetListPage />} />
+              <Route path="/pets/calendar" element={<PetCalendarPage />} />
               <Route path="/pets/new" element={<PetFormPage />} />
               <Route path="/pets/:petId" element={<PetFormPage />} />
               <Route path="/health-check" element={<HealthCheckPage />} />

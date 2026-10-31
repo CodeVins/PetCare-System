@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,6 +28,24 @@ public interface HealthRecordRepository extends JpaRepository<HealthRecord, Long
 			+ " or exists (select 1 from PetGuardian g where g.pet = h.pet and g.user.id = :userId))"
 			+ " order by h.nextDueDate asc")
 	List<HealthRecord> findAllAccessibleDueFrom(@Param("userId") Long userId, @Param("from") LocalDate from);
+
+	// 캘린더용 — 기록일 또는 다음 예정일이 기간 안인 기록(내 펫 + 공동보호자 펫, petId가 있으면 그 펫만)
+	@Query("select h from HealthRecord h join fetch h.pet p"
+			+ " where (h.recordedAt between :from and :to or h.nextDueDate between :from and :to)"
+			+ " and (:petId is null or p.id = :petId)"
+			+ " and (p.user.id = :userId or exists (select 1 from PetGuardian g where g.pet = p and g.user.id = :userId))")
+	List<HealthRecord> findAllAccessibleInRange(
+			@Param("userId") Long userId, @Param("petId") Long petId,
+			@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+	Optional<HealthRecord> findByRoutineIdAndRecordedAt(Long routineId, LocalDate recordedAt);
+
+	boolean existsByRoutineIdAndRecordedAt(Long routineId, LocalDate recordedAt);
+
+	// 루틴 삭제 시 완료 기록은 일반 기록으로 남김
+	@Modifying
+	@Query("update HealthRecord h set h.routine = null where h.routine.id = :routineId")
+	int detachRoutine(@Param("routineId") Long routineId);
 
 	List<HealthRecord> findAllByPetIdAndTypeOrderByRecordedAtAsc(Long petId, HealthRecordType type);
 

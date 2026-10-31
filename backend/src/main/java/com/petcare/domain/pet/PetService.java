@@ -28,6 +28,7 @@ public class PetService {
 	private final HealthRecordRepository healthRecordRepository;
 	private final ReservationRepository reservationRepository;
 	private final WaitlistRepository waitlistRepository;
+	private final PetRoutineRepository petRoutineRepository;
 	private final UserRepository userRepository;
 	private final FileStorageService fileStorageService;
 
@@ -76,6 +77,9 @@ public class PetService {
 		fileStorageService.deletePetImage(pet.getImageUrl());
 		petGuardianRepository.deleteAllByPetId(petId);
 		healthRecordRepository.deleteAllByPetId(petId);
+		// 변경(2026-10-31): 반복 일정도 같이 정리 — 완료 기록(health_record.routine_id)을 먼저 지운 뒤라 FK 문제 없음
+		// (이전: 루틴 없음)
+		petRoutineRepository.deleteAllByPetId(petId);
 		waitlistRepository.deleteAllByPetId(petId);
 		petRepository.delete(pet);
 	}

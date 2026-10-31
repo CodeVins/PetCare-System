@@ -39,7 +39,8 @@ com.petcare
 - Hospital: id, name, address, latitude, longitude, opening_hours(nullable, 자유 텍스트), specialty(nullable, 자유 텍스트), is_24_hours(nullable), has_parking(nullable), avg_treatment_price(nullable), image_url(nullable), owner_id(FK, nullable), weeklyHours(값 컬렉션 → `hospital_opening_hour`(hospital_id, day_of_week, open_time, close_time)), phone(nullable, 20자), description(nullable, 500자 — 상세 상단 소개), animals(값 컬렉션 → `hospital_animal`, `HospitalAnimal` DOG/CAT/EXOTIC — 진료 동물), amenities(값 컬렉션 → `hospital_amenity`, `HospitalAmenity` 응급·미용·호텔·고양이 전용 진료실·건강검진·재활 — 편의 서비스) (응답 시 averageRating/reviewCount를 Review 집계로 붙여서 내려줌, 컬럼은 아님). opening_hours(자유 텍스트)는 2026-10-05부터 "운영 안내"(점심시간·공휴일 휴무 등) 용도
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
 - Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리, memo(nullable, 500자 — 보호자 증상·요청 메모), health_check_summary/health_check_date(nullable — 예약 때 첨부한 자가 문진의 복사본)
-- HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일), reservation_id(FK, nullable, unique — 병원이 진료 후 작성한 기록이면 해당 예약, 보호자 작성이면 null)
+- HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK/MEDICATION/GROOMING), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일), reservation_id(FK, nullable, unique — 병원이 진료 후 작성한 기록이면 해당 예약, 보호자 작성이면 null), routine_id(FK, nullable — 루틴 완료 체크로 생긴 기록, (routine_id, recorded_at) 유니크)
+- PetRoutine: id, pet_id(FK), type(WALK/MEAL/MEDICATION/GROOMING), title(50자), routine_time(nullable), daysOfWeek(값 컬렉션 → `pet_routine_day`(routine_id, day_of_week), 비었으면 일회성), start_date, end_date(nullable)
 - Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE, TREATMENT_RECORDED), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
 - NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
 - Favorite: id, user_id(FK), hospital_id(FK), (user_id, hospital_id) 유니크
@@ -175,6 +176,14 @@ com.petcare
 - 예약 상태는 진료 후에도 CONFIRMED 그대로(COMPLETED 상태를 추가하면 리뷰 작성 자격 등 CONFIRMED 기준 로직을 전부 손봐야 해서 의도적으로 안 함 — 진료 기록 존재 여부로 진료 완료를 판단)
 - 테스트: `BusinessRuleTest`의 진료 기록 테스트(시간 전 409, 타입 400, 재저장 시 수정, 알림 1회, 보호자 수정·삭제 403)
 
+## 반려동물 캘린더
+- 2026-10-31 1단계(모아 보기): `GET /api/calendar?from=&to=&petId=`(`PetCalendarController`/`PetCalendarService`, domain/pet) — **새 테이블 없이** 기존 데이터를 기간별로 모음: 예약(`RESERVATION`, 슬롯 시작 시각, 대기·확정·노쇼만 — 취소·거절 제외), 건강 기록(`RECORD`, 기록일), 다음 접종·내원 예정일(`DUE`, `nextDueDate`). 한 기록이 기록일·예정일 둘 다 기간 안이면 이벤트 2개. 범위는 내 펫 + 공동보호자 펫(OR-EXISTS, 누가 예약·기록했든 가족 모두에게 보임), 내가 목록에서 지운(`hiddenByUser`) 예약은 나에게만 제외. `petId`는 필터일 뿐이라 남의 펫이면 빈 결과(403 아님). 기간 양끝 포함·최대 62일(`PetCalendarService.MAX_DAYS`, 월 격자 6주=42일), 넘거나 to<from이면 400. 정렬: 날짜 → 시간 없는 것(기록·예정일) 먼저 → 예약 시간순. 페이지네이션 없음(기간으로 제한된 개인 목록)
+- 2026-10-31 2단계(반복 일정 = 루틴): `PetRoutine` + `/api/pets/{petId}/routines`(GET 목록 — 펫당 소량이라 페이지네이션 없음, POST, PUT 전체 교체, DELETE), 권한은 건강 기록과 같음(`PetService.verifyAccess` — 최초 등록자·공동보호자 동등). 요일+시각(값 컬렉션, 진료 시간과 같은 패턴), **날짜별 행을 저장하지 않고** 캘린더 조회 때 기간만큼 `occursOn()`으로 펼침(수정하면 앞으로의 일정에 바로 반영). 요일이 비면 startDate 하루만 있는 일회성(종료일은 무시). 종류는 WALK/MEAL/MEDICATION/GROOMING만(`PetRoutine.ALLOWED_TYPES`, 그 외 400) — 투약·미용은 이때 `HealthRecordType`에 추가
+  - **완료 체크 = 같은 종류의 `HealthRecord` 생성**(`POST/DELETE .../routines/{id}/checks/{date}`, content=루틴 이름, routine_id 연결) → 건강 기록 목록·통계에 그대로 쌓임. 하루 한 번((routine_id, recorded_at) 유니크, 중복 409), 그날 일정이 있어야(400) + 오늘까지만(미래 400). 건강기록 화면에서 그 기록을 지우면 체크도 풀림
+  - 캘린더: `ROUTINE` 이벤트(`routineId`, `done`) — 완료 기록은 RECORD로 따로 찍지 않고 done으로만(중복 방지). 루틴 삭제 시 완료 기록은 `detachRoutine`으로 연결만 끊고 일반 기록으로 남김, 펫 삭제 시엔 기록 → 루틴 순으로 정리
+  - 미룬 것: 누가 체크했는지(HealthRecord에 작성자 없음), 루틴 알림, 격주·매월 같은 RRULE
+- 테스트: `BusinessRuleTest`(캘린더 — 공동보호자도 같은 일정, 취소 예약 제외, 남의 펫 빈 결과, 62일 초과·역순 400 / 루틴 — 요일대로 펼침·일회성, 잘못된 종류 400, 남의 펫 403, 체크 중복 409·미래·일정 없는 날 400, 캘린더 done 반영·RECORD 중복 없음, 루틴 삭제 후 기록 유지)
+
 ## 건강 기록 통계
 - `GET /api/pets/{petId}/health-records/summary` — 체중 기록(`WEIGHT` 타입)을 시간순으로 모은 `weightHistory`(그래프용), `latestWeight`, 타입별 기록 개수(`countByType`)를 한 번에 반환
 
@@ -217,7 +226,7 @@ com.petcare
 - Redis도 로컬 컨테이너 `petcare-redis`(`redis:7-alpine`, 6379) — `docker start petcare-redis`. 운영은 compose의 `redis` 서비스(영속화 끔, maxmemory 64mb)
 
 ## 자동화 테스트
-- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트) — 총 37개
+- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트), `KakaoLoginTest`(카카오 API 목) — 총 43개
 - 과거 시간 슬롯은 API로 못 만들게 막혀 있어서, 지난 슬롯/지난 예약이 필요한 테스트는 `SlotRepository`/`ReservationRepository`로 직접 저장함
 - Redis는 Testcontainers(`RedisTestConfig`, `@ServiceConnection`)로 테스트 중에만 컨테이너를 띄움 — **모든 `@SpringBootTest` 클래스에 `@Import(RedisTestConfig.class)`** 붙일 것(설정이 같아야 컨텍스트가 캐시돼 컨테이너가 한 번만 뜸). 로컬/CI 모두 Docker 필요. Testcontainers 버전을 `build.gradle`에서 1.21.4로 올려둠(Boot 3.4.1 기본 1.20.x는 Docker 29에서 실행 실패 — 겪은 문제)
 - 테스트는 개발용 MySQL을 안 건드리고 별도 H2 인메모리 DB 사용 (`src/test/resources/application-test.yml`, `@ActiveProfiles("test")` 필요). `NON_KEYWORDS=USER` 빠뜨리면 H2에서 `user` 테이블명이 예약어라 DDL이 깨짐(겪은 문제)
@@ -245,6 +254,7 @@ com.petcare
 - 2026-10-26: 병원 검색 페이지네이션(메모리 자르기, 프론트 "더 보기"), 브라우저 화면 확인 — `Reveal`이 "더 보기"로 붙은 항목을 안 보여주던 버그, 홈 모바일 가로 넘침, 리뷰·신고 관리 표 칸 눌림 수정
 
 **남은 것**
+- **운영 카카오 로그인 500 (2026-10-28 확인)** — PR #19 배포 후 운영 `/api/auth/kakao/login`이 500(`KAKAO_REST_API_KEY` 빈 값). 로컬 `backend/.env`가 아니라 **EC2 `~/petcare/.env`**에 `KAKAO_REST_API_KEY`·`KAKAO_CLIENT_SECRET`·`KAKAO_REDIRECT_URI=https://petcare-yongbin.duckdns.org/oauth/kakao/callback`(전부 대문자) 추가 후 `docker compose up -d backend` 필요. 이 PC엔 `petcare-deploy.pem`이 없어 Claude가 직접 못 함
 - 소셜 로그인 — 카카오는 2026-10-27 구현(위 컨벤션 참고), 구글/네이버는 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸

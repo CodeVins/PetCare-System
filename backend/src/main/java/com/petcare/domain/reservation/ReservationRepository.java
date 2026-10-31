@@ -20,6 +20,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
 	Page<Reservation> findAllByUserId(Long userId, Pageable pageable);
 
+	// 캘린더용 — 내 펫 + 공동보호자 펫의 예약(누가 예약했든), 슬롯 시작 시간 [from, to). 내가 목록에서 지운 예약은 제외
+	@Query("select r from Reservation r join fetch r.slot s join fetch s.hospital join fetch r.pet p"
+			+ " where s.startTime >= :from and s.startTime < :to and r.status in :statuses"
+			+ " and (:petId is null or p.id = :petId)"
+			+ " and (p.user.id = :userId or exists (select 1 from PetGuardian g where g.pet = p and g.user.id = :userId))"
+			+ " and not (r.hiddenByUser = true and r.user.id = :userId)")
+	List<Reservation> findAllAccessibleStartingBetween(@Param("userId") Long userId, @Param("petId") Long petId,
+			@Param("statuses") Collection<ReservationStatus> statuses,
+			@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
 	// 내 예약 목록 — 지운 예약 제외, 반려동물(선택)·상태·슬롯 시작 시간 구간 (after, before]로 거름(ReservationView)
 	@Query("select r from Reservation r where r.user.id = :userId and r.hiddenByUser = false"
 			+ " and (:petId is null or r.pet.id = :petId) and r.status in :statuses"

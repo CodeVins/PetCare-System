@@ -1,6 +1,6 @@
 import { PawPrint, PencilSimple, Trash } from '@phosphor-icons/react'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BASE_URL, errorMessage } from '../../api/axiosInstance'
 import { getHealthRecords } from '../../api/healthRecordApi'
 import {
@@ -23,6 +23,7 @@ import { calculateAge, SEX_LABEL, SIZE_LABEL, SPECIES_LABEL } from '../../lib/fo
 import FeedingCalculatorSection from './FeedingCalculatorSection'
 import GuardianSection from './GuardianSection'
 import HealthRecordSection from './HealthRecordSection'
+import RoutineSection from './RoutineSection'
 import type { HealthRecord, PetRole, PetSex, PetSize, PetSpecies } from '../../types/api'
 
 const SPECIES_OPTIONS: { value: PetSpecies; label: string }[] = [
@@ -54,11 +55,13 @@ const NEUTERED_OPTIONS: { value: NeuteredValue; label: string }[] = [
 ]
 const NEUTERED_LABEL: Record<'true' | 'false', string> = { true: '완료', false: '안 함' }
 
-type PetTab = 'overview' | 'records' | 'feeding' | 'guardians'
+// 변경(2026-10-31): '루틴'(반복 일정) 탭 추가 (이전: 개요·건강기록·급여량·보호자)
+type PetTab = 'overview' | 'records' | 'routines' | 'feeding' | 'guardians'
 
 const TABS: { value: PetTab; label: string }[] = [
   { value: 'overview', label: '개요' },
   { value: 'records', label: '건강기록' },
+  { value: 'routines', label: '루틴' },
   { value: 'feeding', label: '급여량' },
   { value: 'guardians', label: '보호자' },
 ]
@@ -99,7 +102,13 @@ export default function PetFormPage() {
   const [saving, setSaving] = useState(false)
   const toast = useToast()
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<PetTab>('overview')
+  // 변경(2026-10-31): ?tab=records 등으로 처음 열 탭 지정 — 캘린더에서 기록을 누르면 건강기록 탭으로 바로 오게
+  // (이전: 항상 개요 탭으로 시작)
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<PetTab>(() => {
+    const requested = searchParams.get('tab')
+    return TABS.some((t) => t.value === requested) ? (requested as PetTab) : 'overview'
+  })
   // 등록 화면(isEdit=false)은 폼만 보여주고, 상세 화면은 정보 카드를 먼저 보여준
   // 뒤 연필 아이콘을 눌러야 폼이 나온다.
   const [editing, setEditing] = useState(!isEdit)
@@ -457,6 +466,7 @@ export default function PetFormPage() {
           overviewView
         ))}
       {tab === 'records' && <HealthRecordSection petId={petId} />}
+      {tab === 'routines' && <RoutineSection petId={petId} />}
       {tab === 'feeding' && (
         <FeedingCalculatorSection petId={petId} species={species} />
       )}
