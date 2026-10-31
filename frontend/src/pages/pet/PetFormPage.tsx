@@ -23,6 +23,7 @@ import { calculateAge, SEX_LABEL, SIZE_LABEL, SPECIES_LABEL } from '../../lib/fo
 import FeedingCalculatorSection from './FeedingCalculatorSection'
 import GuardianSection from './GuardianSection'
 import HealthRecordSection from './HealthRecordSection'
+import RoutineSection from './RoutineSection'
 import type { HealthRecord, PetRole, PetSex, PetSize, PetSpecies } from '../../types/api'
 
 const SPECIES_OPTIONS: { value: PetSpecies; label: string }[] = [
@@ -54,11 +55,13 @@ const NEUTERED_OPTIONS: { value: NeuteredValue; label: string }[] = [
 ]
 const NEUTERED_LABEL: Record<'true' | 'false', string> = { true: '완료', false: '안 함' }
 
-type PetTab = 'overview' | 'records' | 'feeding' | 'guardians'
+// 변경(2026-10-31): '루틴'(반복 일정) 탭 추가 (이전: 개요·건강기록·급여량·보호자)
+type PetTab = 'overview' | 'records' | 'routines' | 'feeding' | 'guardians'
 
 const TABS: { value: PetTab; label: string }[] = [
   { value: 'overview', label: '개요' },
   { value: 'records', label: '건강기록' },
+  { value: 'routines', label: '루틴' },
   { value: 'feeding', label: '급여량' },
   { value: 'guardians', label: '보호자' },
 ]
@@ -463,6 +466,7 @@ export default function PetFormPage() {
           overviewView
         ))}
       {tab === 'records' && <HealthRecordSection petId={petId} />}
+      {tab === 'routines' && <RoutineSection petId={petId} />}
       {tab === 'feeding' && (
         <FeedingCalculatorSection petId={petId} species={species} />
       )}

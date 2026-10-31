@@ -1013,6 +1013,78 @@ class BusinessRuleTest {
 				.andExpect(status().isBadRequest());
 	}
 
+	@Test
+	void 반복_일정은_요일대로_펼쳐지고_완료_체크는_하루_한번_건강기록으로_남는다() throws Exception {
+		String token = signupAndLogin("routine" + System.nanoTime() + "@petcare.com");
+		String stranger = signupAndLogin("routine-stranger" + System.nanoTime() + "@petcare.com");
+		long petId = createPet(token, "루틴이");
+		LocalDate today = LocalDate.now();
+		String everyDay = "[\"MONDAY\",\"TUESDAY\",\"WEDNESDAY\",\"THURSDAY\",\"FRIDAY\",\"SATURDAY\",\"SUNDAY\"]";
+
+		long walkId = createRoutine(token, petId, "{\"type\":\"WALK\",\"title\":\"아침 산책\",\"time\":\"07:30\","
+				+ "\"daysOfWeek\":" + everyDay + ",\"startDate\":\"" + today.minusDays(6) + "\"}");
+		// 요일 없으면 일회성 — 종료일은 무시
+		createRoutine(token, petId, "{\"type\":\"MEDICATION\",\"title\":\"심장사상충 약\",\"daysOfWeek\":[],"
+				+ "\"startDate\":\"" + today.plusDays(3) + "\",\"endDate\":\"" + today.plusDays(30) + "\"}");
+		mockMvc.perform(routineRequest(token, petId, "{\"type\":\"WEIGHT\",\"title\":\"체중\",\"startDate\":\"" + today + "\"}"))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(get("/api/pets/" + petId + "/routines").header("Authorization", "Bearer " + stranger))
+				.andExpect(status().isForbidden());
+
+		String calendarUrl = "/api/calendar?from=" + today.minusDays(6) + "&to=" + today.plusDays(6);
+		assertThat(routineEvents(calendarUrl, token)).hasSize(13 + 1);
+
+		// 완료 체크: 오늘 1번만, 내일(미래)은 400, 일정 없는 날(시작 전)도 400
+		String checkUrl = "/api/pets/" + petId + "/routines/" + walkId + "/checks/";
+		mockMvc.perform(post(checkUrl + today).header("Authorization", "Bearer " + token)).andExpect(status().isCreated());
+		mockMvc.perform(post(checkUrl + today).header("Authorization", "Bearer " + token)).andExpect(status().isConflict());
+		mockMvc.perform(post(checkUrl + today.plusDays(1)).header("Authorization", "Bearer " + token))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(post(checkUrl + today.minusDays(7)).header("Authorization", "Bearer " + token))
+				.andExpect(status().isBadRequest());
+
+		// 캘린더엔 ROUTINE done=true로만 나오고 RECORD로 중복되지 않음, 건강 기록 목록엔 산책 기록으로 남음
+		JsonNode todayEvents = getData("/api/calendar?from=" + today + "&to=" + today, token);
+		assertThat(todayEvents).hasSize(1);
+		assertThat(todayEvents.get(0).get("done").asBoolean()).isTrue();
+		JsonNode records = getData("/api/pets/" + petId + "/health-records", token).get("content");
+		assertThat(records).hasSize(1);
+		assertThat(records.get(0).get("type").asText()).isEqualTo("WALK");
+
+		mockMvc.perform(delete(checkUrl + today).header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+		assertThat(getData("/api/calendar?from=" + today + "&to=" + today, token).get(0).get("done").asBoolean()).isFalse();
+
+		// 루틴을 지워도 완료 기록은 일반 기록으로 남음
+		mockMvc.perform(post(checkUrl + today.minusDays(1)).header("Authorization", "Bearer " + token))
+				.andExpect(status().isCreated());
+		mockMvc.perform(delete("/api/pets/" + petId + "/routines/" + walkId).header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk());
+		assertThat(getData("/api/pets/" + petId + "/health-records", token).get("content")).hasSize(1);
+		assertThat(routineEvents(calendarUrl, token)).hasSize(1);
+	}
+
+	private MockHttpServletRequestBuilder routineRequest(String token, long petId, String json) {
+		return post("/api/pets/" + petId + "/routines")
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(json);
+	}
+
+	private long createRoutine(String token, long petId, String json) throws Exception {
+		return data(mockMvc.perform(routineRequest(token, petId, json)).andExpect(status().isCreated()).andReturn())
+				.get("id").asLong();
+	}
+
+	private List<JsonNode> routineEvents(String url, String token) throws Exception {
+		List<JsonNode> result = new java.util.ArrayList<>();
+		getData(url, token).forEach(e -> {
+			if (e.get("kind").asText().equals("ROUTINE")) {
+				result.add(e);
+			}
+		});
+		return result;
+	}
+
 	// ---------- helpers ----------
 
 	private long createHospitalAt(String name, double latitude, double longitude) throws Exception {

@@ -9,7 +9,9 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class PetCalendarService {
 
 	private final ReservationRepository reservationRepository;
 	private final HealthRecordRepository healthRecordRepository;
+	private final PetRoutineRepository petRoutineRepository;
 
 	// petId는 필터일 뿐 — 접근할 수 없는 펫이면 쿼리 조건에 걸려 빈 결과
 	public List<CalendarEventResponse> getEvents(Long userId, Long petId, LocalDate from, LocalDate to) {
@@ -44,8 +47,14 @@ public class PetCalendarService {
 		reservationRepository.findAllAccessibleStartingBetween(
 						userId, petId, SHOWN_STATUSES, from.atStartOfDay(), to.plusDays(1).atStartOfDay())
 				.forEach(reservation -> events.add(CalendarEventResponse.ofReservation(reservation)));
-		// 한 기록이 기록일·예정일 둘 다 기간 안이면 이벤트 2개
+		// 한 기록이 기록일·예정일 둘 다 기간 안이면 이벤트 2개.
+		// 루틴 완료 기록은 RECORD로 따로 찍지 않고 그날 ROUTINE 이벤트의 done으로만 표시(중복 방지)
+		Set<String> doneRoutineDays = new HashSet<>();
 		for (HealthRecord record : healthRecordRepository.findAllAccessibleInRange(userId, petId, from, to)) {
+			if (record.getRoutine() != null) {
+				doneRoutineDays.add(record.getRoutine().getId() + ":" + record.getRecordedAt());
+				continue;
+			}
 			if (!record.getRecordedAt().isBefore(from) && !record.getRecordedAt().isAfter(to)) {
 				events.add(CalendarEventResponse.ofRecord(record));
 			}
@@ -54,7 +63,16 @@ public class PetCalendarService {
 				events.add(CalendarEventResponse.ofDue(record));
 			}
 		}
-		// 날짜순, 같은 날은 시간 없는 것(기록·예정일) 먼저 → 예약 시간순
+		// 반복 일정은 저장된 행이 아니라 기간만큼 펼쳐서 만듦
+		for (PetRoutine routine : petRoutineRepository.findAllAccessibleOverlapping(userId, petId, from, to)) {
+			for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+				if (routine.occursOn(date)) {
+					boolean done = doneRoutineDays.contains(routine.getId() + ":" + date);
+					events.add(CalendarEventResponse.ofRoutine(routine, date, done));
+				}
+			}
+		}
+		// 날짜순, 같은 날은 시간 없는 것(기록·예정일) 먼저 → 예약·루틴 시간순
 		events.sort(Comparator.comparing(CalendarEventResponse::date)
 				.thenComparing(CalendarEventResponse::time, Comparator.nullsFirst(Comparator.<LocalTime>naturalOrder())));
 		return events;

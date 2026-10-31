@@ -56,6 +56,8 @@ export type HealthRecordType =
   | 'MEAL'
   | 'EXCRETION'
   | 'HEALTH_CHECK'
+  | 'MEDICATION'
+  | 'GROOMING'
 export type ActivityLevel = 'LOW' | 'NORMAL' | 'HIGH'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 export type DayOfWeek =
@@ -104,7 +106,7 @@ export interface UpcomingVaccination {
 
 // ── calendar ──────────────────────────────────────────
 // GET /api/calendar — 예약(RESERVATION)·건강 기록(RECORD)·다음 접종/내원 예정일(DUE)을 모은 일정
-export type CalendarEventKind = 'RESERVATION' | 'RECORD' | 'DUE'
+export type CalendarEventKind = 'RESERVATION' | 'RECORD' | 'DUE' | 'ROUTINE'
 
 export interface CalendarEvent {
   kind: CalendarEventKind
@@ -119,6 +121,29 @@ export interface CalendarEvent {
   reservationStatus: ReservationStatus | null
   hospitalId: number | null // 예약 병원, 또는 병원이 작성한 기록의 병원
   hospitalName: string | null
+  routineId: number | null // ROUTINE만
+  done: boolean | null // ROUTINE만 — 그날 완료 체크 여부
+}
+
+// 반복 일정 — daysOfWeek가 비었으면 startDate 하루만 있는 일회성
+export interface Routine {
+  id: number
+  petId: number
+  type: HealthRecordType // WALK/MEAL/MEDICATION/GROOMING만
+  title: string
+  time: string | null // 'HH:mm:ss'
+  daysOfWeek: DayOfWeek[]
+  startDate: ISODate
+  endDate: ISODate | null
+}
+
+export interface RoutinePayload {
+  type: HealthRecordType
+  title: string
+  time: string | null
+  daysOfWeek: DayOfWeek[]
+  startDate: ISODate
+  endDate: ISODate | null
 }
 
 // ── pet ───────────────────────────────────────────────

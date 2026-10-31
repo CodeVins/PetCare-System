@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -36,6 +37,15 @@ public interface HealthRecordRepository extends JpaRepository<HealthRecord, Long
 	List<HealthRecord> findAllAccessibleInRange(
 			@Param("userId") Long userId, @Param("petId") Long petId,
 			@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+	Optional<HealthRecord> findByRoutineIdAndRecordedAt(Long routineId, LocalDate recordedAt);
+
+	boolean existsByRoutineIdAndRecordedAt(Long routineId, LocalDate recordedAt);
+
+	// 루틴 삭제 시 완료 기록은 일반 기록으로 남김
+	@Modifying
+	@Query("update HealthRecord h set h.routine = null where h.routine.id = :routineId")
+	int detachRoutine(@Param("routineId") Long routineId);
 
 	List<HealthRecord> findAllByPetIdAndTypeOrderByRecordedAtAsc(Long petId, HealthRecordType type);
 

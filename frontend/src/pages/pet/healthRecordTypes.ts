@@ -4,6 +4,8 @@ import {
   Drop,
   ForkKnife,
   PersonSimpleWalk,
+  Pill,
+  Scissors,
   Stethoscope,
   Syringe,
   type Icon,
@@ -62,6 +64,22 @@ export const RECORD_TYPES: Record<HealthRecordType, TypeMeta> = {
     tone: 'bg-violet-100 text-violet-700',
     placeholder: '예: 식욕 저하 확인',
   },
+  // 변경(2026-10-31): 투약·미용 추가 — 반복 일정 완료 체크가 이 종류로 기록됨, 직접 기록도 가능 (이전: 7종)
+  MEDICATION: {
+    label: '투약',
+    icon: Pill,
+    tone: 'bg-emerald-100 text-emerald-800',
+    placeholder: '예: 심장사상충 예방약',
+  },
+  GROOMING: {
+    label: '미용',
+    icon: Scissors,
+    tone: 'bg-pink-100 text-pink-700',
+    placeholder: '예: 목욕·발톱 정리',
+  },
 }
+
+// 반복 일정(루틴)으로 만들 수 있는 종류 — 서버 PetRoutine.ALLOWED_TYPES와 같음
+export const ROUTINE_TYPES: HealthRecordType[] = ['WALK', 'MEAL', 'MEDICATION', 'GROOMING']
 
 export const RECORD_TYPE_ORDER = Object.keys(RECORD_TYPES) as HealthRecordType[]

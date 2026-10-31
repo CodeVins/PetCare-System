@@ -1,8 +1,9 @@
-import { CalendarBlank, CalendarCheck, CaretLeft, CaretRight, PawPrint } from '@phosphor-icons/react'
+import { CalendarBlank, CalendarCheck, CaretLeft, CaretRight, Check, PawPrint } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { errorMessage } from '../../api/axiosInstance'
-import { getCalendarEvents, getMyPets } from '../../api/petApi'
+import { checkRoutine, getCalendarEvents, getMyPets, uncheckRoutine } from '../../api/petApi'
+import { useToast } from '../../hooks/useToast'
 import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
@@ -18,6 +19,7 @@ const KIND_DOT = {
   RESERVATION: 'bg-brand-600',
   DUE: 'bg-amber-500',
   RECORD: 'bg-sky-500',
+  ROUTINE: 'bg-violet-500',
 } as const
 
 // 브라우저 현지 날짜를 'YYYY-MM-DD'로 (toISOString은 UTC라 새벽에 하루 밀림)
@@ -39,11 +41,13 @@ function monthGrid(month: Date) {
 function eventLabel(event: CalendarEvent) {
   if (event.kind === 'RESERVATION') return `병원 예약 ${event.time?.slice(0, 5) ?? ''}`
   if (event.kind === 'DUE') return event.recordType === 'VACCINATION' ? '다음 접종 예정' : '다음 내원 예정'
-  return event.recordType ? RECORD_TYPES[event.recordType].label : '기록'
+  const label = event.recordType ? RECORD_TYPES[event.recordType].label : '기록'
+  return event.kind === 'ROUTINE' && event.time ? `${label} ${event.time.slice(0, 5)}` : label
 }
 
 function eventLink(event: CalendarEvent) {
-  return event.kind === 'RESERVATION' ? '/reservations' : `/pets/${event.petId}?tab=records`
+  if (event.kind === 'RESERVATION') return '/reservations'
+  return `/pets/${event.petId}?tab=${event.kind === 'ROUTINE' ? 'routines' : 'records'}`
 }
 
 export default function PetCalendarPage() {
@@ -58,6 +62,8 @@ export default function PetCalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const toast = useToast()
+  const [toggling, setToggling] = useState<string | null>(null)
 
   const days = useMemo(() => monthGrid(month), [month])
   const from = isoDate(days[0])
@@ -98,6 +104,26 @@ export default function PetCalendarPage() {
     // 선택한 날이 새 달 밖이면 그 달 1일(이번 달이면 오늘)로
     const nextKey = isoDate(next).slice(0, 7)
     if (selected.slice(0, 7) !== nextKey) setSelected(today.slice(0, 7) === nextKey ? today : isoDate(next))
+  }
+
+  // 루틴 완료 체크/해제 — 서버엔 건강 기록 생성/삭제. 성공하면 목록만 고침(다시 불러오지 않음)
+  const toggleRoutine = async (event: CalendarEvent) => {
+    if (event.routineId == null) return
+    const key = `${event.routineId}:${event.date}`
+    setToggling(key)
+    try {
+      if (event.done) await uncheckRoutine(event.petId, event.routineId, event.date)
+      else await checkRoutine(event.petId, event.routineId, event.date)
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.kind === 'ROUTINE' && e.routineId === event.routineId && e.date === event.date ? { ...e, done: !event.done } : e,
+        ),
+      )
+    } catch (err) {
+      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
+    } finally {
+      setToggling(null)
+    }
   }
 
   const goToday = () => {
@@ -174,9 +200,12 @@ export default function PetCalendarPage() {
               const dayEvents = byDate.get(key) ?? []
               const inMonth = day.getMonth() === month.getMonth()
               const isSelected = key === selected
-              const kinds = (['RESERVATION', 'DUE', 'RECORD'] as const).filter((kind) =>
+              const kinds = (['RESERVATION', 'DUE', 'RECORD', 'ROUTINE'] as const).filter((kind) =>
                 dayEvents.some((e) => e.kind === kind),
               )
+              // 루틴은 매일 반복돼서 제목 대신 "루틴 완료/전체"로 한 줄 요약
+              const others = dayEvents.filter((e) => e.kind !== 'ROUTINE')
+              const routines = dayEvents.filter((e) => e.kind === 'ROUTINE')
               return (
                 <button
                   key={key}
@@ -208,14 +237,18 @@ export default function PetCalendarPage() {
                     ))}
                   </span>
                   <span className="hidden w-full flex-col gap-0.5 md:flex" aria-hidden="true">
-                    {dayEvents.slice(0, 2).map((event, i) => (
+                    {others.slice(0, 2).map((event, i) => (
                       <span key={i} className="flex min-w-0 items-center gap-1 text-[11px] leading-tight text-stone-700">
                         <span className={`size-1.5 shrink-0 rounded-full ${KIND_DOT[event.kind]}`} />
                         <span className="truncate">{eventLabel(event)}</span>
                       </span>
                     ))}
-                    {dayEvents.length > 2 && (
-                      <span className="text-[11px] text-stone-500">+{dayEvents.length - 2}</span>
+                    {others.length > 2 && <span className="text-[11px] text-stone-500">+{others.length - 2}</span>}
+                    {routines.length > 0 && (
+                      <span className="flex items-center gap-1 text-[11px] leading-tight text-violet-700">
+                        <span className={`size-1.5 shrink-0 rounded-full ${KIND_DOT.ROUTINE}`} />
+                        루틴 {routines.filter((e) => e.done).length}/{routines.length}
+                      </span>
                     )}
                   </span>
                 </button>
@@ -227,6 +260,7 @@ export default function PetCalendarPage() {
             <li className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${KIND_DOT.RESERVATION}`} />병원 예약</li>
             <li className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${KIND_DOT.DUE}`} />접종·내원 예정</li>
             <li className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${KIND_DOT.RECORD}`} />건강·생활 기록</li>
+            <li className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${KIND_DOT.ROUTINE}`} />루틴</li>
           </ul>
         </section>
 
@@ -253,6 +287,40 @@ export default function PetCalendarPage() {
           )}
           <ul className="flex flex-col gap-2">
             {selectedEvents.map((event, i) => {
+              if (event.kind === 'ROUTINE') {
+                const meta = event.recordType ? RECORD_TYPES[event.recordType] : null
+                const busy = toggling === `${event.routineId}:${event.date}`
+                // 미래 날짜는 체크 불가(서버도 400) — 버튼 대신 예정 표시
+                const checkable = event.date <= today
+                return (
+                  <li key={i} className="flex items-center gap-3 rounded-xl p-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleRoutine(event)}
+                      disabled={!checkable || busy}
+                      aria-pressed={!!event.done}
+                      aria-label={`${event.title} ${event.done ? '완료 취소' : '완료'}`}
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border-2 transition-colors disabled:cursor-not-allowed ${
+                        event.done
+                          ? 'border-violet-500 bg-violet-500 text-white'
+                          : checkable
+                            ? 'border-violet-300 bg-white text-violet-300 hover:border-violet-500'
+                            : 'border-dashed border-stone-300 bg-stone-50 text-stone-300'
+                      } ${busy ? 'opacity-60' : ''}`}
+                    >
+                      <Check size={20} weight="bold" />
+                    </button>
+                    <Link to={eventLink(event)} className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className={`text-sm font-bold ${event.done ? 'text-stone-500 line-through' : ''}`}>
+                        {event.title}
+                      </span>
+                      <span className="text-xs text-stone-500">
+                        {meta?.label} 루틴{event.time ? ` · ${event.time.slice(0, 5)}` : ''} · {event.petName}
+                      </span>
+                    </Link>
+                  </li>
+                )
+              }
               const meta = event.kind === 'RECORD' && event.recordType ? RECORD_TYPES[event.recordType] : null
               const IconComponent = meta?.icon ?? (event.kind === 'RESERVATION' ? CalendarCheck : CalendarBlank)
               const tone =
