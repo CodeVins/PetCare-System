@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 /**
  * 로그인 실패 횟수 제한 (무차별 대입 방지). 이메일별 실패 횟수를 Redis에 TTL로 저장.
  * Redis 장애 시엔 제한 없이 통과(fail-open) — 부가 보호 기능 때문에 로그인 전체가 막히면 안 됨.
- * ponytail: 키가 이메일만이라 공격자가 남의 이메일로 실패를 쌓으면 그 유저가 15분간 잠김 — 악용되면 IP를 키에 추가
+ * ponytail: 키가 이메일만이라 공격자가 남의 이메일로 실패를 쌓으면 그 유저가 5분간 잠김 — 악용되면 IP를 키에 추가
  */
 @Service
 @RequiredArgsConstructor
@@ -21,8 +21,10 @@ public class LoginAttemptService {
 
 	private static final Logger log = LoggerFactory.getLogger(LoginAttemptService.class);
 
-	static final int MAX_FAILURES = 5;
-	static final Duration LOCK_DURATION = Duration.ofMinutes(15);
+	// 변경(2026-10-31): 5회·15분 → 10회·5분으로 완화 — 몇 번 잘못 입력한 일반 사용자가 너무 쉽게·오래 막혔음
+	// (이전: 5번 틀리면 15분 차단). 무차별 대입은 여전히 5분에 10번으로 묶임
+	static final int MAX_FAILURES = 10;
+	static final Duration LOCK_DURATION = Duration.ofMinutes(5);
 
 	private final StringRedisTemplate redisTemplate;
 
@@ -30,7 +32,8 @@ public class LoginAttemptService {
 		try {
 			String count = redisTemplate.opsForValue().get(key(email));
 			if (count != null && Integer.parseInt(count) >= MAX_FAILURES) {
-				throw new TooManyRequestsException("로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.");
+				throw new TooManyRequestsException(
+						"로그인 시도가 너무 많습니다. " + LOCK_DURATION.toMinutes() + "분 후 다시 시도해주세요.");
 			}
 		} catch (DataAccessException e) {
 			log.warn("Redis 조회 실패, 로그인 시도 제한 생략: {}", e.getMessage());
@@ -41,7 +44,7 @@ public class LoginAttemptService {
 		try {
 			String key = key(email);
 			redisTemplate.opsForValue().increment(key);
-			// 실패할 때마다 TTL을 다시 걸어서 "마지막 실패 후 15분" 동안 유지 — INCR와 EXPIRE 사이에 죽어도 다음 실패 때 TTL이 생김
+			// 실패할 때마다 TTL을 다시 걸어서 "마지막 실패 후 LOCK_DURATION" 동안 유지 — INCR와 EXPIRE 사이에 죽어도 다음 실패 때 TTL이 생김
 			redisTemplate.expire(key, LOCK_DURATION);
 		} catch (DataAccessException e) {
 			log.warn("Redis 기록 실패, 로그인 실패 횟수 미반영: {}", e.getMessage());
