@@ -97,7 +97,7 @@ com.petcare
 - 공통 예외(`global/exception`): `NotFoundException`(404), `ForbiddenException`(403), `ConflictException`(409) — 도메인별로 새 예외 클래스 만들지 않고 이 3개 재사용. 이메일 중복/로그인 실패만 전용 예외(`DuplicateEmailException`, `InvalidCredentialsException`) 사용
 - 인증: JWT Bearer 토큰, stateless. 토큰의 subject는 이메일이라서 **이메일을 변경하면 기존 토큰이 즉시 무효화됨**(재로그인 필요) — 프론트에서 이메일 변경 후 자동 로그아웃 처리 필요
 - Refresh Token: 로그인 시 accessToken(1시간)+refreshToken(14일, 랜덤 opaque 문자열)을 같이 발급. `RefreshToken` 엔티티는 유저당 1개(멀티 디바이스 미지원, 재로그인/재발급 시 기존 걸 교체). `POST /api/auth/reissue`로 재발급하며, 재발급마다 refreshToken도 회전(재사용 방지). `POST /api/auth/logout`(인증 필요)은 refreshToken을 DB에서 삭제만 함 — accessToken 자체는 stateless라 즉시 무효화 안 되고 최대 1시간 뒤 자연 만료됨(알려진 한계)
-- 로그인 실패 제한(2026-10-02, Redis): `LoginAttemptService`가 이메일(소문자) 기준 실패 횟수를 `login:fail:{email}` 키로 저장, 5회 실패 시 마지막 실패 후 15분간 429(`TooManyRequestsException`, 올바른 비밀번호여도 차단), 성공하면 초기화. 없는 이메일도 실패로 셈(계정 존재 여부 노출 방지). **Redis 장애 시 fail-open**(제한 없이 로그인 허용, 타임아웃 1초) — 부가 보호 기능이 로그인 전체를 막지 않게. 알려진 한계: 키가 이메일만이라 남의 이메일로 실패를 쌓아 15분 잠글 수 있음
+- 로그인 실패 제한(2026-10-02, Redis — 2026-10-31 10회·5분으로 완화, 이전 5회·15분): `LoginAttemptService`가 이메일(소문자) 기준 실패 횟수를 `login:fail:{email}` 키로 저장, 10회 실패 시 마지막 실패 후 5분간 429(`TooManyRequestsException`, 올바른 비밀번호여도 차단), 성공하면 초기화. 없는 이메일도 실패로 셈(계정 존재 여부 노출 방지). **Redis 장애 시 fail-open**(제한 없이 로그인 허용, 타임아웃 1초) — 부가 보호 기능이 로그인 전체를 막지 않게. 알려진 한계: 키가 이메일만이라 남의 이메일로 실패를 쌓아 5분 잠글 수 있음
 - 카카오 로그인(2026-10-27): 프론트가 state(UUID, sessionStorage)를 만들어 `GET /api/auth/kakao/login?state=`로 이동 → 백엔드가 REST 키를 붙여 카카오 인가 페이지로 302 → 카카오가 프론트 `/oauth/kakao/callback?code=&state=`로 돌려보냄 → 프론트가 state 확인 후 `POST /api/auth/kakao {code}` → `KakaoOAuthClient`(RestClient, 토큰 교환+`/v2/user/me`)로 조회해 기존과 같은 JWT 발급(카카오 토큰은 저장 안 함). 계정 매칭: `User.kakaoId`(unique) → 없으면 **카카오가 인증·유효 확인한 이메일**과 같은 기존 계정에 연결(이미 다른 카카오 계정이 연결돼 있으면 409) → 없으면 가입(이메일 동의 없으면 `kakao-{id}@petcare.invalid`, 비밀번호는 랜덤 — 비밀번호 로그인/변경은 사실상 불가, 알려진 한계). 정지 계정 403, 카카오 조회 실패 401. 설정: `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`(콘솔에서 켰을 때만), `KAKAO_REDIRECT_URI`(기본 localhost:5173 콜백, 운영은 .env에 필수 — 카카오 콘솔 Redirect URI와 같아야 함). 테스트: `KakaoLoginTest`(`@MockitoBean`으로 카카오 API 대체 — 별도 컨텍스트)
 - `/api/auth/**` 전체를 permitAll 하면 안 됨 — `signup`/`login`/`reissue`만 열고 `logout`은 인증 필요(겪은 버그: 전체를 열어놔서 `logout`이 인증 없이 호출되던 문제)
 - 비회원 공개 GET(2026-09-27, 프론트 랜딩·병원 둘러보기용): `SecurityConfig.PUBLIC_GET_PATHS` = `/api/hospitals`, `/api/hospitals/*`, `/api/hospitals/*/reviews`, `/api/hospitals/*/slots` (GET만). `/**`로 열지 않고 경로를 명시 — 같은 경로의 POST/PATCH/DELETE와 즐겨찾기는 계속 인증 필요. 공개 GET 핸들러에서 `@AuthenticationPrincipal`을 쓰면 **null일 수 있음**(ReviewController.getReviews가 처리). `AuthFlowTest`에 비회원 허용/차단 테스트 있음
@@ -254,7 +254,7 @@ com.petcare
 - 2026-10-26: 병원 검색 페이지네이션(메모리 자르기, 프론트 "더 보기"), 브라우저 화면 확인 — `Reveal`이 "더 보기"로 붙은 항목을 안 보여주던 버그, 홈 모바일 가로 넘침, 리뷰·신고 관리 표 칸 눌림 수정
 
 **남은 것**
-- **운영 카카오 로그인 500 (2026-10-28 확인)** — PR #19 배포 후 운영 `/api/auth/kakao/login`이 500(`KAKAO_REST_API_KEY` 빈 값). 로컬 `backend/.env`가 아니라 **EC2 `~/petcare/.env`**에 `KAKAO_REST_API_KEY`·`KAKAO_CLIENT_SECRET`·`KAKAO_REDIRECT_URI=https://petcare-yongbin.duckdns.org/oauth/kakao/callback`(전부 대문자) 추가 후 `docker compose up -d backend` 필요. 이 PC엔 `petcare-deploy.pem`이 없어 Claude가 직접 못 함
+- ~~운영 카카오 로그인 500~~ — 2026-10-31 해결(EC2 `.env`에 키 추가 후 deploy job 재실행, 재시작 주의사항은 `../docs/DEPLOY.md` 5절)
 - 소셜 로그인 — 카카오는 2026-10-27 구현(위 컨벤션 참고), 구글/네이버는 미시작
 - 이메일 인증 회원가입 — 소셜 로그인 작업 이후로 순서 미룸(같이 인증/가입 플로우를 손대는 게 효율적이라 판단). 메일 발송 수단(Gmail SMTP/SES) 먼저 정해야 함, 인증 코드는 Redis TTL 사용 예정
 - 푸시 알림(FCM) — 외부 서비스 설정 먼저 필요, 의도적으로 계속 미룸

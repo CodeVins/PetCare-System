@@ -53,25 +53,25 @@ class AuthFlowTest {
 	}
 
 	@Test
-	void 로그인_5회_실패하면_올바른_비밀번호여도_429() throws Exception {
+	void 로그인_10회_실패하면_올바른_비밀번호여도_429() throws Exception {
 		String email = "ratelimit" + System.nanoTime() + "@petcare.com";
 		mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
 				.andExpect(status().isCreated());
 
-		// 성공하면 실패 횟수 초기화 — 4번 틀리고 성공한 뒤 다시 4번 틀려도 아직 안 막힘
-		for (int i = 0; i < 4; i++) {
+		// 성공하면 실패 횟수 초기화 — 9번 틀리고 성공한 뒤 다시 9번 틀려도 아직 안 막힘
+		for (int i = 0; i < 9; i++) {
 			login(email, "wrongpassword").andExpect(status().isUnauthorized());
 		}
 		login(email, "password123").andExpect(status().isOk());
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 9; i++) {
 			login(email, "wrongpassword").andExpect(status().isUnauthorized());
 		}
 		login(email, "password123").andExpect(status().isOk());
 
 		// 대소문자만 바꾼 이메일도 같은 카운터로 집계
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 10; i++) {
 			login(i % 2 == 0 ? email : email.toUpperCase(), "wrongpassword").andExpect(status().isUnauthorized());
 		}
 		login(email, "password123").andExpect(status().isTooManyRequests());
