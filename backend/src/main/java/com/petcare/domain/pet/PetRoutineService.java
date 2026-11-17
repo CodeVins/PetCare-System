@@ -2,6 +2,7 @@ package com.petcare.domain.pet;
 
 import com.petcare.domain.pet.dto.RoutineRequest;
 import com.petcare.domain.pet.dto.RoutineResponse;
+import com.petcare.domain.user.UserRepository;
 import com.petcare.global.exception.BadRequestException;
 import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.NotFoundException;
@@ -23,6 +24,7 @@ public class PetRoutineService {
 	private final PetRepository petRepository;
 	private final HealthRecordRepository healthRecordRepository;
 	private final PetService petService;
+	private final UserRepository userRepository;
 
 	public List<RoutineResponse> list(Long userId, Long petId) {
 		petService.verifyAccess(userId, petId);
@@ -85,6 +87,8 @@ public class PetRoutineService {
 				.recordedAt(date)
 				.content(routine.getTitle())
 				.routine(routine)
+				// 변경(2026-11-17): 체크한 사람 기록 — 공동보호자 중 누가 했는지 캘린더에 표시 (이전: 작성자 없음)
+				.recordedBy(userRepository.getReferenceById(userId))
 				.build());
 	}
 

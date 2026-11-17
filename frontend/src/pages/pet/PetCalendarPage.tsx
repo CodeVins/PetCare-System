@@ -1,9 +1,8 @@
-import { CalendarBlank, CalendarCheck, CaretLeft, CaretRight, Check, PawPrint } from '@phosphor-icons/react'
+import { CalendarBlank, CalendarCheck, CaretLeft, CaretRight, PawPrint, Plus } from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { errorMessage } from '../../api/axiosInstance'
-import { checkRoutine, getCalendarEvents, getMyPets, uncheckRoutine } from '../../api/petApi'
-import { useToast } from '../../hooks/useToast'
+import { getCalendarEvents, getMyPets } from '../../api/petApi'
 import Alert from '../../components/common/Alert'
 import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
@@ -11,6 +10,8 @@ import StatusBadge from '../../components/common/StatusBadge'
 import type { CalendarEvent, Pet } from '../../types/api'
 import { RECORD_TYPES } from './healthRecordTypes'
 import PetTabs from './PetTabs'
+import RoutineDialog from './RoutineDialog'
+import RoutineEventItem from './RoutineEventItem'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -62,8 +63,9 @@ export default function PetCalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const toast = useToast()
-  const [toggling, setToggling] = useState<string | null>(null)
+  // 선택한 날짜로 일정 추가 창 — 저장하면 reloadKey로 다시 불러옴
+  const [adding, setAdding] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   const days = useMemo(() => monthGrid(month), [month])
   const from = isoDate(days[0])
@@ -89,7 +91,7 @@ export default function PetCalendarPage() {
     return () => {
       ignore = true
     }
-  }, [from, to, petId])
+  }, [from, to, petId, reloadKey])
 
   const byDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
@@ -106,25 +108,13 @@ export default function PetCalendarPage() {
     if (selected.slice(0, 7) !== nextKey) setSelected(today.slice(0, 7) === nextKey ? today : isoDate(next))
   }
 
-  // 루틴 완료 체크/해제 — 서버엔 건강 기록 생성/삭제. 성공하면 목록만 고침(다시 불러오지 않음)
-  const toggleRoutine = async (event: CalendarEvent) => {
-    if (event.routineId == null) return
-    const key = `${event.routineId}:${event.date}`
-    setToggling(key)
-    try {
-      if (event.done) await uncheckRoutine(event.petId, event.routineId, event.date)
-      else await checkRoutine(event.petId, event.routineId, event.date)
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.kind === 'ROUTINE' && e.routineId === event.routineId && e.date === event.date ? { ...e, done: !event.done } : e,
-        ),
-      )
-    } catch (err) {
-      toast(errorMessage(err, '처리에 실패했습니다.'), 'error')
-    } finally {
-      setToggling(null)
-    }
-  }
+  // 루틴 체크/해제 결과 반영 — 같은 루틴·같은 날 항목만 교체
+  // 변경(2026-11-17): 체크 버튼·API 호출을 RoutineEventItem으로 옮김("오늘 할 일"과 공용) — 여기선 결과만 반영
+  // (이전: 이 화면의 toggleRoutine이 직접 호출)
+  const replaceEvent = (next: CalendarEvent) =>
+    setEvents((prev) =>
+      prev.map((e) => (e.kind === 'ROUTINE' && e.routineId === next.routineId && e.date === next.date ? next : e)),
+    )
 
   const goToday = () => {
     const now = new Date()
@@ -265,9 +255,17 @@ export default function PetCalendarPage() {
         </section>
 
         <section className="card p-4 lg:sticky lg:top-22" aria-labelledby="h-day">
-          <h2 id="h-day" className="h-section mb-3">
-            {selMonth}월 {selDay}일 일정
-          </h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 id="h-day" className="h-section">
+              {selMonth}월 {selDay}일 일정
+            </h2>
+            {pets.length > 0 && (
+              <button type="button" onClick={() => setAdding(true)} className="chip h-9 px-3 text-[13px]">
+                <Plus size={16} weight="bold" />
+                일정 추가
+              </button>
+            )}
+          </div>
           {!loading && selectedEvents.length === 0 && (
             <EmptyState
               icon={pets.length === 0 ? PawPrint : CalendarBlank}
@@ -288,36 +286,9 @@ export default function PetCalendarPage() {
           <ul className="flex flex-col gap-2">
             {selectedEvents.map((event, i) => {
               if (event.kind === 'ROUTINE') {
-                const meta = event.recordType ? RECORD_TYPES[event.recordType] : null
-                const busy = toggling === `${event.routineId}:${event.date}`
-                // 미래 날짜는 체크 불가(서버도 400) — 버튼 대신 예정 표시
-                const checkable = event.date <= today
                 return (
-                  <li key={i} className="flex items-center gap-3 rounded-xl p-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleRoutine(event)}
-                      disabled={!checkable || busy}
-                      aria-pressed={!!event.done}
-                      aria-label={`${event.title} ${event.done ? '완료 취소' : '완료'}`}
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border-2 transition-colors disabled:cursor-not-allowed ${
-                        event.done
-                          ? 'border-violet-500 bg-violet-500 text-white'
-                          : checkable
-                            ? 'border-violet-300 bg-white text-violet-300 hover:border-violet-500'
-                            : 'border-dashed border-stone-300 bg-stone-50 text-stone-300'
-                      } ${busy ? 'opacity-60' : ''}`}
-                    >
-                      <Check size={20} weight="bold" />
-                    </button>
-                    <Link to={eventLink(event)} className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className={`text-sm font-bold ${event.done ? 'text-stone-500 line-through' : ''}`}>
-                        {event.title}
-                      </span>
-                      <span className="text-xs text-stone-500">
-                        {meta?.label} 루틴{event.time ? ` · ${event.time.slice(0, 5)}` : ''} · {event.petName}
-                      </span>
-                    </Link>
+                  <li key={i}>
+                    <RoutineEventItem event={event} today={today} onChange={replaceEvent} />
                   </li>
                 )
               }
@@ -353,6 +324,16 @@ export default function PetCalendarPage() {
           </ul>
         </section>
       </div>
+
+      {adding && (
+        <RoutineDialog
+          date={selected}
+          pets={pets}
+          defaultPetId={petId}
+          onClose={() => setAdding(false)}
+          onSaved={() => setReloadKey((k) => k + 1)}
+        />
+      )}
     </div>
   )
 }

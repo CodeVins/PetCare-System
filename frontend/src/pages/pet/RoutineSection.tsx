@@ -6,12 +6,12 @@ import { createRoutine, deleteRoutine, getRoutines, updateRoutine } from '../../
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import EmptyState from '../../components/common/EmptyState'
-import TextField from '../../components/common/TextField'
 import { useToast } from '../../hooks/useToast'
 import { formatDateLabel } from '../../lib/format'
 import { WEEK } from '../../lib/openingHours'
-import type { DayOfWeek, HealthRecordType, Routine, RoutinePayload } from '../../types/api'
-import { RECORD_TYPES, ROUTINE_TYPES } from './healthRecordTypes'
+import type { Routine, RoutinePayload } from '../../types/api'
+import { RECORD_TYPES } from './healthRecordTypes'
+import RoutineFormFields from './RoutineFormFields'
 
 const todayIso = () => {
   const now = new Date()
@@ -59,12 +59,6 @@ export default function RoutineSection({ petId }: { petId: number | string }) {
       .catch((err) => setError(errorMessage(err, '일정을 불러오지 못했습니다.')))
       .finally(() => setLoading(false))
   }, [petId])
-
-  const set = <K extends keyof RoutinePayload>(key: K, value: RoutinePayload[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }))
-
-  const toggleDay = (day: DayOfWeek) =>
-    set('daysOfWeek', form.daysOfWeek.includes(day) ? form.daysOfWeek.filter((d) => d !== day) : [...form.daysOfWeek, day])
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM, startDate: todayIso() })
@@ -119,8 +113,6 @@ export default function RoutineSection({ petId }: { petId: number | string }) {
     }
   }
 
-  const oneTime = form.daysOfWeek.length === 0
-
   return (
     <div className="flex flex-col gap-4">
       <section className="card p-5 md:p-6" aria-labelledby="h-routines">
@@ -168,65 +160,8 @@ export default function RoutineSection({ petId }: { petId: number | string }) {
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4 p-5 md:p-6" aria-labelledby="h-routine-form">
         <h2 id="h-routine-form" className="h-section">{editingId ? '일정 수정' : '일정 추가'}</h2>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium text-stone-800">종류</legend>
-          <div className="flex flex-wrap gap-2">
-            {ROUTINE_TYPES.map((type: HealthRecordType) => (
-              <button key={type} type="button" aria-pressed={form.type === type} onClick={() => set('type', type)} className={`chip ${form.type === type ? 'chip-on' : ''}`}>
-                {RECORD_TYPES[type].label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        <TextField
-          label="이름"
-          value={form.title}
-          onChange={(event) => set('title', event.target.value)}
-          placeholder={RECORD_TYPES[form.type].placeholder}
-          maxLength={50}
-          required
-        />
-
-        <TextField
-          label="시간 (선택)"
-          type="time"
-          value={form.time ?? ''}
-          onChange={(event) => set('time', event.target.value || null)}
-        />
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium text-stone-800">반복 요일</legend>
-          <div className="flex flex-wrap gap-2">
-            {WEEK.map(({ day, label }) => (
-              <button key={day} type="button" aria-pressed={form.daysOfWeek.includes(day)} onClick={() => toggleDay(day)} className={`chip size-10 justify-center px-0 ${form.daysOfWeek.includes(day) ? 'chip-on' : ''}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="text-[13px] text-stone-500">
-            {oneTime ? '요일을 고르지 않으면 시작일 하루만 있는 일정이에요.' : '고른 요일마다 캘린더에 나와요.'}
-          </p>
-        </fieldset>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TextField
-            label={oneTime ? '날짜' : '시작일'}
-            type="date"
-            value={form.startDate}
-            onChange={(event) => set('startDate', event.target.value)}
-            required
-          />
-          {!oneTime && (
-            <TextField
-              label="종료일 (선택)"
-              type="date"
-              value={form.endDate ?? ''}
-              min={form.startDate}
-              onChange={(event) => set('endDate', event.target.value || null)}
-            />
-          )}
-        </div>
+        {/* 변경(2026-11-17): 입력 칸을 RoutineFormFields로 분리 — 캘린더 "일정 추가" 창과 같이 씀 (이전: 이 파일에 직접) */}
+        <RoutineFormFields value={form} onChange={setForm} />
 
         <Alert tone="error">{formError}</Alert>
         <div className="flex gap-2">
