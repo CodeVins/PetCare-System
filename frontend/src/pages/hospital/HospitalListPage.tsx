@@ -15,7 +15,7 @@ import { HOSPITAL_AMENITY_LABEL, HOSPITAL_ANIMAL_LABEL } from '../../lib/format'
 import { hasKakaoKey } from '../../lib/kakaoMap'
 import type { HospitalAmenity, HospitalAnimal, HospitalSort } from '../../types/api'
 import HospitalCard from './HospitalCard'
-import HospitalMap from './HospitalMap'
+import HospitalMap, { type MapArea } from './HospitalMap'
 import HospitalTabs from './HospitalTabs'
 
 const SORT_OPTIONS: { value: HospitalSort; label: string }[] = [
@@ -69,6 +69,8 @@ export default function HospitalListPage() {
   // 지도: 카드에 마우스를 올리거나 마커를 누른 병원에 이름표. 모바일은 버튼으로 펼침(데스크톱은 항상 오른쪽)
   const [focusId, setFocusId] = useState<number | null>(null)
   const [mapOpen, setMapOpen] = useState(false)
+  // 지도에서 "이 지역에서 다시 검색"으로 고른 영역(중심+반경) — 켜지면 "내 주변"과 같은 거리 검색으로 조회
+  const [area, setArea] = useState<MapArea | null>(null)
 
   // 변경(2026-09-27): 즐겨찾기 조회/토글을 useFavoriteIds(useOptimistic)로 분리, 비회원이면 하트 숨김
   // (이전: 이 화면에서 Set을 직접 들고 실패 시 수동 롤백, 비회원 개념 없음)
@@ -82,13 +84,15 @@ export default function HospitalListPage() {
     return () => clearTimeout(timeout)
   }, [keyword])
 
+  // 변경(2026-11-17): 지도 영역 검색이 켜져 있으면 그 중심·반경으로 거리 검색 (이전: "내 주변"만 거리 검색)
+  const geo = area ?? (locationEnabled && coords ? { ...coords, radiusKm } : null)
   const params = {
     keyword: debouncedKeyword || undefined,
     minRating: minRating ? Number(minRating) : undefined,
-    sort: locationEnabled ? undefined : sort,
-    lat: locationEnabled ? coords?.lat : undefined,
-    lng: locationEnabled ? coords?.lng : undefined,
-    radiusKm: locationEnabled ? radiusKm : undefined,
+    sort: geo ? undefined : sort,
+    lat: geo?.lat,
+    lng: geo?.lng,
+    radiusKm: geo?.radiusKm,
     is24Hours: is24Hours || undefined,
     hasParking: hasParking || undefined,
     // 변경(2026-10-05): "지금 진료 중" 필터 (이전: 없음)
@@ -113,6 +117,7 @@ export default function HospitalListPage() {
       (position) => {
         setCoords({ lat: position.coords.latitude, lng: position.coords.longitude })
         setLocationEnabled(true)
+        setArea(null) // 변경(2026-11-17): 내 주변을 켜면 지도 영역 검색은 해제 (이전: 영역 검색 없음)
         setGeoError('')
       },
       () => setGeoError('위치 정보를 가져오지 못했습니다. 브라우저 권한을 확인해 주세요.'),
@@ -120,7 +125,7 @@ export default function HospitalListPage() {
   }
 
   const activeFilterCount =
-    (minRating ? 1 : 0) + (is24Hours ? 1 : 0) + (hasParking ? 1 : 0) + (locationEnabled ? 1 : 0) +
+    (minRating ? 1 : 0) + (is24Hours ? 1 : 0) + (hasParking ? 1 : 0) + (locationEnabled || area ? 1 : 0) +
     (openNow ? 1 : 0) + (animal ? 1 : 0) + (amenity ? 1 : 0)
 
   const filters = (
@@ -194,8 +199,8 @@ export default function HospitalListPage() {
         label="정렬"
         value={sort}
         options={SORT_OPTIONS}
-        disabled={locationEnabled}
-        hint={locationEnabled ? '내 주변을 켜면 거리순으로 정렬됩니다.' : undefined}
+        disabled={!!geo}
+        hint={geo ? '내 주변·지도 영역 검색은 거리순으로 정렬됩니다.' : undefined}
         onChange={(event) => setSort(event.target.value as HospitalSort)}
       />
 
@@ -283,6 +288,12 @@ export default function HospitalListPage() {
                   focusId={focusId}
                   onFocus={setFocusId}
                   linkToDetail
+                  onAreaSearch={(next) => {
+                    setArea(next)
+                    setLocationEnabled(false)
+                    setCoords(null)
+                  }}
+                  autoFit={!area}
                   className="h-72 lg:h-[calc(100dvh-8rem)]"
                 />
               </div>
@@ -290,6 +301,14 @@ export default function HospitalListPage() {
           )}
 
           <div>
+          {area && (
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">
+              <span>지도 영역(반경 약 {area.radiusKm.toFixed(1)}km)에서 찾은 병원</span>
+              <button type="button" onClick={() => setArea(null)} className="min-h-9 shrink-0 font-bold underline-offset-2 hover:underline">
+                해제
+              </button>
+            </div>
+          )}
           {loading && (
             <div className="flex flex-col gap-3">
               {[0, 1, 2].map((i) => (
@@ -320,7 +339,8 @@ export default function HospitalListPage() {
                     className={focusId === hospital.id ? 'rounded-2xl ring-2 ring-brand-500' : ''}
                   >
                     <HospitalCard
-                      hospital={hospital}
+                      // 지도 영역 검색의 거리는 화면 중심에서 잰 값이라 의미가 없어서 숨김
+                      hospital={area ? { ...hospital, distanceKm: null } : hospital}
                       index={index}
                       isFavorite={favoriteIds.has(hospital.id)}
                       onToggleFavorite={isAuthenticated ? toggleFavorite : undefined}
