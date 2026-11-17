@@ -123,6 +123,8 @@ export interface CalendarEvent {
   hospitalName: string | null
   routineId: number | null // ROUTINE만
   done: boolean | null // ROUTINE만 — 그날 완료 체크 여부
+  doneByUserId: number | null // 완료 체크한 사람(공동보호자 중 누가 했는지)
+  doneByEmail: string | null
 }
 
 // 반복 일정 — daysOfWeek가 비었으면 startDate 하루만 있는 일회성

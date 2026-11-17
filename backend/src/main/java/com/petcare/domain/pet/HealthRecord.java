@@ -1,6 +1,7 @@
 package com.petcare.domain.pet;
 
 import com.petcare.domain.reservation.Reservation;
+import com.petcare.domain.user.User;
 import com.petcare.global.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -68,12 +69,18 @@ public class HealthRecord extends BaseEntity {
 	@JoinColumn(name = "routine_id")
 	private PetRoutine routine;
 
+	// 기록을 남긴 사람 — 지금은 루틴 완료 체크에만 채움(공동보호자 중 누가 했는지 표시용), 그 외 기록은 null
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "recorded_by")
+	private User recordedBy;
+
 	// 변경(2026-10-05): reservation 파라미터 추가 — 병원 작성 진료 기록 생성용 (이전: 보호자 작성 기록만)
 	// 변경(2026-10-31): routine 파라미터 추가 — 루틴 완료 체크 기록용 (이전: 없음)
+	// 변경(2026-11-17): recordedBy 파라미터 추가 — 루틴을 누가 체크했는지 (이전: 기록에 작성자 없음)
 	@Builder
 	private HealthRecord(
 			Pet pet, HealthRecordType type, LocalDate recordedAt, String content, Double weight, LocalDate nextDueDate,
-			Reservation reservation, PetRoutine routine) {
+			Reservation reservation, PetRoutine routine, User recordedBy) {
 		this.pet = pet;
 		this.type = type;
 		this.recordedAt = recordedAt;
@@ -82,6 +89,7 @@ public class HealthRecord extends BaseEntity {
 		this.nextDueDate = nextDueDate;
 		this.reservation = reservation;
 		this.routine = routine;
+		this.recordedBy = recordedBy;
 	}
 
 	public boolean isWrittenByHospital() {

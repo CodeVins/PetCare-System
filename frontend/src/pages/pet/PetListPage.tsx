@@ -18,6 +18,7 @@ import EmptyState from '../../components/common/EmptyState'
 import PageHeader from '../../components/common/PageHeader'
 import StatusBadge from '../../components/common/StatusBadge'
 import PetTabs from './PetTabs'
+import TodayTasks from './TodayTasks'
 import {
   calculateAge,
   formatDateTime,
@@ -224,6 +225,8 @@ export default function PetListPage() {
       />
       {/* 변경(2026-10-31): 내 아이들 | 캘린더 탭 추가 (이전: 탭 없음) */}
       <PetTabs />
+      {/* 변경(2026-11-17): 오늘 루틴·예약을 맨 위에서 바로 체크 (이전: 캘린더에 들어가야 체크) */}
+      <TodayTasks />
 
       <section aria-labelledby="h-pets">
         <h2 id="h-pets" className="h-section mb-3">
