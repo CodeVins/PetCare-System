@@ -1114,6 +1114,34 @@ class BusinessRuleTest {
 		assertThat(notificationTypes(owner)).contains("지금 간식");
 	}
 
+	@Test
+	void 공동보호자가_루틴을_체크하면_소유자_캘린더에_체크한_사람이_보인다() throws Exception {
+		String ownerEmail = "doneby-owner" + System.nanoTime() + "@petcare.com";
+		String guardianEmail = "doneby-guardian" + System.nanoTime() + "@petcare.com";
+		String owner = signupAndLogin(ownerEmail);
+		String guardian = signupAndLogin(guardianEmail);
+		long petId = createPet(owner, "같이키움");
+		mockMvc.perform(post("/api/pets/" + petId + "/guardians")
+						.header("Authorization", "Bearer " + owner)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"" + guardianEmail + "\"}"))
+				.andExpect(status().isCreated());
+		LocalDate today = LocalDate.now();
+		long routineId = createRoutine(owner, petId,
+				"{\"type\":\"WALK\",\"title\":\"저녁 산책\",\"daysOfWeek\":[],\"startDate\":\"" + today + "\"}");
+
+		JsonNode before = getData("/api/calendar?from=" + today + "&to=" + today, owner).get(0);
+		assertThat(before.get("done").asBoolean()).isFalse();
+		assertThat(before.get("doneByEmail").isNull()).isTrue();
+
+		mockMvc.perform(post("/api/pets/" + petId + "/routines/" + routineId + "/checks/" + today)
+						.header("Authorization", "Bearer " + guardian))
+				.andExpect(status().isCreated());
+		JsonNode after = getData("/api/calendar?from=" + today + "&to=" + today, owner).get(0);
+		assertThat(after.get("done").asBoolean()).isTrue();
+		assertThat(after.get("doneByEmail").asText()).isEqualTo(guardianEmail);
+	}
+
 	private MockHttpServletRequestBuilder routineRequest(String token, long petId, String json) {
 		return post("/api/pets/" + petId + "/routines")
 				.header("Authorization", "Bearer " + token)
