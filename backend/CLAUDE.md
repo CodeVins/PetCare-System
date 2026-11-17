@@ -181,7 +181,7 @@ com.petcare
 - 2026-10-31 2단계(반복 일정 = 루틴): `PetRoutine` + `/api/pets/{petId}/routines`(GET 목록 — 펫당 소량이라 페이지네이션 없음, POST, PUT 전체 교체, DELETE), 권한은 건강 기록과 같음(`PetService.verifyAccess` — 최초 등록자·공동보호자 동등). 요일+시각(값 컬렉션, 진료 시간과 같은 패턴), **날짜별 행을 저장하지 않고** 캘린더 조회 때 기간만큼 `occursOn()`으로 펼침(수정하면 앞으로의 일정에 바로 반영). 요일이 비면 startDate 하루만 있는 일회성(종료일은 무시). 종류는 WALK/MEAL/MEDICATION/GROOMING만(`PetRoutine.ALLOWED_TYPES`, 그 외 400) — 투약·미용은 이때 `HealthRecordType`에 추가
   - **완료 체크 = 같은 종류의 `HealthRecord` 생성**(`POST/DELETE .../routines/{id}/checks/{date}`, content=루틴 이름, routine_id 연결) → 건강 기록 목록·통계에 그대로 쌓임. 하루 한 번((routine_id, recorded_at) 유니크, 중복 409), 그날 일정이 있어야(400) + 오늘까지만(미래 400). 건강기록 화면에서 그 기록을 지우면 체크도 풀림
   - 캘린더: `ROUTINE` 이벤트(`routineId`, `done`) — 완료 기록은 RECORD로 따로 찍지 않고 done으로만(중복 방지). 루틴 삭제 시 완료 기록은 `detachRoutine`으로 연결만 끊고 일반 기록으로 남김, 펫 삭제 시엔 기록 → 루틴 순으로 정리
-  - 2026-11-17 체크한 사람: 체크 시 에 저장 →  이벤트 ·(프론트가 나면 "내가 완료", 아니면 이메일 앞부분, 카카오 자리표시 이메일은 "가족"). 그 이전 체크 기록은 작성자 없음(null)
+  - 2026-11-17 체크한 사람: 체크 시 `HealthRecord.recordedBy`에 저장 → `ROUTINE` 이벤트 `doneByUserId`·`doneByEmail`(프론트가 나면 "내가 완료", 아니면 이메일 앞부분, 카카오 자리표시 이메일은 "가족"). 그 이전 체크 기록은 작성자 없음(null)
   - 미룬 것: 격주·매월 같은 RRULE
 - 테스트: `BusinessRuleTest`(캘린더 — 공동보호자도 같은 일정, 취소 예약 제외, 남의 펫 빈 결과, 62일 초과·역순 400 / 루틴 — 공동보호자가 체크하면 소유자 캘린더에 doneByEmail, 요일대로 펼침·일회성, 잘못된 종류 400, 남의 펫 403, 체크 중복 409·미래·일정 없는 날 400, 캘린더 done 반영·RECORD 중복 없음, 루틴 삭제 후 기록 유지)
 
