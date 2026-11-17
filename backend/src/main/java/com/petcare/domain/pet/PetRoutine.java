@@ -67,6 +67,10 @@ public class PetRoutine extends BaseEntity {
 	@Column(name = "end_date")
 	private LocalDate endDate;
 
+	// 루틴 알림을 마지막으로 보낸 날 — 오늘이면 오늘 알림 완료(하루 한 번)
+	@Column(name = "reminded_date")
+	private LocalDate remindedDate;
+
 	@Builder
 	private PetRoutine(
 			Pet pet, HealthRecordType type, String title, LocalTime time, Set<DayOfWeek> daysOfWeek,
@@ -87,6 +91,10 @@ public class PetRoutine extends BaseEntity {
 		}
 		this.startDate = startDate;
 		this.endDate = endDate;
+	}
+
+	public void markReminded(LocalDate date) {
+		this.remindedDate = date;
 	}
 
 	public boolean isOneTime() {

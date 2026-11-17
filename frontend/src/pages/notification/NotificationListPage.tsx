@@ -4,6 +4,7 @@ import {
   CalendarX,
   ChatCircleDots,
   Clock,
+  Repeat,
   Syringe,
   Stethoscope,
   type Icon,
@@ -36,6 +37,7 @@ const TYPE_ICON: Partial<Record<NotificationType, Icon>> = {
   CHAT_MESSAGE_RECEIVED: ChatCircleDots,
   WAITLIST_SLOT_AVAILABLE: Clock,
   TREATMENT_RECORDED: Stethoscope,
+  ROUTINE_REMINDER: Repeat,
 }
 
 export default function NotificationListPage() {
@@ -72,6 +74,8 @@ export default function NotificationListPage() {
   const handleClick = async (notification: Notification) => {
     // 변경(2026-10-02): 채팅 알림은 누르면 채팅 목록으로 이동 (이전: 읽음 처리만)
     if (notification.type === 'CHAT_MESSAGE_RECEIVED') navigate('/chats')
+    // 변경(2026-11-17): 루틴 알림은 "오늘 할 일"이 있는 반려동물 화면으로 — 바로 체크 (이전: 읽음 처리만)
+    if (notification.type === 'ROUTINE_REMINDER') navigate('/pets')
     if (notification.read) return
     setNotifications((prev) =>
       prev.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),

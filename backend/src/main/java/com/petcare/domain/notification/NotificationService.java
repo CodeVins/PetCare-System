@@ -35,7 +35,8 @@ public class NotificationService {
 	public void notify(Long userId, NotificationType type, String content) {
 		boolean enabled = notificationPreferenceRepository.findByUserIdAndCategory(userId, type.category())
 				.map(NotificationPreference::isEnabled)
-				.orElse(true);
+				// 변경(2026-11-17): 설정 행이 없으면 카테고리 기본값 — 루틴 알림은 기본 꺼짐 (이전: 항상 켜짐)
+				.orElse(type.category().enabledByDefault());
 		if (!enabled) {
 			return;
 		}
@@ -105,7 +106,8 @@ public class NotificationService {
 						.filter(p -> p.getCategory() == category)
 						.findFirst()
 						.map(NotificationPreference::isEnabled)
-						.orElse(true)))
+						// 변경(2026-11-17): 카테고리 기본값(루틴만 꺼짐) (이전: 항상 true)
+						.orElse(category.enabledByDefault())))
 				.toList();
 	}
 

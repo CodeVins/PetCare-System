@@ -11,7 +11,8 @@ public enum NotificationType {
 	FAVORITE_HOSPITAL_NEW_SLOT(NotificationCategory.FAVORITE),
 	CHAT_MESSAGE_RECEIVED(NotificationCategory.CHAT),
 	WAITLIST_SLOT_AVAILABLE(NotificationCategory.WAITLIST),
-	TREATMENT_RECORDED(NotificationCategory.RESERVATION);
+	TREATMENT_RECORDED(NotificationCategory.RESERVATION),
+	ROUTINE_REMINDER(NotificationCategory.ROUTINE);
 
 	private final NotificationCategory category;
 

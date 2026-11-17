@@ -21,6 +21,8 @@ public class AdminReminderController {
 	public ResponseEntity<ApiResponse<Void>> runNow() {
 		reminderScheduler.sendVaccinationReminders();
 		reminderScheduler.sendReservationReminders();
+		// 변경(2026-11-17): 루틴 알림도 즉시 실행에 포함(평소엔 1분마다) (이전: 접종·예약만)
+		reminderScheduler.sendRoutineReminders();
 		return ResponseEntity.ok(ApiResponse.success());
 	}
 }
