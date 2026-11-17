@@ -47,7 +47,9 @@ export type NotificationType =
   | 'CHAT_MESSAGE_RECEIVED'
   | 'WAITLIST_SLOT_AVAILABLE'
   | 'TREATMENT_RECORDED'
-export type NotificationCategory = 'RESERVATION' | 'VACCINATION' | 'FAVORITE' | 'CHAT' | 'WAITLIST'
+  | 'ROUTINE_REMINDER'
+// ROUTINE(루틴 알림)만 기본 꺼짐 — 설정 GET이 실제 값을 내려줌
+export type NotificationCategory = 'RESERVATION' | 'VACCINATION' | 'FAVORITE' | 'CHAT' | 'WAITLIST' | 'ROUTINE'
 export type HealthRecordType =
   | 'WEIGHT'
   | 'VACCINATION'

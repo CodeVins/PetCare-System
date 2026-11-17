@@ -15,6 +15,8 @@ const CATEGORY = {
   FAVORITE: ['즐겨찾기 병원', '즐겨찾기한 병원의 소식'],
   CHAT: ['채팅', '병원에서 온 새 메시지'],
   WAITLIST: ['대기자 명단', '대기한 시간에 자리가 났을 때'],
+  // 변경(2026-11-17): 루틴 알림 추가 — 기본 꺼짐 (이전: 5개 카테고리)
+  ROUTINE: ['루틴', '산책·식사·투약 같은 반복 일정 시간이 됐는데 아직 체크 안 했을 때 (기본 꺼짐)'],
 }
 
 export default function NotificationPreferenceSection() {

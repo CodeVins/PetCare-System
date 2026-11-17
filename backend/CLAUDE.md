@@ -40,8 +40,8 @@ com.petcare
 - Slot: id, hospital_id(FK), start_time, end_time, status(AVAILABLE/RESERVED), version(낙관적 락)
 - Reservation: id, slot_id(FK), pet_id(FK), user_id(FK), status(PENDING/CONFIRMED/REJECTED/CANCELLED/NO_SHOW) — 생성 시 PENDING, 관리자/병원이 확정/거절/노쇼 처리, memo(nullable, 500자 — 보호자 증상·요청 메모), health_check_summary/health_check_date(nullable — 예약 때 첨부한 자가 문진의 복사본)
 - HealthRecord: id, pet_id(FK), type(WEIGHT/VACCINATION/TREATMENT/WALK/MEAL/EXCRETION/HEALTH_CHECK/MEDICATION/GROOMING), recorded_at, content, weight, next_due_date(nullable — 다음 접종/진료 예정일), reservation_id(FK, nullable, unique — 병원이 진료 후 작성한 기록이면 해당 예약, 보호자 작성이면 null), routine_id(FK, nullable — 루틴 완료 체크로 생긴 기록, (routine_id, recorded_at) 유니크)
-- PetRoutine: id, pet_id(FK), type(WALK/MEAL/MEDICATION/GROOMING), title(50자), routine_time(nullable), daysOfWeek(값 컬렉션 → `pet_routine_day`(routine_id, day_of_week), 비었으면 일회성), start_date, end_date(nullable)
-- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE, TREATMENT_RECORDED), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 그룹핑, 알림 on/off 설정에 사용
+- PetRoutine: id, pet_id(FK), type(WALK/MEAL/MEDICATION/GROOMING), title(50자), routine_time(nullable), daysOfWeek(값 컬렉션 → `pet_routine_day`(routine_id, day_of_week), 비었으면 일회성), start_date, end_date(nullable), reminded_date(nullable — 루틴 알림을 마지막으로 보낸 날)
+- Notification: id, user_id(FK), type(RESERVATION_REQUESTED/CONFIRMED/REJECTED/CANCELLED/NO_SHOW, RESERVATION_REMINDER, VACCINATION_DUE_SOON, FAVORITE_HOSPITAL_NEW_SLOT, CHAT_MESSAGE_RECEIVED, WAITLIST_SLOT_AVAILABLE, TREATMENT_RECORDED, ROUTINE_REMINDER), content, is_read — `NotificationType.category()`로 `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST/ROUTINE) 그룹핑, 알림 on/off 설정에 사용
 - NotificationPreference: id, user_id(FK), category(NotificationCategory), enabled — (user_id, category) 유니크, 행이 없으면 기본 enabled=true로 취급
 - Favorite: id, user_id(FK), hospital_id(FK), (user_id, hospital_id) 유니크
 - Review: id, hospital_id(FK), user_id(FK), rating(1~5), content, hidden(boolean, 기본 false), imageUrls(값 컬렉션 → `review_image` 테이블(review_id, sort_order, image_url), 최대 3장) — (user_id, hospital_id) 유니크(병원당 리뷰 1개), 작성 자격은 해당 병원 CONFIRMED 예약 이력 보유자만
@@ -195,7 +195,8 @@ com.petcare
 - `hidden=true`인 리뷰는 병원 리뷰 목록(`GET /api/hospitals/{hospitalId}/reviews`), 평균 평점/리뷰 수 집계(`HospitalService`, `AdminStatsService`, `HospitalRepositoryImpl`의 검색 결과)에서 전부 제외됨 — 신고 누적만으로 자동 숨김되진 않고 관리자가 직접 `hide` 호출해야 함(자동화 없음, 의도적으로 사람이 판단)
 
 ## 알림 카테고리 on/off
-- `GET/PATCH /api/notifications/preferences` — `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST) 단위로 on/off. GET은 설정 안 한 카테고리도 항상 5개 다 내려주고(기본 enabled=true), PATCH는 `{category, enabled}` 하나씩 upsert
+- `GET/PATCH /api/notifications/preferences` — `NotificationCategory`(RESERVATION/VACCINATION/FAVORITE/CHAT/WAITLIST/ROUTINE) 단위로 on/off. GET은 설정 안 한 카테고리도 항상 전부 내려주고(행이 없으면 `NotificationCategory.enabledByDefault()` — **ROUTINE만 기본 꺼짐**, 나머지 켜짐), PATCH는 `{category, enabled}` 하나씩 upsert
+- 루틴 알림(2026-11-17): `ReminderScheduler.sendRoutineReminders()`(`@Scheduled(fixedRate=60초)`) — 시각이 있는 루틴 중 [지금-30분, 지금]에 해당하고 오늘 일정이 있으며(`occursOn`) 아직 체크 안 한 것 → 소유자 + 공동보호자에게 `ROUTINE_REMINDER`("초코 · 아침 산책 시간이에요 (07:30)"). 하루 한 번(`PetRoutine.remindedDate`, 이미 체크했어도 그날 처리 표시), 30분 넘게 지난 건 버림(서버가 잠깐 꺼졌던 건 따라잡음), 자정 직후엔 창을 0시부터로 자름. 매일 오는 알림이라 기본 꺼짐 — 켠 사람만 실제 저장·발송. `POST /api/admin/reminders/run`에도 포함. **스케줄러 진입 메서드에도 `@Transactional` 필수**: 같은 클래스 안 호출은 프록시를 안 거쳐서 안쪽 메서드의 트랜잭션이 안 먹고 `daysOfWeek` 지연 로딩에서 `LazyInitializationException`(로컬 확인 중 겪음 — 테스트는 안쪽 메서드를 직접 불러서 못 잡았음 → 테스트에서 진입 메서드도 호출하도록 보강). 테스트: `BusinessRuleTest`(켠 소유자만 1번, 기본 꺼진 공동보호자 0, 체크한 루틴 제외, 진입 메서드도 동작)
 - `NotificationService.notify()`가 알림 생성/SSE push 전에 `NotificationPreference`를 먼저 조회해서 꺼져있으면 DB 저장도 SSE push도 아예 안 함(꺼진 알림은 나중에 폴링해도 안 보임 — 완전히 발송 안 되는 것)
 
 ## 리뷰 답글 / 예약 노쇼 / 병원 사진 / 계정 정지
@@ -226,7 +227,7 @@ com.petcare
 - Redis도 로컬 컨테이너 `petcare-redis`(`redis:7-alpine`, 6379) — `docker start petcare-redis`. 운영은 compose의 `redis` 서비스(영속화 끔, maxmemory 64mb)
 
 ## 자동화 테스트
-- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트), `KakaoLoginTest`(카카오 API 목) — 총 43개
+- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트), `KakaoLoginTest`(카카오 API 목) — 총 44개
 - 과거 시간 슬롯은 API로 못 만들게 막혀 있어서, 지난 슬롯/지난 예약이 필요한 테스트는 `SlotRepository`/`ReservationRepository`로 직접 저장함
 - Redis는 Testcontainers(`RedisTestConfig`, `@ServiceConnection`)로 테스트 중에만 컨테이너를 띄움 — **모든 `@SpringBootTest` 클래스에 `@Import(RedisTestConfig.class)`** 붙일 것(설정이 같아야 컨텍스트가 캐시돼 컨테이너가 한 번만 뜸). 로컬/CI 모두 Docker 필요. Testcontainers 버전을 `build.gradle`에서 1.21.4로 올려둠(Boot 3.4.1 기본 1.20.x는 Docker 29에서 실행 실패 — 겪은 문제)
 - 테스트는 개발용 MySQL을 안 건드리고 별도 H2 인메모리 DB 사용 (`src/test/resources/application-test.yml`, `@ActiveProfiles("test")` 필요). `NON_KEYWORDS=USER` 빠뜨리면 H2에서 `user` 테이블명이 예약어라 DDL이 깨짐(겪은 문제)

@@ -5,10 +5,13 @@ import com.petcare.domain.pet.HealthRecordType;
 import com.petcare.domain.pet.HealthRecordRepository;
 import com.petcare.domain.pet.PetGuardian;
 import com.petcare.domain.pet.PetGuardianRepository;
+import com.petcare.domain.pet.PetRoutine;
+import com.petcare.domain.pet.PetRoutineRepository;
 import com.petcare.domain.reservation.Reservation;
 import com.petcare.domain.reservation.ReservationRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,10 @@ public class ReminderScheduler {
 	private final ReservationRepository reservationRepository;
 	private final PetGuardianRepository petGuardianRepository;
 	private final NotificationService notificationService;
+	private final PetRoutineRepository petRoutineRepository;
+
+	// 루틴 시각이 지난 지 이만큼 안이면 알림 — 서버가 잠깐 꺼졌어도 따라잡되, 한참 지난 알림은 의미 없어서 버림
+	static final int ROUTINE_REMIND_WINDOW_MINUTES = 30;
 
 	private static final int VACCINATION_REMIND_DAYS = 3;
 
@@ -66,6 +73,42 @@ public class ReminderScheduler {
 			notificationService.notify(reservation.getUser().getId(), NotificationType.RESERVATION_REMINDER,
 					isToday ? "오늘 예약이 있습니다." : "내일 예약이 있습니다.");
 			reservation.markReminderSent();
+		}
+	}
+
+	// 같은 클래스 안 호출은 프록시를 안 거쳐 아래 메서드의 @Transactional이 안 먹음 — 여기에도 걸어야 세션이 열림
+	// (안 걸면 PetRoutine.daysOfWeek 지연 로딩에서 LazyInitializationException, 로컬 확인 중 겪음)
+	@Transactional
+	@Scheduled(fixedRate = 60_000)
+	public void sendRoutineReminders() {
+		sendRoutineReminders(LocalDateTime.now());
+	}
+
+	// 루틴 시각이 [now - 30분, now]인 오늘 일정 중 아직 체크 안 한 것 → 소유자 + 공동보호자(루틴 알림을 켠 사람만 실제 발송).
+	// 하루 한 번(PetRoutine.remindedDate), 이미 체크했으면 보내지 않고 오늘 처리만 표시. now를 받는 건 테스트에서 시각을 고정하려고
+	@Transactional
+	public void sendRoutineReminders(LocalDateTime now) {
+		LocalDate today = now.toLocalDate();
+		LocalTime current = now.toLocalTime();
+		LocalTime from = current.minusMinutes(ROUTINE_REMIND_WINDOW_MINUTES);
+		// 자정 직후엔 창이 전날로 넘어가므로 오늘 0시부터만 (전날 23시 반 이후 루틴을 자정 넘어 놓치는 건 감수)
+		if (from.isAfter(current)) {
+			from = LocalTime.MIN;
+		}
+		for (PetRoutine routine : petRoutineRepository.findUnremindedDueBetween(today, from, current)) {
+			if (!routine.occursOn(today)) {
+				continue;
+			}
+			routine.markReminded(today);
+			if (healthRecordRepository.existsByRoutineIdAndRecordedAt(routine.getId(), today)) {
+				continue;
+			}
+			String content = routine.getPet().getName() + " · " + routine.getTitle() + " 시간이에요 ("
+					+ routine.getTime().toString().substring(0, 5) + ")";
+			notificationService.notify(routine.getPet().getUser().getId(), NotificationType.ROUTINE_REMINDER, content);
+			for (PetGuardian guardian : petGuardianRepository.findAllByPetId(routine.getPet().getId())) {
+				notificationService.notify(guardian.getUser().getId(), NotificationType.ROUTINE_REMINDER, content);
+			}
 		}
 	}
 }

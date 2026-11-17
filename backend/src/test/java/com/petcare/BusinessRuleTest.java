@@ -1,5 +1,6 @@
 package com.petcare;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petcare.domain.hospital.HospitalRepository;
+import com.petcare.domain.notification.ReminderScheduler;
 import com.petcare.domain.hospital.Slot;
 import com.petcare.domain.hospital.SlotRepository;
 import com.petcare.domain.pet.PetRepository;
@@ -29,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,6 +69,7 @@ class BusinessRuleTest {
 	@Autowired private ReservationRepository reservationRepository;
 	@Autowired private WaitlistRepository waitlistRepository;
 	@Autowired private WaitlistService waitlistService;
+	@Autowired private ReminderScheduler reminderScheduler;
 
 	private String suffix;
 	private String adminToken;
@@ -1061,6 +1065,53 @@ class BusinessRuleTest {
 				.andExpect(status().isOk());
 		assertThat(getData("/api/pets/" + petId + "/health-records", token).get("content")).hasSize(1);
 		assertThat(routineEvents(calendarUrl, token)).hasSize(1);
+	}
+
+	@Test
+	void 루틴_알림은_켠_사람에게만_하루_한번_가고_이미_체크한_루틴은_안_간다() throws Exception {
+		String ownerEmail = "routine-remind" + System.nanoTime() + "@petcare.com";
+		String guardianEmail = "routine-remind-g" + System.nanoTime() + "@petcare.com";
+		String owner = signupAndLogin(ownerEmail);
+		String guardian = signupAndLogin(guardianEmail);
+		long petId = createPet(owner, "알림이");
+		mockMvc.perform(post("/api/pets/" + petId + "/guardians")
+						.header("Authorization", "Bearer " + owner)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"" + guardianEmail + "\"}"))
+				.andExpect(status().isCreated());
+		LocalDate today = LocalDate.now();
+		String everyDay = "[\"MONDAY\",\"TUESDAY\",\"WEDNESDAY\",\"THURSDAY\",\"FRIDAY\",\"SATURDAY\",\"SUNDAY\"]";
+		// 실제 1분 스케줄러와 겹치지 않게 새벽 시각으로 만들고 now를 직접 넘김
+		createRoutine(owner, petId, "{\"type\":\"WALK\",\"title\":\"새벽 산책\",\"time\":\"03:00\","
+				+ "\"daysOfWeek\":" + everyDay + ",\"startDate\":\"" + today.minusDays(1) + "\"}");
+		long doneId = createRoutine(owner, petId, "{\"type\":\"MEDICATION\",\"title\":\"새벽 약\",\"time\":\"03:10\","
+				+ "\"daysOfWeek\":" + everyDay + ",\"startDate\":\"" + today.minusDays(1) + "\"}");
+		mockMvc.perform(post("/api/pets/" + petId + "/routines/" + doneId + "/checks/" + today)
+						.header("Authorization", "Bearer " + owner))
+				.andExpect(status().isCreated());
+
+		// 루틴 알림은 기본 꺼짐 — 소유자만 켬
+		assertThat(getData("/api/notifications/preferences", guardian).toString()).contains("\"category\":\"ROUTINE\",\"enabled\":false");
+		mockMvc.perform(patch("/api/notifications/preferences")
+						.header("Authorization", "Bearer " + owner)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"category\":\"ROUTINE\",\"enabled\":true}"))
+				.andExpect(status().isOk());
+
+		reminderScheduler.sendRoutineReminders(today.atTime(3, 15));
+		reminderScheduler.sendRoutineReminders(today.atTime(3, 20));
+
+		assertThat(countOf(notificationTypes(owner), "ROUTINE_REMINDER")).isEqualTo(1);
+		assertThat(notificationTypes(owner)).contains("새벽 산책").doesNotContain("새벽 약");
+		assertThat(countOf(notificationTypes(guardian), "ROUTINE_REMINDER")).isZero();
+
+		// 실제 스케줄러 진입점(인자 없음, 현재 시각)도 트랜잭션 안에서 도는지 — 내부 호출이라 빠뜨리면 지연 로딩 예외(겪은 문제)
+		LocalTime now = LocalTime.now().truncatedTo(ChronoUnit.MINUTES);
+		assumeTrue(now.isAfter(LocalTime.of(0, 5)), "자정 직후엔 창이 0시부터라 건너뜀");
+		createRoutine(owner, petId, "{\"type\":\"MEAL\",\"title\":\"지금 간식\",\"time\":\"" + now.minusMinutes(1) + "\","
+				+ "\"daysOfWeek\":[],\"startDate\":\"" + today + "\"}");
+		reminderScheduler.sendRoutineReminders();
+		assertThat(notificationTypes(owner)).contains("지금 간식");
 	}
 
 	private MockHttpServletRequestBuilder routineRequest(String token, long petId, String json) {
