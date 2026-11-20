@@ -9,4 +9,6 @@ public interface NotificationPreferenceRepository extends JpaRepository<Notifica
 	Optional<NotificationPreference> findByUserIdAndCategory(Long userId, NotificationCategory category);
 
 	List<NotificationPreference> findAllByUserId(Long userId);
+
+	void deleteAllByUserId(Long userId);
 }

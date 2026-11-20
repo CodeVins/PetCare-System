@@ -124,7 +124,7 @@ com.petcare
   - **전송은 REST(`POST .../messages`) 그대로** — 저장·검증·권한·에러 응답 재사용. `ChatService.sendMessage()`가 커밋 후(`afterCommit`) `SimpMessagingTemplate`으로 방 구독자에게 `ChatMessageResponse` push. 보낸 사람도 받으므로 프론트는 id로 중복 제거
   - 인증·인가는 `ChatStompInterceptor`(핸드셰이크 `/api/ws`는 permitAll): CONNECT 프레임의 `Authorization: Bearer` 검증+정지 계정 거부, SUBSCRIBE는 `/topic/chat-rooms/{id}`만 + `canAccess()` 재검증(`findWithHospitalById` — 트랜잭션 밖이라 hospital 같이 로딩), **SEND 프레임은 전부 거부**(안 막으면 `/topic`에 직접 보내 다른 사람 행세 가능). 인터셉터에서 `ChatService`를 쓰면 SimpMessagingTemplate↔WebSocket 설정 순환 의존이 생겨서 레포지토리 직접 사용
   - 받는 사람이 그 방을 구독 중이면(`SimpUserRegistry`, 유저 이름=이메일) `CHAT_MESSAGE_RECEIVED` 알림 생략 — 채팅방을 안 보고 있을 때만 알림. 이전엔 메시지마다 알림이 쌓였고, 채팅 알림을 끈 유저는 실시간 갱신이 안 됐음(알림 SSE로 재조회 트리거하던 방식의 버그)
-  - 알려진 한계: 연결 후 accessToken이 만료돼도 기존 WebSocket 연결은 유지됨(재연결 때만 재검증, 정지도 재연결 시점부터 반영). 메시지 목록 조회는 오래된 순 100개까지만 가져옴(기존부터 있던 한계)
+  - 알려진 한계: 연결 후 accessToken이 만료돼도 기존 WebSocket 연결은 유지됨(재연결 때만 재검증, 정지도 재연결 시점부터 반영). 메시지 목록은 최신 100개(2026-11-20: 최신순으로 페이지를 자르고 페이지 안만 오래된 순 — 이전엔 오래된 100개라 새 메시지가 안 보였음). 위로 스크롤해 이전 페이지 불러오기는 프론트 미구현
   - 안 읽은 메시지 수(2026-10-02): `ChatRoom.customerLastReadMessageId`/`hospitalLastReadMessageId`(양쪽이 마지막으로 읽은 메시지 id, null=안 읽음). `GET /api/chat-rooms` 응답 `unreadCount`(헤더 채팅 아이콘 배지는 합계 `GET /api/chat-rooms/unread-count`, 같은 기준) = 상대편이 보낸 메시지 중 내 쪽 읽음 id보다 큰 것(`ChatMessageRepository.countUnreadFor*`, 페이지 단위 group by 쿼리 한 번). `PATCH /api/chat-rooms/{roomId}/read`로 최신 메시지까지 읽음 — 프론트가 방 진입 시 + 열어둔 채 상대 메시지 수신 시 호출. 병원 측은 소유자만 읽음 처리, **ADMIN 열람은 읽음 처리 안 함**(중재 목적 열람으로 소유자의 안 읽음이 사라지면 안 됨)
   - 테스트: `ChatWebSocketTest`(RANDOM_PORT + 실제 STOMP 클라이언트 — 수신/구독 중 알림 생략, 타인 방 구독 거부, 토큰 없는 연결 거부, 안 읽은 수·관리자 열람 시 유지)
 - `HospitalService.findHospital()`을 다른 도메인(chat)에서도 써야 해서 package-private → public으로 변경
@@ -182,7 +182,7 @@ com.petcare
   - **완료 체크 = 같은 종류의 `HealthRecord` 생성**(`POST/DELETE .../routines/{id}/checks/{date}`, content=루틴 이름, routine_id 연결) → 건강 기록 목록·통계에 그대로 쌓임. 하루 한 번((routine_id, recorded_at) 유니크, 중복 409), 그날 일정이 있어야(400) + 오늘까지만(미래 400). 건강기록 화면에서 그 기록을 지우면 체크도 풀림
   - 캘린더: `ROUTINE` 이벤트(`routineId`, `done`) — 완료 기록은 RECORD로 따로 찍지 않고 done으로만(중복 방지). 루틴 삭제 시 완료 기록은 `detachRoutine`으로 연결만 끊고 일반 기록으로 남김, 펫 삭제 시엔 기록 → 루틴 순으로 정리
   - 2026-11-17 체크한 사람: 체크 시 `HealthRecord.recordedBy`에 저장 → `ROUTINE` 이벤트 `doneByUserId`·`doneByEmail`(프론트가 나면 "내가 완료", 아니면 이메일 앞부분, 카카오 자리표시 이메일은 "가족"). 그 이전 체크 기록은 작성자 없음(null)
-  - 미룬 것: 격주·매월 같은 RRULE
+  - 2026-11-20 반복 주기: `PetRoutine.repeat`(`RoutineRepeat` WEEKLY/BIWEEKLY/MONTHLY, 컬럼 `repeat_cycle` — REPEAT는 MySQL 예약어, null=WEEKLY). 격주는 시작일이 속한 주(월요일 기준)부터 짝수 주차의 고른 요일, 매월은 시작일과 같은 날(그 달에 없으면 말일)이고 요일은 저장 안 함(요일 비어도 일회성 아님). 테스트: `PetRoutineTest`(단위), `BusinessRuleTest`(캘린더 펼침). 임의 간격·RRULE은 여전히 안 함
 - 테스트: `BusinessRuleTest`(캘린더 — 공동보호자도 같은 일정, 취소 예약 제외, 남의 펫 빈 결과, 62일 초과·역순 400 / 루틴 — 공동보호자가 체크하면 소유자 캘린더에 doneByEmail, 요일대로 펼침·일회성, 잘못된 종류 400, 남의 펫 403, 체크 중복 409·미래·일정 없는 날 400, 캘린더 done 반영·RECORD 중복 없음, 루틴 삭제 후 기록 유지)
 
 ## 건강 기록 통계
@@ -201,10 +201,17 @@ com.petcare
 - `NotificationService.notify()`가 알림 생성/SSE push 전에 `NotificationPreference`를 먼저 조회해서 꺼져있으면 DB 저장도 SSE push도 아예 안 함(꺼진 알림은 나중에 폴링해도 안 보임 — 완전히 발송 안 되는 것)
 
 ## 리뷰 답글 / 예약 노쇼 / 병원 사진 / 계정 정지
-- `POST/PATCH/DELETE /api/hospitals/{hospitalId}/reviews/{reviewId}/reply` — ADMIN 또는 해당 병원 소유 HOSPITAL_OWNER만(`Hospital.isManagedBy()` 재검증), 리뷰 1개당 답글 1개(중복 작성 시 409). `GET .../reviews` 응답에 `reply` 필드로 같이 내려감(리뷰마다 답글 존재 여부 조회하는 N+1 방식 — ponytail: 목록이 커지면 답글 일괄 조회로 최적화 필요)
+- `POST/PATCH/DELETE /api/hospitals/{hospitalId}/reviews/{reviewId}/reply` — ADMIN 또는 해당 병원 소유 HOSPITAL_OWNER만(`Hospital.isManagedBy()` 재검증), 리뷰 1개당 답글 1개(중복 작성 시 409). `GET .../reviews` 응답에 `reply` 필드로 같이 내려감(2026-11-20부터 `repliesOf()` IN 쿼리 한 번)
 - `PATCH /api/admin/reservations/{id}/no-show` (ADMIN 또는 해당 병원 HOSPITAL_OWNER) — CONFIRMED 상태만 NO_SHOW로 전환 가능(PENDING/이미 NO_SHOW 등은 409). NO_SHOW는 취소 불가 상태(`isCancellable()`에 포함 안 됨)라 사용자가 되돌릴 수 없고, 리뷰 작성 자격 판단(CONFIRMED 기준)에서도 자동으로 제외됨. 슬롯은 릴리즈하지 않음(이미 지나간 시간이라 대기자 알림 대상 아님). `GET /api/admin/stats/summary`에 `noShowReservations` 집계 포함
 - `POST/DELETE /api/hospitals/{hospitalId}/image` — Pet 사진 업로드와 동일 패턴(`FileStorageService`를 pet/hospital 공용으로 일반화, `uploads/hospitals/`, jpg/png/webp만, 5MB 제한). ADMIN 또는 소유 HOSPITAL_OWNER만
 - `PATCH /api/admin/users/{userId}/suspend`, `PATCH /api/admin/users/{userId}/activate` (ADMIN 전용) — 정지된 계정은 로그인 시 403(`AuthService.login()`에서 체크). 본인 계정은 정지 불가(역할 변경과 동일한 자기 자신 보호 패턴). **정지는 즉시 반영**: `JwtAuthenticationFilter`가 이미 매 요청마다 유저를 DB에서 읽으므로(`loadUserByUsername`) 거기서 `suspended`면 인증을 세팅하지 않음 → 기존 accessToken으로도 바로 401. `AuthService.reissue()`도 정지 계정이면 403(겪은 버그: 예전엔 로그인만 막아서 refreshToken으로 14일간 계속 재발급 가능했음)
+
+## 회원 탈퇴
+- 2026-11-20: `DELETE /api/users/me` `{password}`(카카오 계정은 비워도 됨, 틀리면 400 — 401이면 프론트 인터셉터가 재발급을 시도해서). `WithdrawalService`. **행은 지우지 않고 익명화 + 정지**(예약·리뷰·채팅·진료 기록이 user FK로 참조 — Pet 삭제 정책과 같은 이유): 이메일 → `withdrawn-{id}@petcare.invalid`(원래 이메일로 재가입 가능), 비밀번호 랜덤, `kakaoId` null, `suspended`, `withdrawnAt`. 같이 지우는 것: refreshToken·재설정 토큰·찜·대기·알림·알림 설정·공동보호자 참여, 예약 이력 없는 내 펫(`PetService.delete` 재사용). 예약 이력 있는 펫은 남음
+- 막는 경우(409): ADMIN, 소유 병원이 있음, 시작 전 대기·확정 예약이 있음. 관리자는 탈퇴 계정을 정지 해제할 수 없음(409)
+- 토큰: 이메일이 바뀌어 기존 accessToken이 즉시 401 — `JwtAuthenticationFilter`가 유저를 못 찾으면(이메일 변경·탈퇴) 인증 없이 통과하도록 수정(이전엔 `UsernameNotFoundException`이 필터 밖으로 터졌음)
+- 비밀번호 변경·재설정 시에도 refreshToken 삭제(2026-11-20, 이전엔 유출된 refreshToken으로 14일간 재발급 가능)
+- 테스트: `BusinessRuleTest`(비밀번호 400, 다가오는 예약 409, 탈퇴 후 토큰·재발급 401, 재가입, 펫 정리, 정지 해제 409)
 
 ## 다중 보호자 (가족 공유 반려동물 계정)
 - 최초 등록자(`Pet.user`)와 공동보호자(`PetGuardian`)는 프로필/건강기록/예약/사진 업로드 등 일상 관리 권한은 완전히 동등. **단, 보호자 초대/퇴출과 Pet 삭제는 최초 등록자만 가능**(민감한 "누가 접근 가능한가"를 결정하는 권한이라 별도 분리)
@@ -228,7 +235,7 @@ com.petcare
 - Redis도 로컬 컨테이너 `petcare-redis`(`redis:7-alpine`, 6379) — `docker start petcare-redis`. 운영은 compose의 `redis` 서비스(영속화 끔, maxmemory 64mb)
 
 ## 자동화 테스트
-- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트), `KakaoLoginTest`(카카오 API 목) — 총 44개
+- `src/test`에 핵심 흐름 통합테스트 존재: `AuthFlowTest`(회원가입/로그인/중복/오답 비밀번호), `ReservationFlowTest`(예약 생성→PENDING→관리자 확정, 그리고 동시 예약 요청 시 하나만 성공하는지 — `@Version` 낙관적 락 검증), `BusinessRuleTest`(슬롯 시간 규칙, 타 병원 소유자 403, 공동보호자 삭제 403, 대기 1순위만 알림, 정지 즉시 반영 외 기능별 규칙), `DemoDataSeederTest`(데모 시더를 켠 별도 컨텍스트), `ChatWebSocketTest`(실제 STOMP 클라이언트), `KakaoLoginTest`(카카오 API 목), `PetRoutineTest`(단위) — 총 51개
 - 과거 시간 슬롯은 API로 못 만들게 막혀 있어서, 지난 슬롯/지난 예약이 필요한 테스트는 `SlotRepository`/`ReservationRepository`로 직접 저장함
 - Redis는 Testcontainers(`RedisTestConfig`, `@ServiceConnection`)로 테스트 중에만 컨테이너를 띄움 — **모든 `@SpringBootTest` 클래스에 `@Import(RedisTestConfig.class)`** 붙일 것(설정이 같아야 컨텍스트가 캐시돼 컨테이너가 한 번만 뜸). 로컬/CI 모두 Docker 필요. Testcontainers 버전을 `build.gradle`에서 1.21.4로 올려둠(Boot 3.4.1 기본 1.20.x는 Docker 29에서 실행 실패 — 겪은 문제)
 - 테스트는 개발용 MySQL을 안 건드리고 별도 H2 인메모리 DB 사용 (`src/test/resources/application-test.yml`, `@ActiveProfiles("test")` 필요). `NON_KEYWORDS=USER` 빠뜨리면 H2에서 `user` 테이블명이 예약어라 DDL이 깨짐(겪은 문제)

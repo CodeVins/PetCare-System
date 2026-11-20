@@ -10,7 +10,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
-	Page<ChatMessage> findAllByChatRoomIdOrderByCreatedAtAsc(Long chatRoomId, Pageable pageable);
+	// 변경(2026-11-20): 최신순 조회로 바꿈 — 서비스가 페이지 안만 오래된 순으로 뒤집음 (이전: 오래된 순이라 100개 넘으면 새 메시지 누락)
+	Page<ChatMessage> findAllByChatRoomIdOrderByIdDesc(Long chatRoomId, Pageable pageable);
 
 	@Query("select max(m.id) from ChatMessage m where m.chatRoom.id = :roomId")
 	Long findLatestId(@Param("roomId") Long roomId);

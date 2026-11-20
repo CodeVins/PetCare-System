@@ -68,11 +68,10 @@ public class ReviewService {
 
 	// 변경(2026-09-27): 요청자 id를 받아 리뷰별 mine 계산 (이전: 요청자와 무관한 응답이라 프론트가 내 리뷰를 식별 못 함)
 	public PageResponse<ReviewResponse> getReviews(Long userId, Long hospitalId, Pageable pageable) {
-		return PageResponse.from(reviewRepository
-				.findAllByHospitalIdAndHiddenFalseOrderByCreatedAtDesc(hospitalId, pageable)
-				.map(review -> ReviewResponse.of(review, reviewReplyRepository.findByReviewId(review.getId())
-						.map(ReviewReplyResponse::from)
-						.orElse(null), userId)));
+		// 변경(2026-11-20): 답글을 repliesOf()로 IN 쿼리 한 번에 (이전: 리뷰마다 답글 조회 — N+1)
+		var reviews = reviewRepository.findAllByHospitalIdAndHiddenFalseOrderByCreatedAtDesc(hospitalId, pageable);
+		Map<Long, ReviewReplyResponse> replies = repliesOf(reviews.map(Review::getId).toList());
+		return PageResponse.from(reviews.map(review -> ReviewResponse.of(review, replies.get(review.getId()), userId)));
 	}
 
 	public PageResponse<MyReviewResponse> getMyReviews(Long userId, Pageable pageable) {

@@ -18,4 +18,6 @@ public interface PetGuardianRepository extends JpaRepository<PetGuardian, Long> 
 
 	@Query("select count(distinct g.user.id) from PetGuardian g where g.pet.user.id = :ownerId")
 	long countDistinctGuardiansByPetOwnerId(@Param("ownerId") Long ownerId);
+
+	void deleteAllByUserId(Long userId);
 }

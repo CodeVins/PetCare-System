@@ -29,6 +29,7 @@ export default function RoutineDialog({
     type: 'WALK',
     title: '',
     time: null,
+    repeat: 'WEEKLY',
     daysOfWeek: [],
     startDate: date,
     endDate: null,
