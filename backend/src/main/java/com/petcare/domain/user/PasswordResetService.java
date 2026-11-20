@@ -24,6 +24,7 @@ public class PasswordResetService {
 	private final UserRepository userRepository;
 	private final PasswordResetTokenRepository passwordResetTokenRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final RefreshTokenRepository refreshTokenRepository;
 
 	@Transactional
 	public void requestReset(String email) {
@@ -51,5 +52,7 @@ public class PasswordResetService {
 
 		resetToken.getUser().changePassword(passwordEncoder.encode(newPassword));
 		resetToken.markUsed();
+		// 변경(2026-11-20): 재설정 시 refreshToken 삭제 (이전: 비밀번호를 바꿔도 기존 refreshToken으로 계속 재발급 가능)
+		refreshTokenRepository.deleteByUserId(resetToken.getUser().getId());
 	}
 }

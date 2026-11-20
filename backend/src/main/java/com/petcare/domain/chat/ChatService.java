@@ -13,11 +13,14 @@ import com.petcare.domain.user.UserRepository;
 import com.petcare.global.common.PageResponse;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.user.SimpUser;
@@ -86,9 +89,13 @@ public class ChatService {
 
 	public PageResponse<ChatMessageResponse> getMessages(User currentUser, Long roomId, Pageable pageable) {
 		ChatRoom room = findRoom(roomId, currentUser);
-		return PageResponse.from(
-				chatMessageRepository.findAllByChatRoomIdOrderByCreatedAtAsc(room.getId(), pageable)
-						.map(ChatMessageResponse::from));
+		// 변경(2026-11-20): 최신 메시지부터 페이지를 자르고 페이지 안만 오래된 순으로 — page=0이 최근 대화, page=1이 그 이전
+		// (이전: 오래된 순 첫 페이지라 size(100)개가 넘는 방은 새 메시지가 목록에 안 나옴)
+		Page<ChatMessageResponse> latest = chatMessageRepository.findAllByChatRoomIdOrderByIdDesc(room.getId(), pageable)
+				.map(ChatMessageResponse::from);
+		List<ChatMessageResponse> ascending = new ArrayList<>(latest.getContent());
+		Collections.reverse(ascending);
+		return PageResponse.from(new PageImpl<>(ascending, latest.getPageable(), latest.getTotalElements()));
 	}
 
 	@Transactional

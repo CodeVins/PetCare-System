@@ -27,4 +27,6 @@ public interface WaitlistRepository extends JpaRepository<Waitlist, Long> {
 	List<Waitlist> findAllOfferedBefore(@Param("deadline") LocalDateTime deadline);
 
 	void deleteAllByPetId(Long petId);
+
+	void deleteAllByUserId(Long userId);
 }

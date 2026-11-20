@@ -22,6 +22,11 @@ export function changePassword({
   })
 }
 
+// 회원 탈퇴 — 카카오 로그인 계정은 비밀번호 없이(빈 값)
+export function withdraw(password: string): ApiPromise<null> {
+  return axiosInstance.delete('/api/users/me', { data: { password: password || null } })
+}
+
 export function getUpcomingVaccinations(): ApiPromise<UpcomingVaccination[]> {
   return axiosInstance.get('/api/users/me/upcoming-vaccinations')
 }

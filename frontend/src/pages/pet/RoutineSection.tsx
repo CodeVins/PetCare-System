@@ -23,22 +23,27 @@ const EMPTY_FORM: RoutinePayload = {
   type: 'WALK',
   title: '',
   time: null,
+  repeat: 'WEEKLY',
   daysOfWeek: WEEK.map((w) => w.day),
   startDate: '',
   endDate: null,
 }
 
-// "매일 · 07:30", "월·수·금", "한 번 · 11월 3일 (화)" (+ 종료일)
-function routineSchedule(routine: Pick<Routine, 'time' | 'daysOfWeek' | 'startDate' | 'endDate'>) {
+// "매일 · 07:30", "월·수·금", "격주 월·목", "매월 15일", "한 번 · 11월 3일 (화)" (+ 종료일)
+// 변경(2026-11-20): 격주·매월 표시 추가 (이전: 매주 요일 반복만)
+function routineSchedule(routine: Pick<Routine, 'time' | 'repeat' | 'daysOfWeek' | 'startDate' | 'endDate'>) {
   const days = routine.daysOfWeek
-  const when =
-    days.length === 0
+  const monthly = routine.repeat === 'MONTHLY'
+  const weekDays = days.length === 7 ? '매일' : WEEK.filter((w) => days.includes(w.day)).map((w) => w.label).join('·')
+  const when = monthly
+    ? `매월 ${Number(routine.startDate.slice(8, 10))}일`
+    : days.length === 0
       ? `한 번 · ${formatDateLabel(routine.startDate)}`
-      : days.length === 7
-        ? '매일'
-        : WEEK.filter((w) => days.includes(w.day)).map((w) => w.label).join('·')
+      : routine.repeat === 'BIWEEKLY'
+        ? `격주 ${days.length === 7 ? '매일' : weekDays}`
+        : weekDays
   const time = routine.time ? ` · ${routine.time.slice(0, 5)}` : ''
-  const until = days.length > 0 && routine.endDate ? ` · ${formatDateLabel(routine.endDate)}까지` : ''
+  const until = (monthly || days.length > 0) && routine.endDate ? ` · ${formatDateLabel(routine.endDate)}까지` : ''
   return when + time + until
 }
 
@@ -72,6 +77,7 @@ export default function RoutineSection({ petId }: { petId: number | string }) {
       type: routine.type,
       title: routine.title,
       time: routine.time?.slice(0, 5) ?? null,
+      repeat: routine.repeat,
       daysOfWeek: routine.daysOfWeek,
       startDate: routine.startDate,
       endDate: routine.endDate,

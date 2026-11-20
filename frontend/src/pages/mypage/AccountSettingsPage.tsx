@@ -1,10 +1,12 @@
 import { errorMessage } from '../../api/axiosInstance'
 import { useEffect, useState, type FormEvent } from 'react'
-import { changePassword, getMe, updateEmail } from '../../api/userApi'
+import { useNavigate } from 'react-router-dom'
+import { changePassword, getMe, updateEmail, withdraw } from '../../api/userApi'
 import Alert from '../../components/common/Alert'
 import Button from '../../components/common/Button'
 import PageHeader from '../../components/common/PageHeader'
 import TextField from '../../components/common/TextField'
+import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 
 export default function AccountSettingsPage() {
@@ -21,7 +23,13 @@ export default function AccountSettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState('')
 
+  const [withdrawPassword, setWithdrawPassword] = useState('')
+  const [withdrawing, setWithdrawing] = useState(false)
+  const [withdrawError, setWithdrawError] = useState('')
+
   const toast = useToast()
+  const { logout } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     getMe()
@@ -67,6 +75,22 @@ export default function AccountSettingsPage() {
       setPasswordError(errorMessage(err, '비밀번호 변경에 실패했습니다.'))
     } finally {
       setPasswordSaving(false)
+    }
+  }
+
+  const handleWithdrawSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setWithdrawError('')
+    if (!window.confirm('정말 탈퇴할까요? 되돌릴 수 없어요.')) return
+    setWithdrawing(true)
+    try {
+      await withdraw(withdrawPassword)
+      logout()
+      toast('탈퇴했어요. 그동안 이용해 주셔서 감사합니다.')
+      navigate('/', { replace: true })
+    } catch (err) {
+      setWithdrawError(errorMessage(err, '탈퇴에 실패했습니다.'))
+      setWithdrawing(false)
     }
   }
 
@@ -148,6 +172,34 @@ export default function AccountSettingsPage() {
           className="w-full"
         >
           비밀번호 변경
+        </Button>
+      </form>
+
+      <form
+        onSubmit={handleWithdrawSubmit}
+        className="card flex flex-col gap-3 p-5 md:p-6"
+        aria-labelledby="h-withdraw"
+      >
+        <h2 id="h-withdraw" className="h-section">
+          회원 탈퇴
+        </h2>
+        <ul className="list-disc pl-5 text-[13px] text-stone-600">
+          <li>로그인 정보와 알림·찜·대기 신청이 삭제되고, 같은 이메일로 다시 가입할 수 있어요.</li>
+          <li>예약 이력이 없는 반려동물은 건강 기록과 함께 삭제돼요.</li>
+          <li>예약·리뷰·채팅 기록은 병원 기록으로 남지만 내 이메일은 표시되지 않아요.</li>
+          <li>다가오는 예약이 있거나 병원을 관리 중이면 탈퇴할 수 없어요.</li>
+        </ul>
+        <TextField
+          label="비밀번호 확인"
+          type="password"
+          autoComplete="current-password"
+          value={withdrawPassword}
+          onChange={(event) => setWithdrawPassword(event.target.value)}
+          hint="카카오로 가입했다면 비워두세요."
+        />
+        <Alert tone="error">{withdrawError}</Alert>
+        <Button type="submit" variant="danger" loading={withdrawing} className="w-full">
+          탈퇴하기
         </Button>
       </form>
     </div>

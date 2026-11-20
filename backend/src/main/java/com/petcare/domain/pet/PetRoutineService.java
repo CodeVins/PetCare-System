@@ -44,6 +44,7 @@ public class PetRoutineService {
 				.type(request.type())
 				.title(request.title())
 				.time(request.time())
+				.repeat(request.repeat())
 				.daysOfWeek(request.daysOfWeek())
 				.startDate(request.startDate())
 				.endDate(endDateOf(request))
@@ -55,7 +56,7 @@ public class PetRoutineService {
 	public RoutineResponse update(Long userId, Long petId, Long routineId, RoutineRequest request) {
 		PetRoutine routine = getRoutine(userId, petId, routineId);
 		validate(request);
-		routine.update(request.type(), request.title(), request.time(), request.daysOfWeek(),
+		routine.update(request.type(), request.title(), request.time(), request.repeat(), request.daysOfWeek(),
 				request.startDate(), endDateOf(request));
 		return RoutineResponse.from(routine);
 	}
@@ -121,8 +122,10 @@ public class PetRoutineService {
 	}
 
 	// 일회성 일정(요일 없음)은 종료일이 의미 없어서 비움
+	// 변경(2026-11-20): 매월 루틴은 요일이 없어도 반복이라 종료일 유지 (이전: 요일 없음 = 일회성)
 	private LocalDate endDateOf(RoutineRequest request) {
-		boolean oneTime = request.daysOfWeek() == null || request.daysOfWeek().isEmpty();
+		boolean oneTime = request.repeat() != RoutineRepeat.MONTHLY
+				&& (request.daysOfWeek() == null || request.daysOfWeek().isEmpty());
 		return oneTime ? null : request.endDate();
 	}
 }

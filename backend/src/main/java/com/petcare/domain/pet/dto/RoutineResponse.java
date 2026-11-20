@@ -1,6 +1,7 @@
 package com.petcare.domain.pet.dto;
 
 import com.petcare.domain.pet.HealthRecordType;
+import com.petcare.domain.pet.RoutineRepeat;
 import com.petcare.domain.pet.PetRoutine;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -13,6 +14,7 @@ public record RoutineResponse(
 		HealthRecordType type,
 		String title,
 		LocalTime time,
+		RoutineRepeat repeat,
 		// 월→일 순서 (Set이라 저장 순서가 없어서)
 		List<DayOfWeek> daysOfWeek,
 		LocalDate startDate,
@@ -21,7 +23,7 @@ public record RoutineResponse(
 
 	public static RoutineResponse from(PetRoutine routine) {
 		return new RoutineResponse(
-				routine.getId(), routine.getPet().getId(), routine.getType(), routine.getTitle(), routine.getTime(),
+				routine.getId(), routine.getPet().getId(), routine.getType(), routine.getTitle(), routine.getTime(), routine.getRepeat(),
 				routine.getDaysOfWeek().stream().sorted().toList(),
 				routine.getStartDate(), routine.getEndDate());
 	}

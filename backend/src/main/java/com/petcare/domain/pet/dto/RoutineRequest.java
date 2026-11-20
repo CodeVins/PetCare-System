@@ -1,6 +1,7 @@
 package com.petcare.domain.pet.dto;
 
 import com.petcare.domain.pet.HealthRecordType;
+import com.petcare.domain.pet.RoutineRepeat;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,6 +15,8 @@ public record RoutineRequest(
 		@NotNull(message = "종류를 선택해주세요.") HealthRecordType type,
 		@NotBlank(message = "이름을 입력해주세요.") @Size(max = 50, message = "이름은 50자 이하로 입력해주세요.") String title,
 		LocalTime time,
+		// 없으면 WEEKLY. MONTHLY면 daysOfWeek는 무시하고 매월 startDate와 같은 날
+		RoutineRepeat repeat,
 		Set<DayOfWeek> daysOfWeek,
 		@NotNull(message = "시작일을 입력해주세요.") LocalDate startDate,
 		LocalDate endDate

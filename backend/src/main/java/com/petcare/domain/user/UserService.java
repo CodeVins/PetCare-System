@@ -22,6 +22,7 @@ public class UserService {
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final RefreshTokenRepository refreshTokenRepository;
 	private final HealthRecordRepository healthRecordRepository;
 
 	public UserResponse getMe(Long userId) {
@@ -53,6 +54,8 @@ public class UserService {
 			throw new InvalidCredentialsException();
 		}
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
+		// 변경(2026-11-20): 비밀번호 변경 시 refreshToken 삭제 — 다른 기기는 재로그인 필요 (이전: 유출된 refreshToken으로 14일간 계속 재발급 가능)
+		refreshTokenRepository.deleteByUserId(user.getId());
 	}
 
 	private User findUser(Long userId) {

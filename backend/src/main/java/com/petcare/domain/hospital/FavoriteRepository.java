@@ -15,4 +15,6 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
 	Page<Favorite> findAllByUserId(Long userId, Pageable pageable);
 
 	List<Favorite> findAllByHospitalId(Long hospitalId);
+
+	void deleteAllByUserId(Long userId);
 }

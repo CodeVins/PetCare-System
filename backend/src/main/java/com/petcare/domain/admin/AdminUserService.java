@@ -11,6 +11,7 @@ import com.petcare.domain.user.User;
 import com.petcare.domain.user.UserRepository;
 import com.petcare.domain.user.dto.UserResponse;
 import com.petcare.global.common.PageResponse;
+import com.petcare.global.exception.ConflictException;
 import com.petcare.global.exception.ForbiddenException;
 import com.petcare.global.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,10 @@ public class AdminUserService {
 
 		User user = userRepository.findById(targetUserId)
 				.orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+		// 변경(2026-11-20): 탈퇴 계정은 정지 해제 불가 — 탈퇴는 정지 상태로 남기는 방식이라 해제하면 되살아남 (이전: 탈퇴 없음)
+		if (!suspend && user.isWithdrawn()) {
+			throw new ConflictException("탈퇴한 계정은 정지 해제할 수 없습니다.");
+		}
 		if (suspend) {
 			user.suspend();
 		} else {

@@ -8,6 +8,7 @@ import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -29,7 +30,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		String token = resolveToken(request);
 
 		if (StringUtils.hasText(token) && jwtTokenProvider.isValid(token)) {
-			CustomUserDetails userDetails = userDetailsService.loadUserByUsername(jwtTokenProvider.getEmail(token));
+			CustomUserDetails userDetails;
+			try {
+				userDetails = userDetailsService.loadUserByUsername(jwtTokenProvider.getEmail(token));
+			} catch (UsernameNotFoundException e) {
+				// 변경(2026-11-20): 토큰의 이메일로 유저가 없으면(이메일 변경·탈퇴) 인증 없이 통과 → 401
+				// (이전: 예외가 필터 밖으로 터져서 401이 아니라 에러 응답)
+				filterChain.doFilter(request, response);
+				return;
+			}
 			// 변경(2026-09-27): 정지 계정은 인증을 세팅하지 않음(→ 401) — 어차피 매 요청마다 유저를 DB에서 읽고 있어서
 			// 추가 비용 없이 정지를 즉시 반영 가능 (이전: 로그인 시점에만 체크, 기존 accessToken은 최대 1시간 계속 유효)
 			if (!userDetails.getUser().isSuspended()) {

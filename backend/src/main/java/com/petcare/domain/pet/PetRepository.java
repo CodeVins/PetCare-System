@@ -1,5 +1,6 @@
 package com.petcare.domain.pet;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,4 +16,6 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
 	@Query("select p from Pet p where p.user.id = :userId "
 			+ "or exists (select 1 from PetGuardian g where g.pet = p and g.user.id = :userId)")
 	Page<Pet> findAllAccessibleByUserId(@Param("userId") Long userId, Pageable pageable);
+
+	List<Pet> findAllByUserId(Long userId);
 }

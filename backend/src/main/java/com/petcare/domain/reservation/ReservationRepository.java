@@ -75,4 +75,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 			+ " and r.slot.startTime >= :start and r.slot.startTime < :end")
 	List<Reservation> findUnremindedConfirmedStartingBetween(
 			@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+	// 회원 탈퇴 가능 여부 — 아직 시작 전인 대기·확정 예약이 있는지
+	boolean existsByUserIdAndStatusInAndSlot_StartTimeAfter(Long userId, Collection<ReservationStatus> statuses, LocalDateTime now);
 }

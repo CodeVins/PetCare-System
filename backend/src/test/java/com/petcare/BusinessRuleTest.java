@@ -1142,6 +1142,122 @@ class BusinessRuleTest {
 		assertThat(after.get("doneByEmail").asText()).isEqualTo(guardianEmail);
 	}
 
+	@Test
+	void 루틴_격주_매월_캘린더에_주기대로_펼쳐짐() throws Exception {
+		String token = signupAndLogin("routine-cycle-" + System.nanoTime() + "@test.com");
+		long petId = createPet(token, "주기");
+		LocalDate monday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.MONDAY));
+		createRoutine(token, petId, "{\"type\":\"WALK\",\"title\":\"격주 산책\",\"repeat\":\"BIWEEKLY\","
+				+ "\"daysOfWeek\":[\"MONDAY\"],\"startDate\":\"" + monday + "\"}");
+		long monthlyId = createRoutine(token, petId, "{\"type\":\"MEDICATION\",\"title\":\"심장사상충\",\"repeat\":\"MONTHLY\","
+				+ "\"daysOfWeek\":[\"MONDAY\"],\"startDate\":\"" + monday + "\"}");
+
+		List<String> dates = routineEvents("/api/calendar?from=" + monday + "&to=" + monday.plusDays(41) + "&petId=" + petId, token)
+				.stream().map(e -> e.get("title").asText() + "@" + e.get("date").asText()).toList();
+		assertThat(dates).filteredOn(s -> s.startsWith("격주"))
+				.containsExactly("격주 산책@" + monday, "격주 산책@" + monday.plusWeeks(2), "격주 산책@" + monday.plusWeeks(4));
+		assertThat(dates).filteredOn(s -> s.startsWith("심장사상충"))
+				.containsExactly("심장사상충@" + monday, "심장사상충@" + monday.plusMonths(1));
+
+		JsonNode monthly = null;
+		for (JsonNode routine : getData("/api/pets/" + petId + "/routines", token)) {
+			if (routine.get("id").asLong() == monthlyId) {
+				monthly = routine;
+			}
+		}
+		assertThat(monthly.get("repeat").asText()).isEqualTo("MONTHLY");
+		assertThat(monthly.get("daysOfWeek")).isEmpty();
+	}
+
+	@Test
+	void 비밀번호_변경하면_기존_refreshToken으로_재발급_불가() throws Exception {
+		String email = "pw-revoke-" + System.nanoTime() + "@test.com";
+		signup(email);
+		JsonNode tokens = loginResponse(email, "password123");
+		mockMvc.perform(patch("/api/users/me/password")
+						.header("Authorization", "Bearer " + tokens.get("accessToken").asText())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"currentPassword\":\"password123\",\"newPassword\":\"newpassword123\"}"))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"refreshToken\":\"" + tokens.get("refreshToken").asText() + "\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void 채팅_메시지는_최신_페이지를_오래된_순으로() throws Exception {
+		String token = signupAndLogin("chat-latest-" + System.nanoTime() + "@test.com");
+		long roomId = data(mockMvc.perform(post("/api/chat-rooms")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"hospitalId\":" + hospitalId + "}"))
+				.andReturn()).get("id").asLong();
+		for (String content : List.of("첫째", "둘째", "셋째")) {
+			mockMvc.perform(post("/api/chat-rooms/" + roomId + "/messages")
+							.header("Authorization", "Bearer " + token)
+							.contentType(MediaType.APPLICATION_JSON)
+							.content("{\"content\":\"" + content + "\"}"))
+					.andExpect(status().isCreated());
+		}
+
+		JsonNode page = getData("/api/chat-rooms/" + roomId + "/messages?size=2", token);
+		assertThat(page.get("content").findValuesAsText("content")).containsExactly("둘째", "셋째");
+		assertThat(page.get("totalElements").asLong()).isEqualTo(3);
+	}
+
+	@Test
+	void 회원_탈퇴_규칙() throws Exception {
+		String email = "withdraw-" + System.nanoTime() + "@test.com";
+		signup(email);
+		JsonNode tokens = loginResponse(email, "password123");
+		String token = tokens.get("accessToken").asText();
+		long freePetId = createPet(token, "이력없음");
+		long slotId = createSlot(hospitalId, future(30), future(31));
+		long reservationId = createReservation(token, freePetId, slotId);
+
+		// 비밀번호 틀림 400, 다가오는 예약 있으면 409
+		mockMvc.perform(withdrawRequest(token, "wrong-password")).andExpect(status().isBadRequest());
+		mockMvc.perform(withdrawRequest(token, "password123")).andExpect(status().isConflict());
+
+		mockMvc.perform(patch("/api/reservations/" + reservationId + "/cancel").header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk());
+		long cleanPetId = createPet(token, "삭제될펫");
+		mockMvc.perform(withdrawRequest(token, "password123")).andExpect(status().isOk());
+
+		// 로그인·기존 토큰·refreshToken 전부 막힘, 같은 이메일로 다시 가입 가능
+		User withdrawn = userRepository.findById(reservationRepository.findById(reservationId).orElseThrow().getUser().getId())
+				.orElseThrow();
+		assertThat(withdrawn.isWithdrawn()).isTrue();
+		assertThat(withdrawn.getEmail()).doesNotContain(email);
+		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + token))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(post("/api/auth/reissue")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"refreshToken\":\"" + tokens.get("refreshToken").asText() + "\"}"))
+				.andExpect(status().isUnauthorized());
+		signup(email);
+
+		// 예약 이력 있는 펫·예약 행은 남고, 이력 없는 펫은 삭제
+		assertThat(petRepository.existsById(freePetId)).isTrue();
+		assertThat(reservationRepository.existsById(reservationId)).isTrue();
+		assertThat(petRepository.existsById(cleanPetId)).isFalse();
+
+		// 관리자도 탈퇴 계정은 정지 해제 못 함
+		mockMvc.perform(patch("/api/admin/users/" + withdrawn.getId() + "/activate").header("Authorization", "Bearer " + adminToken))
+				.andExpect(status().isConflict());
+		// 관리자 계정 자체는 탈퇴 불가
+		mockMvc.perform(withdrawRequest(adminToken, null)).andExpect(status().is4xxClientError());
+	}
+
+	private MockHttpServletRequestBuilder withdrawRequest(String token, String password) {
+		return delete("/api/users/me")
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(password == null ? "{}" : "{\"password\":\"" + password + "\"}");
+	}
+
 	private MockHttpServletRequestBuilder routineRequest(String token, long petId, String json) {
 		return post("/api/pets/" + petId + "/routines")
 				.header("Authorization", "Bearer " + token)

@@ -129,14 +129,18 @@ export interface CalendarEvent {
   doneByEmail: string | null
 }
 
-// 반복 일정 — daysOfWeek가 비었으면 startDate 하루만 있는 일회성
+// 매주·격주(시작한 주부터 2주마다)는 고른 요일에, 매월은 startDate와 같은 날(없는 달은 말일)
+export type RoutineRepeat = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+
+// 반복 일정 — 매주·격주인데 daysOfWeek가 비었으면 startDate 하루만 있는 일회성
 export interface Routine {
   id: number
   petId: number
   type: HealthRecordType // WALK/MEAL/MEDICATION/GROOMING만
   title: string
   time: string | null // 'HH:mm:ss'
-  daysOfWeek: DayOfWeek[]
+  repeat: RoutineRepeat
+  daysOfWeek: DayOfWeek[] // 매월이면 항상 빈 배열
   startDate: ISODate
   endDate: ISODate | null
 }
@@ -145,6 +149,7 @@ export interface RoutinePayload {
   type: HealthRecordType
   title: string
   time: string | null
+  repeat: RoutineRepeat
   daysOfWeek: DayOfWeek[]
   startDate: ISODate
   endDate: ISODate | null
